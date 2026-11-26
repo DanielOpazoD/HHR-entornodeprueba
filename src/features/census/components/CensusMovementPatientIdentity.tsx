@@ -1,6 +1,6 @@
 import React from 'react';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import { formatCensusPatientName } from '@/utils/patientNameDisplayUtils';
+import { formatCensusPatientName } from '@/features/census/domain/patientNameDisplayUtils';
 
 interface CensusMovementPatientIdentityProps {
   name: string;

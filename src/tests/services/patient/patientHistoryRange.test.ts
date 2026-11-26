@@ -18,7 +18,7 @@ vi.mock('@/services/storage/firestore', () => ({
   getRecordsRangeFromFirestore: rangeRemote,
 }));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));
-import { getPatientMovementHistoryDetailed } from '@/services/patient/patientHistoryService';
+import { getPatientMovementHistoryDetailed } from '@/features/census/services/patientHistoryService';
 
 describe('bounded patient history reads', () => {
   beforeEach(() => {

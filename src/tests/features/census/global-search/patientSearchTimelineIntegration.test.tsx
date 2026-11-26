@@ -4,11 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PatientEpisodeTimeline } from '@/features/census/components/global-search/PatientEpisodeTimeline';
 import { usePatientSelection } from '@/features/census/components/global-search/usePatientSelection';
 import type { MasterPatient } from '@/types/domain/patientMaster';
-import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
+import type { PatientHistoryResult } from '@/features/census/services/patientHistoryService';
 
 const mockGetPatientMovementHistory = vi.fn();
 
-vi.mock('@/services/patient/patientHistoryService', () => ({
+vi.mock('@/features/census/services/patientHistoryService', () => ({
   getPatientMovementHistoryDetailed: (...args: unknown[]) => mockGetPatientMovementHistory(...args),
 }));
 

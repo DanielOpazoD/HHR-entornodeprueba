@@ -9,7 +9,7 @@ import { buildClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpiso
 import {
   buildSpecialistHandoffIdentity,
   specialistHandoffIdentityKey,
-} from '@/services/storage/firestore/specialistMedicalHandoffIdentity';
+} from '@/features/handoff/services/specialistMedicalHandoffIdentity';
 import { resolveHandoffPatientRowPlan } from '@/features/handoff/controllers/handoffPatientTableController';
 import { WoundCarePhotoCountProvider } from '@/features/wound-care/public';
 import { HandoffRow } from './HandoffRow';

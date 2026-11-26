@@ -5,7 +5,7 @@ import {
   validateWoundCareMobileUploadSession,
   type WoundCareMobileUploadSessionPayload,
 } from '@/features/wound-care/services/woundCareMobileUploadService';
-import { compressImage, generateThumbnail } from '@/utils/imageCompression';
+import { compressImage, generateThumbnail } from '@/features/wound-care/utils/imageCompression';
 import { normalizeRut } from '@/utils/rutUtils';
 import {
   formatReadonlyUploadDateTime,

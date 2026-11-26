@@ -7,7 +7,7 @@ import {
   resolveDeviceToggleOutcome,
   resolveNextVvpKey,
   resolveVvpDevices,
-} from '@/components/device-selector/deviceSelectorController';
+} from '@/features/census/components/device-selector/deviceSelectorController';
 
 describe('deviceSelectorController', () => {
   it('normalizes legacy and explicit VVP keys into bounded VVP slots', () => {

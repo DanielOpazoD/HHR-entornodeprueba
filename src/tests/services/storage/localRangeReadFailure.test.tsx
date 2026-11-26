@@ -9,7 +9,7 @@ import {
   fetchRecordsRangeSorted,
 } from '@/services/records/recordQueryService';
 import { loadPatientUpcHistory } from '@/features/census/services/patientUpcHistoryService';
-import { loadPatientHistoryRecords } from '@/services/patient/patientHistoryRecordLoader';
+import { loadPatientHistoryRecords } from '@/features/census/services/patientHistoryRecordLoader';
 import { useExistingDaysQuery } from '@/hooks/useExistingDaysQuery';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import { DataFactory } from '@/tests/factories/DataFactory';

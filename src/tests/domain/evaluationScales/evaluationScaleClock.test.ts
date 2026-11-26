@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { evaluationScaleStampInRapaNui } from '@/domain/evaluationScales/evaluationScaleClock';
+import { evaluationScaleStampInRapaNui } from '@/features/census/domain/evaluationScaleClock';
 
 describe('stored Braden and Downton applications, read on the hospital clock', () => {
   // The shapes found in production on 2026-11-03 (392 applications), in both seasons.

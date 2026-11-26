@@ -5,7 +5,7 @@ import {
   buildVitalSignsView,
   type VitalReadingView,
 } from '@/features/census/controllers/vitalSignsView';
-import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
+import { resolveVitalSignsProfile } from '@/features/census/domain/vitalSignsProfileResolver';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { VITAL_STATUS_CARD, VITAL_STATUS_TEXT } from '../patient-row/vitalStatusTone';
 import { ClinicalDetailLoadBoundary } from '../patient-row/ClinicalDetailLoadBoundary';

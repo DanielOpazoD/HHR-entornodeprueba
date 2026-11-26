@@ -3,7 +3,7 @@ import type { EvaluationScoreEntry } from '@/types/domain/evaluationScores';
 import { formatClinicalDayMonthYear } from '@/utils/clinicalTimeFormat';
 import { useEloisaStaff } from '@/hooks/useEloisaStaff';
 import { nursingRole } from '@/services/staff/eloisaStaffIdentity';
-import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
+import { formatStaffDisplayName } from '@/features/census/services/staffDisplayName';
 
 interface ScoresHistoryTableProps {
   history: EvaluationScoreEntry[];

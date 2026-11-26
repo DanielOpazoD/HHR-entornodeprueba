@@ -1,5 +1,5 @@
 import type { DeviceDetails, DeviceInfo } from '@/types/domain/devices';
-import { buildRetireNote } from '@/components/device-selector/deviceSelectorController';
+import { buildRetireNote } from '@/features/census/components/device-selector/deviceSelectorController';
 
 interface BuildRetireDeviceMutationParams {
   retiringDevice: string;

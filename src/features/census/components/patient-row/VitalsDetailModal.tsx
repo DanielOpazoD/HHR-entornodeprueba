@@ -16,7 +16,7 @@ import {
   type VitalSignsProfile,
 } from '@/features/census/controllers/vitalSignsView';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
-import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
+import { resolveVitalSignsProfile } from '@/features/census/domain/vitalSignsProfileResolver';
 import { VITAL_STATUS_CARD, VITAL_STATUS_TEXT } from './vitalStatusTone';
 import {
   resolveVitalsDetailHistory,

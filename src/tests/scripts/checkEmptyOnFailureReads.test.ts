@@ -112,7 +112,7 @@ describe('check-empty-on-failure-reads', () => {
     'src/features/radiology/services/mmradService.ts',
     'src/features/census/services/patientUpcHistoryService.ts',
     'src/services/laboratory/syslabService.ts',
-    'src/services/patient/patientHistoryService.ts',
+    'src/features/census/services/patientHistoryService.ts',
     'src/services/cudyr/cudyrStorageQuery.ts',
     'src/services/backup/censusStorageService.ts',
     'src/services/backup/cudyrStorageService.ts',

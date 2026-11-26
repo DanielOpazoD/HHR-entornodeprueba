@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import {
   loadGoogleIdentityButton,
   mountGoogleIdentityButton,
-} from '@/services/auth/googleIdentityButton';
+} from '@/features/auth/services/googleIdentityButton';
 
 interface Props {
   onCredential: (idToken: string, isCurrent: () => boolean) => Promise<void>;

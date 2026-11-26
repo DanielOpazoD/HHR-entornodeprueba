@@ -2,8 +2,8 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import type { PatientData } from '@/types/domain/patient';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
-import type { StaffObservation } from './eloisaStaffIdentity';
-import { collectRecordedStaffNames } from './dailyRecordStaffing';
+import type { StaffObservation } from '@/services/staff/eloisaStaffIdentity';
+import { collectRecordedStaffNames } from '@/services/staff/dailyRecordStaffing';
 const array = <T>(value: readonly T[] | null | undefined): readonly T[] =>
   Array.isArray(value) ? value : [];
 

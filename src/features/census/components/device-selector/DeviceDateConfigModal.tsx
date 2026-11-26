@@ -3,7 +3,7 @@ import { Calendar, Clock } from 'lucide-react';
 import type { DeviceInfo } from '@/types/domain/devices';
 import { DEVICE_OPTIONS } from '@/constants/clinicalDeviceConstants';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { isAnyVvpDevice } from '@/components/device-selector/deviceSelectorController';
+import { isAnyVvpDevice } from '@/features/census/components/device-selector/deviceSelectorController';
 import { calculateDeviceDays } from '@/utils/clinicalStayDayUtils';
 
 // Labels for known devices

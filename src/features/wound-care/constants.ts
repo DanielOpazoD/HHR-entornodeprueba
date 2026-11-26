@@ -10,7 +10,7 @@
 export const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 
 // Compression parameters live with the shared compression utility in
-// src/utils/imageCompression.ts so the utility stays self-contained and
+// src/features/wound-care/utils/imageCompression.ts so the utility stays self-contained and
 // does not reach back into this feature module.
 
 // ============================================================================

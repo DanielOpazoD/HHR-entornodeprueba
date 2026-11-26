@@ -4,7 +4,7 @@
  *
  * Kept intentionally lean: total + Eloísa severity + recorded day are stored. The source severity
  * owns the classification shown to users, while planned care ("conducta") and reapplication due-date
- * remain derived from HHR's local policy (see `@/domain/evaluationScales/bradenRisk`). Keeping those
+ * remain derived from HHR's local policy (see `bradenRisk` in `features/census/domain`). Keeping those
  * responsibilities separate lets either contract evolve without rewriting stored records.
  */
 

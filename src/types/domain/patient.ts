@@ -190,7 +190,7 @@ export interface PatientData {
   /**
    * Nursing evaluation scales (Braden UPP + Downton falls) synced from Ficha Médico.
    * Risk level / planned care / reapplication due-date are derived at display time from the total
-   * and the patient's age (see `@/domain/evaluationScales/bradenRisk`).
+   * and the patient's age (see `bradenRisk` in `features/census/domain`).
    */
   evaluationScores?: PatientEvaluationScores;
 

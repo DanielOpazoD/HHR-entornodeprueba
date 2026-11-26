@@ -1,7 +1,10 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import { comparableName, normalizeNameSpacing } from '@/utils/legacyNameParts';
-import { formatCensusPatientName, formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
+import {
+  formatCensusPatientName,
+  formatPatientDisplayName,
+} from '@/features/census/domain/patientNameDisplayUtils';
 
 export interface ResolveNameInputStateParams {
   data: PatientData;

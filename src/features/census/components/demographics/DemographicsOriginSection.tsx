@@ -1,10 +1,10 @@
 import React from 'react';
 import clsx from 'clsx';
-import { resolveAdmissionDateOptions } from '@/shared/date/admissionDateOptions';
+import { resolveAdmissionDateOptions } from '@/features/census/domain/admissionDateOptions';
 import {
   resolveAdmissionTimePickerModel,
   resolveAdmissionTimeValue,
-} from '@/shared/date/admissionTimeOptions';
+} from '@/features/census/domain/admissionTimeOptions';
 import { LocalDemographicsState, Origin } from './types';
 import { DemographicsAdmissionOriginField } from './DemographicsAdmissionOriginField';
 import { DemographicsSexField } from './DemographicsSexField';

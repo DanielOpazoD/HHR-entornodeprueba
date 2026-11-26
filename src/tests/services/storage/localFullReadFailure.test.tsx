@@ -77,7 +77,7 @@ describe('full local read consumers', () => {
   });
   it('rejects staff recovery before publishing an incomplete catalog', async () => {
     failRead();
-    const { recoverCensusStaff } = await import('@/services/staff/recoverCensusStaff');
+    const { recoverCensusStaff } = await import('@/features/census/services/recoverCensusStaff');
     await expect(recoverCensusStaff(vi.fn())).rejects.toThrow('synthetic local failure');
     render(<RecoverCensusStaffButton />);
     fireEvent.click(screen.getByRole('button', { name: /Buscar profesionales/ }));

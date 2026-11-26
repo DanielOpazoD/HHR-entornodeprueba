@@ -1,7 +1,7 @@
 import type { CudyrCellModel } from '@/features/census/controllers/evaluationScoresCellController';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { useEloisaStaff } from '@/hooks/useEloisaStaff';
-import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
+import { formatStaffDisplayName } from '@/features/census/services/staffDisplayName';
 import { nursingRole } from '@/services/staff/eloisaStaffIdentity';
 import { CudyrCard } from './ScoresDetailCards';
 import { resolveCudyrOwningCensusDay } from '@/domain/evaluationScales/importedCudyr';

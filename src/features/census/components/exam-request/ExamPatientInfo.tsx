@@ -7,7 +7,7 @@ import React from 'react';
 import type { PatientData } from '@/types/domain/patient';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { getTodayISO } from '@/utils/dateCoreUtils';
-import { formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
+import { formatPatientDisplayName } from '@/features/census/domain/patientNameDisplayUtils';
 
 interface ExamPatientInfoProps {
   patient: PatientData;

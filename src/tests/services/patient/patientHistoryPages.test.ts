@@ -8,8 +8,8 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getAllRecords: mocks.local,
 }));
 vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => true }));
-import { getPatientMovementHistoryDetailed } from '@/services/patient/patientHistoryService';
-import { projectPatientHistoryRecord } from '@/services/patient/patientHistoryRecordLoader';
+import { getPatientMovementHistoryDetailed } from '@/features/census/services/patientHistoryService';
+import { projectPatientHistoryRecord } from '@/features/census/services/patientHistoryRecordLoader';
 
 const record = (date: string) =>
   DataFactory.createMockDailyRecord(date, {

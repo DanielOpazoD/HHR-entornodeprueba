@@ -13,7 +13,7 @@ import {
   buildVitalSignsView,
   type VitalReadingView,
 } from '@/features/census/controllers/vitalSignsView';
-import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
+import { resolveVitalSignsProfile } from '@/features/census/domain/vitalSignsProfileResolver';
 import { VITAL_STATUS_TEXT } from './vitalStatusTone';
 
 const VitalsDetailModal = lazy(() =>

@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { MovementTimeline } from '@/features/census/components/global-search/MovementTimeline';
-import type { PatientMovement } from '@/services/patient/patientHistoryService';
+import type { PatientMovement } from '@/features/census/services/patientHistoryService';
 
 const movements: PatientMovement[] = [
   {

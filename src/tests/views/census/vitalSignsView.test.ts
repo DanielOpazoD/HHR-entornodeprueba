@@ -6,7 +6,7 @@ import {
 } from '@/features/census/controllers/vitalSignsView';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import { classifyVitalSign } from '@/constants/vitalSignsThresholds';
-import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
+import { resolveVitalSignsProfile } from '@/features/census/domain/vitalSignsProfileResolver';
 
 const vitals = (over: Partial<PatientVitalSigns> = {}): PatientVitalSigns => ({
   recordedDate: '2026-07-11',

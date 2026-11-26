@@ -12,7 +12,7 @@ export const RecoverCensusStaffButton = () => {
     active.current = controller;
     setBusy(true);
     try {
-      const { recoverCensusStaff } = await import('@/services/staff/recoverCensusStaff');
+      const { recoverCensusStaff } = await import('@/features/census/services/recoverCensusStaff');
       const result = await recoverCensusStaff(
         count => setMessage(`${count} censos revisados…`),
         controller.signal

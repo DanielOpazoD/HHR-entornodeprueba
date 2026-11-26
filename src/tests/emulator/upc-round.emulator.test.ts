@@ -3,7 +3,7 @@ import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { buildUpcCriteriaEvaluation } from '@/domain/upc/upcCriteriaEvaluation';
+import { buildUpcCriteriaEvaluation } from '@/features/census/domain/upcCriteriaEvaluation';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
 import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 

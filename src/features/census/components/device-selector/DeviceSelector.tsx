@@ -9,7 +9,7 @@ import { Plus } from 'lucide-react';
 import type { DeviceDetails, DeviceInfo } from '@/types/domain/devices';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
-import { DeviceDateConfigModal } from '@/components/device-selector/DeviceDateConfigModal';
+import { DeviceDateConfigModal } from '@/features/census/components/device-selector/DeviceDateConfigModal';
 import { DeviceBadge } from './DeviceBadge';
 import { DeviceMenu } from './DeviceMenu';
 import { DeviceOverflowButton } from './DeviceOverflowButton';
@@ -22,7 +22,7 @@ import {
   normalizeSelectedDevices,
   resolveDeviceToggleOutcome,
   resolveVvpDevices,
-} from '@/components/device-selector/deviceSelectorController';
+} from '@/features/census/components/device-selector/deviceSelectorController';
 import {
   buildDeviceConfigMutation,
   buildRetireDeviceMutation,

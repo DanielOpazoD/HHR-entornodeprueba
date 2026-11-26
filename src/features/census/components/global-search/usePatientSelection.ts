@@ -11,7 +11,7 @@ import type { MasterPatient } from '@/types/domain/patientMaster';
 import type {
   PatientHistoryResult,
   PatientHistoryReadResult,
-} from '@/services/patient/patientHistoryService';
+} from '@/features/census/services/patientHistoryService';
 import type {
   SelectedPatientDetail,
   EpisodeDocuments,
@@ -31,7 +31,7 @@ import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRunti
 // ---------------------------------------------------------------------------
 
 const loadPatientHistory = createCachedRuntimeLoader(
-  () => import('@/services/patient/patientHistoryService')
+  () => import('@/features/census/services/patientHistoryService')
 );
 const loadClinicalDocPort = createCachedRuntimeLoader(
   () => import('@/application/ports/clinicalDocumentPort')

@@ -11,7 +11,7 @@ import type { PatientData } from '@/types/domain/patient';
  */
 
 import { calculateAge, formatDateToCL as formatDate } from '@/utils/clinicalUtils';
-import { formatPatientDisplayName } from '@/utils/patientNameDisplayUtils';
+import { formatPatientDisplayName } from '@/features/census/domain/patientNameDisplayUtils';
 import {
   SOLICITUD_FIELD_COORDS,
   ENCUESTA_FIELD_COORDS,

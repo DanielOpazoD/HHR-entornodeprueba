@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
+import { formatStaffDisplayName } from '@/features/census/services/staffDisplayName';
 import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';
 
 const nurse: EloisaStaffIdentity = {

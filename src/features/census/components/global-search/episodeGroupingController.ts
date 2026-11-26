@@ -13,7 +13,7 @@ import type { GroupedEpisode } from '@/features/census/components/global-search/
 import type {
   PatientHistoryResult,
   PatientMovement,
-} from '@/services/patient/patientHistoryService';
+} from '@/features/census/services/patientHistoryService';
 import { diffCalendarDays } from '@/utils/clinicalDateUtils';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
