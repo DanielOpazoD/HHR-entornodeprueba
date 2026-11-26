@@ -2,11 +2,12 @@ import {
   deleteDoc,
   getDoc,
   getDocs,
+  getDocsFromServer,
   onSnapshot,
-  orderBy,
-  query,
   setDoc,
   updateDoc,
+  waitForPendingWrites,
+  type Firestore,
 } from 'firebase/firestore';
 import { defaultReminderFirestoreRuntime } from '@/services/firebase-runtime/reminderRuntime';
 import type { Reminder } from '@/types/reminders';
@@ -33,6 +34,11 @@ const sortReminders = (items: Reminder[]): Reminder[] =>
   });
 
 export type ReminderRepositoryErrorKind = ReminderOperationErrorKind;
+export type ReminderRepositoryListErrorKind = ReminderRepositoryErrorKind | 'invalid_record';
+export type ReminderRepositorySubscriptionErrorKind =
+  | ReminderRepositoryErrorKind
+  | 'unconfirmed_cache'
+  | 'invalid_record';
 
 export type ReminderRepositoryMutationResult =
   | { status: 'success' }
@@ -40,15 +46,40 @@ export type ReminderRepositoryMutationResult =
 
 export type ReminderRepositoryListResult =
   | { status: 'success'; reminders: Reminder[] }
-  | { status: ReminderRepositoryErrorKind; error: unknown; reminders: Reminder[] };
+  | { status: ReminderRepositoryListErrorKind; error: unknown; reminders: Reminder[] };
 
 export interface ReminderRepositorySubscriptionOptions {
-  onError?: (error: unknown, kind: ReminderRepositoryErrorKind) => void;
+  onError?: (error: unknown, kind: ReminderRepositorySubscriptionErrorKind) => void;
+  onCachedSnapshot?: (reminders: Reminder[]) => void;
 }
 
 export interface ReminderRepositoryDependencies {
   runtime?: typeof defaultReminderFirestoreRuntime;
 }
+
+const isLiveFirestoreInstance = (value: unknown): value is Firestore =>
+  Boolean(
+    value && typeof value === 'object' && typeof (value as { type?: unknown }).type === 'string'
+  );
+
+const parseReminderDocs = (
+  docs: readonly { id: string; data: () => unknown }[]
+): { reminders: Reminder[]; invalidCount: number } => {
+  const reminders: Reminder[] = [];
+  let invalidCount = 0;
+  for (const docSnap of docs) {
+    const rawData = docSnap.data();
+    const record =
+      rawData && typeof rawData === 'object' ? { id: docSnap.id, ...rawData } : rawData;
+    const normalized = normalizeReminderRecord(record, docSnap.id);
+    if (normalized) {
+      reminders.push(normalized);
+    } else {
+      invalidCount += 1;
+    }
+  }
+  return { reminders: sortReminders(reminders), invalidCount };
+};
 
 export const createReminderRepository = ({
   runtime = defaultReminderFirestoreRuntime,
@@ -57,19 +88,121 @@ export const createReminderRepository = ({
     callback: (reminders: Reminder[]) => void,
     options: ReminderRepositorySubscriptionOptions = {}
   ): () => void {
-    const remindersQuery = query(getRemindersCollectionRef(runtime), orderBy('createdAt', 'desc'));
+    // Query the full collection without orderBy so malformed docs missing `createdAt`
+    // are not silently omitted by Firestore; valid reminders are sorted in memory.
+    const remindersCollection = getRemindersCollectionRef(runtime);
+    let active = true;
+    let snapshotSeq = 0;
+    let lastConfirmedIds = new Set<string>();
 
-    return onSnapshot(
-      remindersQuery,
+    const reportInvalidRecords = (invalidCount: number) => {
+      reminderObservability.recordEvent('subscribe_reminders', 'degraded', {
+        issues: ['Se encontraron avisos con formato inválido.'],
+        context: { errorKind: 'invalid_record', invalidCount },
+      });
+      options.onError?.(new Error('Se encontraron avisos con formato inválido.'), 'invalid_record');
+    };
+
+    const reportUnconfirmedCache = () => {
+      reminderObservability.recordEvent('subscribe_reminders', 'degraded', {
+        issues: ['No fue posible confirmar los avisos desde el servidor.'],
+        context: { errorKind: 'unconfirmed_cache' },
+      });
+      options.onError?.(
+        new Error('No fue posible confirmar los avisos desde el servidor.'),
+        'unconfirmed_cache'
+      );
+    };
+
+    const unsubscribe = onSnapshot(
+      remindersCollection,
+      { includeMetadataChanges: true },
       snapshot => {
-        const reminders = snapshot.docs
-          .map(docSnap =>
-            normalizeReminderRecord({ id: docSnap.id, ...docSnap.data() }, docSnap.id)
-          )
-          .filter((item): item is Reminder => Boolean(item));
-        callback(sortReminders(reminders));
+        if (!active) return;
+        const seq = ++snapshotSeq;
+        const hasMetadata = Boolean(snapshot.metadata);
+        const fromCache = Boolean(snapshot.metadata?.fromCache);
+        const hasPendingWrites = Boolean(
+          snapshot.metadata?.hasPendingWrites ||
+          snapshot.docs.some(docSnap => docSnap.metadata?.hasPendingWrites)
+        );
+        const { reminders, invalidCount } = parseReminderDocs(snapshot.docs);
+
+        if (invalidCount > 0) {
+          reportInvalidRecords(invalidCount);
+          return;
+        }
+
+        if (fromCache) {
+          if (reminders.length === 0) {
+            reportUnconfirmedCache();
+            return;
+          }
+          if (options.onCachedSnapshot) {
+            options.onCachedSnapshot(reminders);
+          } else {
+            callback(reminders);
+          }
+          return;
+        }
+
+        const nextIds = new Set(reminders.map(item => item.id));
+        const hasRemovedId = [...lastConfirmedIds].some(id => !nextIds.has(id));
+        const needsServerSettlement = hasMetadata && isLiveFirestoreInstance(runtime.firestore);
+
+        if (!needsServerSettlement) {
+          lastConfirmedIds = nextIds;
+          callback(reminders);
+          return;
+        }
+
+        const verifyAgainstServer = hasPendingWrites || reminders.length === 0 || hasRemovedId;
+
+        void (async () => {
+          try {
+            await waitForPendingWrites(runtime.firestore);
+            if (!active || snapshotSeq !== seq) return;
+
+            if (!verifyAgainstServer) {
+              lastConfirmedIds = nextIds;
+              callback(reminders);
+              return;
+            }
+
+            const verified = await getDocsFromServer(remindersCollection);
+            if (!active || snapshotSeq !== seq) return;
+            if (
+              verified.metadata?.fromCache ||
+              verified.metadata?.hasPendingWrites ||
+              verified.docs.some(docSnap => docSnap.metadata?.hasPendingWrites)
+            ) {
+              reportUnconfirmedCache();
+              return;
+            }
+
+            const parsedVerified = parseReminderDocs(verified.docs);
+            if (parsedVerified.invalidCount > 0) {
+              reportInvalidRecords(parsedVerified.invalidCount);
+              return;
+            }
+
+            lastConfirmedIds = new Set(parsedVerified.reminders.map(item => item.id));
+            callback(parsedVerified.reminders);
+          } catch (error) {
+            if (!active || snapshotSeq !== seq) return;
+            const kind = resolveReminderOperationErrorKind(error);
+            reminderRepositoryLogger.error('Error confirming reminder snapshot from server', error);
+            reminderObservability.recordEvent('subscribe_reminders', 'degraded', {
+              issues: ['No fue posible confirmar los avisos desde el servidor.'],
+              context: { errorKind: kind },
+            });
+            options.onError?.(error, kind);
+          }
+        })();
       },
       error => {
+        if (!active) return;
+        snapshotSeq += 1;
         reminderRepositoryLogger.error('Error subscribing reminders', error);
         const permissionDenied = isReminderPermissionDeniedError(error);
         // A session that just ended loses this listener as well: logged, but nobody gets mailed.
@@ -80,6 +213,12 @@ export const createReminderRepository = ({
         options.onError?.(error, permissionDenied ? 'permission_denied' : 'unknown');
       }
     );
+
+    return () => {
+      active = false;
+      snapshotSeq += 1;
+      unsubscribe();
+    };
   },
 
   async list(): Promise<Reminder[]> {
@@ -92,18 +231,24 @@ export const createReminderRepository = ({
 
   async listWithResult(): Promise<ReminderRepositoryListResult> {
     try {
-      const snapshot = await getDocs(
-        query(getRemindersCollectionRef(runtime), orderBy('createdAt', 'desc'))
-      );
+      const snapshot = await getDocs(getRemindersCollectionRef(runtime));
+      const { reminders, invalidCount } = parseReminderDocs(snapshot.docs);
+      if (invalidCount > 0) {
+        const error = new Error('Se encontraron avisos con formato inválido.');
+        reminderRepositoryLogger.error('Error listing reminders: invalid record format', error);
+        reminderObservability.recordEvent('list_reminders', 'failed', {
+          issues: ['Se encontraron avisos con formato inválido.'],
+          context: { errorKind: 'invalid_record', invalidCount },
+        });
+        return {
+          status: 'invalid_record',
+          error,
+          reminders: [],
+        };
+      }
       return {
         status: 'success',
-        reminders: sortReminders(
-          snapshot.docs
-            .map(docSnap =>
-              normalizeReminderRecord({ id: docSnap.id, ...docSnap.data() }, docSnap.id)
-            )
-            .filter((item): item is Reminder => Boolean(item))
-        ),
+        reminders,
       };
     } catch (error) {
       reminderRepositoryLogger.error('Error listing reminders', error);

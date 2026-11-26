@@ -26,7 +26,8 @@ vi.mock('@/services/reminders/reminderObservability', () => ({
 
 const failSubscription = async (error: unknown) => {
   const { ReminderRepository } = await import('@/services/reminders/ReminderRepository');
-  mocks.onSnapshot.mockImplementation((_query, _next, onError) => {
+  mocks.onSnapshot.mockImplementation((_query, optionsOrNext, nextOrFail, maybeFail) => {
+    const onError = typeof optionsOrNext === 'function' ? nextOrFail : maybeFail;
     onError(error);
     return vi.fn();
   });

@@ -19,14 +19,29 @@ export interface ReminderValidationIssue {
   message: string;
 }
 
+export const REMINDER_TITLE_MAX_LENGTH = 100;
+export const REMINDER_MESSAGE_MAX_LENGTH = 2000;
+
 export const validateReminderDraft = (draft: ReminderDraftInput): ReminderValidationIssue[] => {
   const issues: ReminderValidationIssue[] = [];
+  const trimmedTitle = draft.title.trim();
+  const trimmedMessage = draft.message.trim();
 
-  if (!draft.title.trim()) {
+  if (!trimmedTitle) {
     issues.push({ field: 'title', message: 'El título es obligatorio.' });
+  } else if (trimmedTitle.length > REMINDER_TITLE_MAX_LENGTH) {
+    issues.push({
+      field: 'title',
+      message: `El título no puede superar los ${REMINDER_TITLE_MAX_LENGTH} caracteres.`,
+    });
   }
-  if (!draft.message.trim()) {
+  if (!trimmedMessage) {
     issues.push({ field: 'message', message: 'El mensaje es obligatorio.' });
+  } else if (trimmedMessage.length > REMINDER_MESSAGE_MAX_LENGTH) {
+    issues.push({
+      field: 'message',
+      message: `El mensaje no puede superar los ${REMINDER_MESSAGE_MAX_LENGTH} caracteres.`,
+    });
   }
   if (draft.targetRoles.length === 0) {
     issues.push({ field: 'targetRoles', message: 'Selecciona al menos un rol destinatario.' });

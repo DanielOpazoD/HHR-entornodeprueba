@@ -5,7 +5,7 @@ import { createReminderReadService } from '@/services/reminders/ReminderReadServ
 
 vi.mock('firebase/firestore', () => ({
   getDoc: vi.fn(),
-  getDocs: vi.fn(),
+  getDocsFromServer: vi.fn(),
   setDoc: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/services/firebase-runtime/reminderRuntime', () => ({

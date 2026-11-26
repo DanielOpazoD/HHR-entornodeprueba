@@ -30,6 +30,7 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
   const [isOpen, setIsOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [isAvailable, setIsAvailable] = React.useState(true);
+  const [canResolveReadStates, setCanResolveReadStates] = React.useState(true);
   const [now, setNow] = React.useState(() => new Date());
   const readReminderIdsRef = React.useRef<string[]>([]);
 
@@ -76,10 +77,12 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
       setReminders([]);
       setLoading(false);
       setIsAvailable(!isAuthenticated);
+      setCanResolveReadStates(false);
       if (isAuthenticated) setIsOpen(false);
     } else {
       setLoading(true);
       setIsAvailable(true);
+      setCanResolveReadStates(true);
     }
   }
   React.useEffect(() => {
@@ -91,6 +94,7 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
         setLoading(false);
         if (outcome.status === 'success') {
           setIsAvailable(true);
+          setCanResolveReadStates(true);
           recordOperationalTelemetry(
             {
               category: 'reminders',
@@ -105,9 +109,18 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
           return;
         }
 
+        if (outcome.status === 'degraded' && outcome.reason === 'cached_snapshot') {
+          setReminders(nextReminders);
+          setLoading(false);
+          setIsAvailable(false);
+          setCanResolveReadStates(true);
+          return;
+        }
+
         if (outcome.status === 'degraded' || outcome.status === 'failed') {
           setLoading(false);
           setIsAvailable(false);
+          setCanResolveReadStates(false);
           recordOperationalTelemetry({
             category: 'reminders',
             operation: 'center_subscription_ready',
@@ -127,18 +140,18 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
     currentDate,
     currentShift,
     currentUser?.uid,
-    isAvailable,
+    canResolveReadStates,
     visibleReminders,
   ]);
   if (
     readStateInputsChanged &&
-    isAvailable &&
+    canResolveReadStates &&
     (!currentUser?.uid || visibleReminders.length === 0)
   ) {
     setReadReminderIds([]);
   }
   React.useEffect(() => {
-    if (!isAvailable || !currentUser?.uid || visibleReminders.length === 0) return;
+    if (!canResolveReadStates || !currentUser?.uid || visibleReminders.length === 0) return;
 
     let cancelled = false;
     void (async () => {
@@ -156,7 +169,7 @@ export const ReminderCenterProvider: React.FC<{ children: React.ReactNode }> = (
     return () => {
       cancelled = true;
     };
-  }, [currentDate, currentShift, currentUser?.uid, isAvailable, visibleReminders]);
+  }, [canResolveReadStates, currentDate, currentShift, currentUser?.uid, visibleReminders]);
 
   const markReminderAsRead = React.useCallback(
     async (reminderId: string) => {

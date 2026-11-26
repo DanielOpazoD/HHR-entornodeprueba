@@ -11,6 +11,8 @@ interface ReminderReadStatusTableProps {
   reminder: Reminder | null;
   receipts: ReminderReadReceipt[];
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   onClose: () => void;
 }
 
@@ -18,6 +20,8 @@ export const ReminderReadStatusTable: React.FC<ReminderReadStatusTableProps> = (
   reminder,
   receipts,
   loading,
+  error = null,
+  onRetry,
   onClose,
 }) => {
   return (
@@ -32,6 +36,22 @@ export const ReminderReadStatusTable: React.FC<ReminderReadStatusTableProps> = (
     >
       {loading ? (
         <div className="py-10 text-center text-sm font-semibold text-slate-500">Cargando...</div>
+      ) : error ? (
+        <div
+          role="alert"
+          className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-6 text-center text-sm font-semibold text-amber-800"
+        >
+          <p>{error}</p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-4 inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-amber-900 transition hover:bg-amber-100"
+            >
+              Reintentar
+            </button>
+          )}
+        </div>
       ) : receipts.length === 0 ? (
         <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500">
           Todavia no hay lecturas registradas para este aviso.
@@ -53,8 +73,10 @@ export const ReminderReadStatusTable: React.FC<ReminderReadStatusTableProps> = (
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {receipts.map(receipt => (
-                <tr key={`${receipt.userId}-${receipt.readAt}`}>
+              {receipts.map((receipt, index) => (
+                <tr
+                  key={`${receipt.userId}-${receipt.dateKey ?? 'legacy'}-${receipt.shift}-${receipt.readAt}-${index}`}
+                >
                   <td className="px-4 py-3 font-semibold text-slate-700">{receipt.userName}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">

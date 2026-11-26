@@ -89,6 +89,18 @@ describe('validateReminderDraft', () => {
     expect(issues).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'title' })]));
   });
 
+  it('rejects titles longer than 100 characters and messages longer than 2000 characters', () => {
+    const titleIssues = validateReminderDraft(buildDraft({ title: 'A'.repeat(101) }));
+    expect(titleIssues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: 'title' })])
+    );
+
+    const messageIssues = validateReminderDraft(buildDraft({ message: 'B'.repeat(2001) }));
+    expect(messageIssues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: 'message' })])
+    );
+  });
+
   it('requires a non-empty message', () => {
     const issues = validateReminderDraft(buildDraft({ message: '' }));
     expect(issues).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'message' })]));

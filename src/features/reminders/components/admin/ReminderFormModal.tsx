@@ -112,6 +112,7 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
             <label className="mb-1.5 block text-xs font-semibold text-slate-600">Título</label>
             <input
               required
+              maxLength={100}
               value={draft.title}
               onChange={event => setDraft(previous => ({ ...previous, title: event.target.value }))}
               className="hhr-field"
@@ -123,6 +124,7 @@ export const ReminderFormModal: React.FC<ReminderFormModalProps> = ({
             <textarea
               required
               rows={5}
+              maxLength={2000}
               value={draft.message}
               onChange={event =>
                 setDraft(previous => ({ ...previous, message: event.target.value }))

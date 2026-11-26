@@ -16,11 +16,9 @@ import {
   ReminderRepository,
   type ReminderRepositoryListResult,
   type ReminderRepositoryMutationResult,
+  type ReminderRepositorySubscriptionErrorKind,
 } from '@/services/reminders/ReminderRepository';
-import {
-  resolveReminderAdminErrorMessage,
-  type ReminderOperationErrorKind,
-} from '@/services/reminders/reminderErrorPolicy';
+import { resolveReminderAdminErrorMessage } from '@/services/reminders/reminderErrorPolicy';
 import type { Reminder, ReminderReadReceipt, ReminderShift } from '@/types/reminders';
 
 interface ReminderUseCasesDependencies {
@@ -57,7 +55,7 @@ interface UploadReminderImageInput {
 }
 
 const mapReminderErrorKindToIssueKind = (
-  kind: ReminderOperationErrorKind
+  kind: ReminderRepositorySubscriptionErrorKind
 ): ApplicationIssue['kind'] => {
   switch (kind) {
     case 'permission_denied':
@@ -68,13 +66,15 @@ const mapReminderErrorKindToIssueKind = (
 };
 
 const buildReminderIssue = (
-  kind: ReminderOperationErrorKind,
+  kind: ReminderRepositorySubscriptionErrorKind,
   error: unknown,
   fallbackMessage: string
 ): ApplicationIssue => ({
   kind: mapReminderErrorKindToIssueKind(kind),
   message:
-    resolveReminderAdminErrorMessage(error, { operation: 'firestore_read' }) || fallbackMessage,
+    kind === 'unconfirmed_cache' || kind === 'invalid_record'
+      ? fallbackMessage
+      : resolveReminderAdminErrorMessage(error, { operation: 'firestore_read' }) || fallbackMessage,
   userSafeMessage: fallbackMessage,
   technicalContext: error instanceof Error ? { name: error.name } : undefined,
 });
@@ -86,11 +86,11 @@ const mapReminderListOutcome = (
     return createApplicationSuccess(result.reminders);
   }
 
-  const issue = buildReminderIssue(
-    result.status,
-    result.error,
-    'No fue posible cargar los avisos.'
-  );
+  const fallbackMessage =
+    result.status === 'invalid_record'
+      ? 'No fue posible leer todos los avisos por un formato inválido.'
+      : 'No fue posible cargar los avisos.';
+  const issue = buildReminderIssue(result.status, result.error, fallbackMessage);
   return createApplicationDegraded(result.reminders, [issue], {
     reason: result.status,
     userSafeMessage: issue.userSafeMessage,
@@ -124,7 +124,7 @@ const mapReminderReadReceiptsOutcome = (
     result.error,
     'No fue posible cargar el detalle de lecturas del aviso.'
   );
-  return createApplicationDegraded(result.receipts, [issue], {
+  return createApplicationFailed([], [issue], {
     reason: result.status,
     userSafeMessage: issue.userSafeMessage,
   });
@@ -143,14 +143,33 @@ export const createReminderUseCases = ({
 }: ReminderUseCasesDependencies = {}) => ({
   subscribeToReminderFeed({ onOutcome }: SubscribeRemindersOptions): () => void {
     let lastKnownReminders: Reminder[] = [];
+    let hasConfirmedSnapshot = false;
     return reminderRepository.subscribe(
       reminders => {
+        hasConfirmedSnapshot = true;
         lastKnownReminders = reminders;
         onOutcome(createApplicationSuccess(reminders));
       },
       {
+        onCachedSnapshot: cachedReminders => {
+          const preserved = hasConfirmedSnapshot ? lastKnownReminders : cachedReminders;
+          if (!hasConfirmedSnapshot) {
+            lastKnownReminders = cachedReminders;
+          }
+          onOutcome(
+            createApplicationDegraded(preserved, [], {
+              reason: 'cached_snapshot',
+            })
+          );
+        },
         onError: (error, kind) => {
-          const issue = buildReminderIssue(kind, error, 'No fue posible suscribirse a los avisos.');
+          const fallbackMessage =
+            kind === 'unconfirmed_cache'
+              ? 'No fue posible confirmar los avisos desde el servidor.'
+              : kind === 'invalid_record'
+                ? 'No fue posible leer todos los avisos por un formato inválido.'
+                : 'No fue posible suscribirse a los avisos.';
+          const issue = buildReminderIssue(kind, error, fallbackMessage);
           onOutcome(
             createApplicationDegraded(lastKnownReminders, [issue], {
               reason: kind,

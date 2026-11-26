@@ -45,6 +45,7 @@ describe('reminder admin ui', () => {
     reminders: [],
     loading: false,
     loadError: null,
+    retryLoadReminders: vi.fn(),
     processing: false,
     isFormOpen: false,
     formReminder: null,
@@ -56,7 +57,9 @@ describe('reminder admin ui', () => {
     receiptsReminder: null,
     readReceipts: [],
     receiptsLoading: false,
+    receiptsError: null,
     openReadStatus: vi.fn(),
+    retryReadStatus: vi.fn(),
     closeReadStatus: vi.fn(),
   });
 
@@ -277,5 +280,64 @@ describe('reminder admin ui', () => {
 
     expect(screen.getByText('Enfermera Test')).toBeInTheDocument();
     expect(screen.getByText('Dia')).toBeInTheDocument();
+  });
+
+  it('shows an error alert with retry instead of empty read receipts when loading fails', () => {
+    const onRetry = vi.fn();
+    const reminder: Reminder = {
+      id: 'rem-err',
+      title: 'Aviso con fallo',
+      message: 'Mensaje',
+      type: 'info',
+      targetRoles: ['nurse_hospital'],
+      targetShifts: ['day'],
+      startDate: '2026-03-22',
+      endDate: '2026-03-23',
+      priority: 2,
+      isActive: true,
+      createdBy: 'admin',
+      createdByName: 'Admin',
+      createdAt: '2026-03-22T10:00:00.000Z',
+      updatedAt: '2026-03-22T10:00:00.000Z',
+    };
+
+    render(
+      <ReminderReadStatusTable
+        reminder={reminder}
+        receipts={[]}
+        loading={false}
+        error="No fue posible cargar el detalle de lecturas del aviso."
+        onRetry={onRetry}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'No fue posible cargar el detalle de lecturas del aviso.'
+    );
+    expect(
+      screen.queryByText(/Todavia no hay lecturas registradas para este aviso/i)
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not show the empty reminders message when the feed failed to load and wires retry', () => {
+    const retryLoadReminders = vi.fn();
+    mockUseReminderAdmin.mockReturnValue({
+      ...buildAdminState(),
+      reminders: [],
+      loadError: 'No fue posible suscribirse a los avisos.',
+      retryLoadReminders,
+    });
+
+    render(<ReminderAdminView />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No fue posible suscribirse a los avisos.');
+    expect(screen.queryByText(/No hay avisos creados/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(retryLoadReminders).toHaveBeenCalledTimes(1);
   });
 });

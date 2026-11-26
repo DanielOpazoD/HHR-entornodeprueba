@@ -13,6 +13,7 @@ export const ReminderAdminView: React.FC = () => {
     reminders,
     loading,
     loadError,
+    retryLoadReminders,
     processing,
     isFormOpen,
     formReminder,
@@ -24,7 +25,9 @@ export const ReminderAdminView: React.FC = () => {
     receiptsReminder,
     readReceipts,
     receiptsLoading,
+    receiptsError,
     openReadStatus,
+    retryReadStatus,
     closeReadStatus,
   } = useReminderAdmin();
 
@@ -73,8 +76,18 @@ export const ReminderAdminView: React.FC = () => {
       </header>
 
       {loadError && (
-        <div className="mb-5 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-          {loadError}
+        <div
+          role="alert"
+          className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800"
+        >
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={retryLoadReminders}
+            className="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-3.5 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-amber-900 transition hover:bg-amber-100"
+          >
+            Reintentar
+          </button>
         </div>
       )}
 
@@ -83,9 +96,11 @@ export const ReminderAdminView: React.FC = () => {
           Cargando avisos...
         </div>
       ) : reminders.length === 0 ? (
-        <div className="rounded-[1.75rem] border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-sm font-semibold text-slate-500">
-          No hay avisos creados. Usa &quot;Nuevo aviso&quot; para publicar el primero.
-        </div>
+        loadError ? null : (
+          <div className="rounded-[1.75rem] border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-sm font-semibold text-slate-500">
+            No hay avisos creados. Usa &quot;Nuevo aviso&quot; para publicar el primero.
+          </div>
+        )
       ) : (
         <div className="space-y-4">
           {reminders.map(reminder => (
@@ -135,6 +150,8 @@ export const ReminderAdminView: React.FC = () => {
         reminder={receiptsReminder}
         receipts={readReceipts}
         loading={receiptsLoading}
+        error={receiptsError}
+        onRetry={retryReadStatus}
         onClose={closeReadStatus}
       />
     </div>
