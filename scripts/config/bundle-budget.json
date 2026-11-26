@@ -86,56 +86,6 @@
       "pattern": "^vendor-heic2any-.*\\.js$",
       "_comment": "HEIC/HEIF conversion is loaded only for high-efficiency mobile prescription photos and kept out of the PWA precache. A dedicated ceiling preserves release visibility without relaxing the global chunk budget.",
       "maxBytes": 1450000
-    },
-    {
-      "pattern": "^PatientDocumentManagerDialog-.*\\.js$",
-      "_comment": "Online-only, read-only Eloisa document repository opened explicitly from the clinical drawer.",
-      "maxBytes": 20000
-    },
-    {
-      "pattern": "^ClinicalPanelDrawer-.*\\.js$",
-      "_comment": "Online-only Eloisa clinical drawer loaded only after an explicit patient action.",
-      "maxBytes": 50000
-    },
-    {
-      "pattern": "^RayenSyncHistoryModal-.*\\.js$",
-      "_comment": "Online-only history. Measured 26148 B on 2026-11-12 after deferring technical metrics; 2,000 B headroom.",
-      "maxBytes": 28148
-    },
-    {
-      "pattern": "^RayenSyncTechnicalMetricsPanel-.*\\.js$",
-      "_comment": "Loaded on technical report expansion only. Measured 4307 B on 2026-11-12; at most 10% headroom.",
-      "maxBytes": 4737
-    },
-    {
-      "pattern": "^ClinicalLibraryDrawer-.*\\.js$",
-      "_comment": "Offline-capable census library drawer (catalog, transfer cover, critical medications sheet, calculators, nine scores) loaded only after pressing Documentos. Measured 84831 bytes on 2026-09-06; the ceiling leaves room for more documents and scores while keeping drift visible.",
-      "maxBytes": 120000
-    },
-    {
-      "pattern": "^perfAuditReport-.*\\.js$",
-      "_comment": "Optional diagnostic console formatter, dynamically imported only while auditing. Core measurements and all clinical functionality remain in precache.",
-      "maxBytes": 4000
-    },
-    {
-      "pattern": "^RayenImportButton-.*\\.js$",
-      "_comment": "Online-only Eloisa workflow. Measured 238142 bytes on 2026-11-11 after deferring review; 12288 bytes of headroom.",
-      "maxBytes": 250430
-    },
-    {
-      "pattern": "^RayenImportPreviewModal-.*\\.js$",
-      "_comment": "Online-only review opened after capture. Measured 27545 bytes on 2026-11-12 at c5bde4c5b; ceiling includes less than 10% headroom.",
-      "maxBytes": 30299
-    },
-    {
-      "pattern": "^cudyrEssentialWorkbook-.*\\.js$",
-      "_comment": "Optional monthly Excel download, loaded on demand like the existing ExcelJS runtime. Keep growth bounded without increasing install-time payload.",
-      "maxBytes": 12000
-    },
-    {
-      "pattern": "^cudyrSourceWorkbook-.*\\.js$",
-      "_comment": "Optional Eloisa source-table parser, episode annotations and validation. Measured 17861 bytes; bounded separately without raising the existing 12000-byte core export ceiling. Loaded only for an attached source, outside install-time precache.",
-      "maxBytes": 20000
     }
   ]
 }
