@@ -110,9 +110,12 @@ it('declares every observed report input, even when the input is absent', () => 
     }
     expect(issues).toEqual([]);
     const commands = POST_MERGE_EVIDENCE_COMMANDS.map(step => step.name);
-    for (const consumer of ['legacy-retirement-debt', 'operational-health']) {
-      expect(commands.indexOf('compatibility-governance')).toBeLessThan(commands.indexOf(consumer));
-    }
+    expect(commands.indexOf('operational-health')).toBeLessThan(
+      commands.indexOf('system-confidence')
+    );
+    expect(commands.indexOf('system-confidence')).toBeLessThan(
+      commands.indexOf('release-readiness-scorecard')
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -140,7 +143,7 @@ it('runs documentation and legacy controls without preexisting generated reports
     const report = JSON.parse(
       fs.readFileSync(path.join(root, 'reports/operational-health.json'), 'utf8')
     );
-    expect(report.compatibilityGovernance).not.toBeNull();
+    expect(report.syncDomainProfiles.length).toBeGreaterThan(0);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

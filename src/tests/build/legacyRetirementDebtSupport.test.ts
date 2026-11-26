@@ -18,84 +18,42 @@ const baseConfig = {
       id: 'role-aliases',
       label: 'Role aliases',
       owner: 'auth/security',
-      phase: 'observe',
-      maxGovernedEntries: 4,
-      guardrails: ['legacyRoleAliasStatic.test'],
-      evidenceReports: ['reports/compatibility-governance.md'],
+      phase: 'retired',
+      guardrails: ['src/tests/security/legacyRoleAliasStatic.test.ts'],
+      evidenceReports: ['reports/legacy-retirement-debt.md'],
       retirementCriteria: 'Two releases without viewer_census in claims or config roles.',
-      nextAction: 'Audit production role sources before removing write-back canonicalization.',
+      nextAction: 'Retired: keep legacyRoleAliasStatic.test.ts enforcing zero entries.',
     },
   ],
 };
 
-const compatibilityReport = {
-  entries: [
-    { path: 'functions/lib/auth/authHelpersFactory.js' },
-    { path: 'netlify/functions/lib/firebase-auth.ts' },
-    { path: 'firestore.rules' },
-    { path: 'storage.rules' },
-  ],
-  missingEntries: [],
-};
-
 describe('legacyRetirementDebtSupport', () => {
-  it('builds a deterministic report with surface budgets and release posture', () => {
+  it('builds a deterministic report with retired surfaces and release posture', () => {
     const report = buildLegacyRetirementDebtReport({
       config: baseConfig,
-      compatibilityGovernanceReport: compatibilityReport,
     });
 
     expect(report.generatedAt).toBe(LEGACY_RETIREMENT_DEBT_GENERATED_AT);
     expect(report.status).toBe('ok');
-    expect(report.openSurfaceCount).toBe(1);
+    expect(report.openSurfaceCount).toBe(0);
     expect(report.maxOpenSurfaces).toBe(4);
     expect(report.surfaces).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: 'role-aliases',
+          phase: 'retired',
           status: 'ok',
-          signal: expect.stringContaining('governedEntries=4/4'),
+          signal: 'documented',
         }),
       ])
     );
   });
 
-  it('degrades when an open legacy surface exceeds its retirement budget', () => {
-    const report = buildLegacyRetirementDebtReport({
-      config: {
-        ...baseConfig,
-        surfaces: [
-          {
-            ...baseConfig.surfaces[0],
-            maxGovernedEntries: 0,
-          },
-        ],
-      },
-      compatibilityGovernanceReport: compatibilityReport,
-    });
-
-    expect(report.status).toBe('degraded');
-    expect(report.issues).toEqual(
-      expect.arrayContaining([expect.stringContaining('role-aliases governed entries')])
-    );
-  });
-
-  it('reports ok and zero open surfaces when retired role-aliases has zero governed entries', () => {
+  it('reports ok and zero open surfaces when retired role-aliases has maxOpenSurfaces 0', () => {
     const report = buildLegacyRetirementDebtReport({
       config: {
         ...baseConfig,
         maxOpenSurfaces: 0,
-        surfaces: [
-          {
-            ...baseConfig.surfaces[0],
-            phase: 'retired',
-            maxGovernedEntries: 0,
-          },
-        ],
-      },
-      compatibilityGovernanceReport: {
-        entries: [],
-        missingEntries: [],
       },
     });
 
@@ -106,7 +64,7 @@ describe('legacyRetirementDebtSupport', () => {
         id: 'role-aliases',
         phase: 'retired',
         status: 'ok',
-        signal: 'governedEntries=0/0, missing=0',
+        signal: 'documented',
       })
     );
   });
@@ -301,7 +259,6 @@ describe('legacyRetirementDebtSupport', () => {
   it('renders a concise markdown table for release evidence', () => {
     const report = buildLegacyRetirementDebtReport({
       config: baseConfig,
-      compatibilityGovernanceReport: compatibilityReport,
     });
 
     const markdown = formatLegacyRetirementDebtMarkdown(report);

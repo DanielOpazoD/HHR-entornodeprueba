@@ -195,7 +195,6 @@ const systemHealthBudgets = extractObjectNumbers(
 );
 const syncDomainProfiles = extractSyncDomainProfiles(syncDomainPolicyContent);
 const conflictContexts = extractConflictRunbookActions(conflictDomainContent);
-const compatibilityGovernanceReport = readJsonReport('reports/compatibility-governance.json');
 const prolongedOfflineUserAgeMs = extractConstNumber(
   systemHealthBudgetContent,
   'PROLONGED_OFFLINE_USER_AGE_MS'
@@ -281,15 +280,6 @@ const summary = {
   },
   syncDomainProfiles,
   conflictContexts,
-  compatibilityGovernance: compatibilityGovernanceReport
-    ? {
-        policyVersion: compatibilityGovernanceReport.policyVersion ?? 'unknown',
-        trackedEntries: compatibilityGovernanceReport.trackedEntries ?? 0,
-        missingEntries: Array.isArray(compatibilityGovernanceReport.missingEntries)
-          ? compatibilityGovernanceReport.missingEntries
-          : [],
-      }
-    : null,
   localPersistence,
   authAccess,
   authBootstrap,
@@ -403,17 +393,6 @@ ${summary.syncDomainProfiles
 ${Object.entries(summary.conflictContexts)
   .map(([context, action]) => `| \`${context}\` | ${action} |`)
   .join('\n')}
-
-## Compatibility Governance
-
-- Policy version: ${summary.compatibilityGovernance?.policyVersion ?? 'unknown'}
-- Tracked entries: ${summary.compatibilityGovernance?.trackedEntries ?? 'unknown'}
-- Missing entries: ${
-  Array.isArray(summary.compatibilityGovernance?.missingEntries) &&
-  summary.compatibilityGovernance.missingEntries.length > 0
-    ? summary.compatibilityGovernance.missingEntries.join(', ')
-    : 'none'
-}
 
 ## Local Persistence Recovery Budgets
 

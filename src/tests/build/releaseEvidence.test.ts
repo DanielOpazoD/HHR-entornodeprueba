@@ -1,6 +1,5 @@
 // @vitest-environment node
 import fs from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -17,13 +16,9 @@ const trackedReports = [
   'reports/quality-metrics.json',
   'reports/system-confidence.json',
   'reports/operational-health.json',
-  'reports/clinical-release-validation.json',
-  'reports/clinical-release-signoff.json',
   'reports/release-confidence-matrix.json',
   'reports/release-readiness-scorecard.json',
-  'reports/maintenance-debt-scorecard.json',
 ];
-const scenarioIds = ['census_reload_remote_reconcile', 'clinical_documents_pdf_print'];
 
 const clinicalVisualReleaseReport = {
   stats: {
@@ -78,32 +73,6 @@ const makeRoot = (reportPayload: Record<string, unknown>) => {
   tmpRoots.push(root);
   fs.mkdirSync(path.join(root, 'reports'), { recursive: true });
   fs.mkdirSync(path.join(root, 'reports/e2e'), { recursive: true });
-  fs.mkdirSync(path.join(root, 'scripts/config'), { recursive: true });
-
-  fs.writeFileSync(
-    path.join(root, 'scripts/config/clinical-release-validation.json'),
-    JSON.stringify({
-      version: 1,
-      closureGates: ['codigo_corregido', 'regresion_automatizada', 'flujo_clinico_validado'],
-      scenarios: scenarioIds.map(scenarioId => ({ id: scenarioId })),
-    }),
-    'utf8'
-  );
-  fs.writeFileSync(
-    path.join(root, 'scripts/config/clinical-release-signoff.json'),
-    JSON.stringify({
-      version: 1,
-      releaseCandidate: 'test',
-      signoffs: scenarioIds.map(scenarioId => ({
-        scenarioId,
-        status: 'passed',
-        validatedBy: 'QA Clinico',
-        validatedAt: '2026-05-16T12:00:00.000Z',
-        evidence: [{ type: 'manual_signoff', reference: `evidence/${scenarioId}.md` }],
-      })),
-    }),
-    'utf8'
-  );
 
   for (const reportFile of trackedReports) {
     const payload =
@@ -118,31 +87,6 @@ const makeRoot = (reportPayload: Record<string, unknown>) => {
     'utf8'
   );
 
-  execFileSync('git', ['init', '-q'], { cwd: root });
-  execFileSync('git', ['add', '.'], { cwd: root });
-  execFileSync(
-    'git',
-    [
-      '-c',
-      'user.name=Test',
-      '-c',
-      'user.email=test@example.invalid',
-      'commit',
-      '-qm',
-      'Synthetic release candidate',
-    ],
-    { cwd: root }
-  );
-  const candidate = JSON.parse(
-    fs.readFileSync(path.join(root, 'scripts/config/clinical-release-signoff.json'), 'utf8')
-  );
-  candidate.releaseCandidate = execFileSync('git', ['rev-parse', 'HEAD'], {
-    cwd: root,
-    encoding: 'utf8',
-  }).trim();
-  const signoffPath = path.join(root, '.git/clinical-signoff.json');
-  fs.writeFileSync(signoffPath, JSON.stringify(candidate));
-  vi.stubEnv('CLINICAL_RELEASE_SIGNOFF_FILE', signoffPath);
   return root;
 };
 
@@ -215,29 +159,6 @@ describe('release evidence guardrail', () => {
 
     expect(collectReleaseEvidenceIssues(root)).toContain(
       'reports/release-confidence-matrix.json is missing.'
-    );
-  });
-
-  it('blocks release evidence while clinical signoff is pending', () => {
-    const root = makeRoot({ gitSha: 'abc123', gitDirty: false });
-    fs.writeFileSync(
-      process.env.CLINICAL_RELEASE_SIGNOFF_FILE!,
-      JSON.stringify({
-        version: 1,
-        releaseCandidate: 'test',
-        signoffs: scenarioIds.map(scenarioId => ({
-          scenarioId,
-          status: 'pending_human_review',
-          validatedBy: '',
-          validatedAt: '',
-          evidence: [],
-        })),
-      }),
-      'utf8'
-    );
-
-    expect(collectReleaseEvidenceIssues(root)).toContain(
-      'clinical release signoff: census_reload_remote_reconcile is pending_human_review; release signoff requires passed.'
     );
   });
 

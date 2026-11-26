@@ -90,7 +90,6 @@ const requiredKeys = [
   'syncQueue',
   'syncDomainProfiles',
   'conflictContexts',
-  'compatibilityGovernance',
   'localPersistence',
   'frontendStartup',
   'repositoryPerformance',
@@ -103,10 +102,6 @@ if (missingKeys.length > 0) {
 
 if (!Array.isArray(report.syncDomainProfiles) || report.syncDomainProfiles.length === 0) {
   fail('reports/operational-health.json must include syncDomainProfiles entries');
-}
-
-if (!report.compatibilityGovernance || typeof report.compatibilityGovernance !== 'object') {
-  fail('reports/operational-health.json must include compatibilityGovernance summary');
 }
 
 if (!Array.isArray(report.runbooks) || report.runbooks.length < 6) {

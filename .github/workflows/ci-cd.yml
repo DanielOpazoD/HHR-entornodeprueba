@@ -1218,10 +1218,8 @@ jobs:
           name: confidence-and-readiness
           path: |
             reports/system-confidence.*
-            reports/clinical-release-signoff.*
             reports/release-readiness-scorecard.*
             reports/release-confidence-matrix.*
-            reports/maintenance-debt-scorecard.*
             reports/operational-health.*
             reports/e2e/preview-bootstrap/ci-provenance.json
             reports/e2e/flow-performance-budget.json

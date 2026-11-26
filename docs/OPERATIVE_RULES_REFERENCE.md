@@ -98,16 +98,14 @@ Referencias:
 - `src/features/census/email/controllers/censusRecipientListOutcomeController.ts`
 - `src/features/census/email/controllers/censusEmailRecipientSyncController.ts`
 
-## Scorecard de deuda viva
+## Métricas de deuda viva
 
-Para regenerar un snapshot mínimo de hotspots, estabilidad de tests, crecimiento de `firestore.rules` y churn reciente:
+Para regenerar un snapshot local de hotspots de tamaño, cobertura y deuda de retiro legacy:
 
 ```bash
-npm run report:maintenance-debt-scorecard
+npm run report:quality-metrics
+npm run report:legacy-retirement-debt
 ```
-
-- `pendingHotspots` debe reflejar solo excedentes reales contra guardrails activos.
-- `watchlist` sigue mostrando archivos densos o de alto churn que conviene seguir iterando aunque ya no estén incumpliendo un límite.
 
 ## Firestore rules governance
 

@@ -66,9 +66,7 @@ Resolver autenticacion, bootstrap de sesion, claims, roles y degradacion operati
 
 ## Legacy activo
 
-- La compatibilidad cliente `authService.ts` / `index.ts` fue retirada.
-- La deuda legacy restante de auth queda gobernada en `scripts/config/compatibility-governance.json`
-  y hoy se concentra en functions/rules ligadas al alias legacy del rol viewer.
+- La compatibilidad cliente `authService.ts` / `index.ts` y el alias legacy del rol viewer fueron retirados; `src/tests/security/legacyRoleAliasStatic.test.ts` mantiene el bloqueo en cero entradas.
 
 ## Checks recomendados
 

@@ -22,7 +22,7 @@
 
 - Conflictos, retries y degradaciones deben seguir la policy de dominio, no decisiones inline en hooks.
 - Los bridges legacy de storage no deben reingresar al camino caliente del sync.
-- El backlog de retiros legacy se gobierna desde `reports/compatibility-governance.md`.
+- El backlog de retiros legacy se sigue en `docs/LEGACY_RETIREMENT_PLAN.md`.
 - Los módulos productivos deben importar `@/services/storage/sync`; no `syncQueueService`.
 
 ## Recuperación silenciosa

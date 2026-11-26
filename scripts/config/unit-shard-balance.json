@@ -304,7 +304,6 @@
     {
       "id": "ci-measured-600ms",
       "globs": [
-        "src/tests/build/clinicalReleaseCandidate.test.ts",
         "src/tests/components/BaseModal.focus.test.tsx",
         "src/tests/components/DeliveryRoutePopover.test.tsx",
         "src/tests/components/ImagingRequestDialog.test.tsx",

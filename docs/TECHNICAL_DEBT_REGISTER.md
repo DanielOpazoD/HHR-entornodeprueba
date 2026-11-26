@@ -3,8 +3,8 @@
 ## Consultar deuda activa
 
 El registro cerrado de abajo conserva evidencia de sus ciclos, no acredita cero
-deuda actual. Para priorizar, consultar el artefacto `maintenance-debt-scorecard`
-del commit evaluado y sus entradas; seguir [estado verificable](../PROJECT_STATUS.md).
+deuda actual. Para priorizar, consultar `quality-metrics` y los controles de
+retiro del commit evaluado; seguir [estado verificable](../PROJECT_STATUS.md).
 Los criterios de retiro de compatibilidad viven en
 [`legacy-retirement-debt.json`](../scripts/config/legacy-retirement-debt.json).
 No duplicar aquí sus estados generados ni retirar una protección por antigüedad.

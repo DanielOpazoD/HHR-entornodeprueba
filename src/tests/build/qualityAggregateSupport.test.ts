@@ -15,7 +15,6 @@ import {
 
 const checks = [
   { id: 'check:architecture', group: 'boundaries' },
-  { id: 'report:compatibility-governance', group: 'governance-inputs' },
   { id: 'check:schema-governance', group: 'governance' },
   { id: 'check:synthetic-type-safety', group: 'type-safety' },
   { id: 'check:repo-hygiene', group: 'hygiene' },
@@ -40,7 +39,7 @@ describe('quality aggregate support', () => {
   it('keeps the governed CI group plan explicit and non-overlapping', () => {
     expect(getQualityGroupPlan()).toEqual({
       boundaries: ['boundaries'],
-      governance: ['governance', 'governance-inputs'],
+      governance: ['governance'],
       security: ['security', 'type-safety', 'hygiene'],
       size: ['size'],
       tests: ['tests'],

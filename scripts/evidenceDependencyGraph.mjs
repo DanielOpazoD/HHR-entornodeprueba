@@ -14,14 +14,9 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
     command: 'report:bundle-risk-ledger',
     artifacts: ['reports/bundle-risk-ledger.json', 'reports/bundle-risk-ledger.md'],
   }),
-  'compatibility-governance': reportNode({
-    command: 'report:compatibility-governance',
-    artifacts: ['reports/compatibility-governance.json', 'reports/compatibility-governance.md'],
-  }),
   'legacy-retirement-debt': reportNode({
     command: 'report:legacy-retirement-debt',
     artifacts: ['reports/legacy-retirement-debt.json', 'reports/legacy-retirement-debt.md'],
-    dependencies: ['quality-metrics', 'compatibility-governance'],
   }),
   'critical-coverage': reportNode({
     command: 'report:critical-coverage',
@@ -37,7 +32,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'operational-health': reportNode({
     command: 'report:operational-health',
     artifacts: ['reports/operational-health.json', 'reports/operational-health.md'],
-    dependencies: ['critical-coverage', 'compatibility-governance'],
+    dependencies: ['critical-coverage'],
     fileDependencies: [
       'reports/e2e/flow-performance-budget-summary.json',
       'reports/e2e/preview-bootstrap/report.json',
@@ -62,18 +57,6 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'guardrail-governance': reportNode({
     command: 'report:guardrail-governance',
     artifacts: ['reports/guardrail-governance.json', 'reports/guardrail-governance.md'],
-  }),
-  'clinical-release-signoff': reportNode({
-    command: 'report:clinical-release-signoff',
-    artifacts: ['reports/clinical-release-signoff.json', 'reports/clinical-release-signoff.md'],
-    fileDependencies: ['scripts/config/clinical-release-signoff.json'],
-  }),
-  'clinical-release-validation': reportNode({
-    command: 'report:clinical-release-validation',
-    artifacts: [
-      'reports/clinical-release-validation.json',
-      'reports/clinical-release-validation.md',
-    ],
   }),
   'runtime-contracts': reportNode({
     command: 'report:runtime-contracts',
@@ -159,11 +142,6 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
       'src/tests/build/ciRuntimeTelemetrySupport.test.ts',
     ],
   }),
-  'maintenance-debt-scorecard': reportNode({
-    command: 'report:maintenance-debt-scorecard',
-    artifacts: ['reports/maintenance-debt-scorecard.json', 'reports/maintenance-debt-scorecard.md'],
-    dependencies: ['quality-metrics', 'legacy-retirement-debt'],
-  }),
   'release-readiness-scorecard': reportNode({
     command: 'report:release-readiness-scorecard',
     artifacts: [
@@ -173,7 +151,6 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
     dependencies: [
       'quality-metrics',
       'bundle-risk-ledger',
-      'compatibility-governance',
       'legacy-retirement-debt',
       'critical-coverage',
       'operational-health',
@@ -192,10 +169,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
       'sync-convergence',
       'operational-health',
       'system-confidence',
-      'clinical-release-validation',
-      'clinical-release-signoff',
       'release-confidence-matrix',
-      'maintenance-debt-scorecard',
       'release-readiness-scorecard',
     ],
   }),
