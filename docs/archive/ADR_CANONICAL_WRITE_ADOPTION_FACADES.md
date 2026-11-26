@@ -19,7 +19,7 @@ de alta llamaba. Lo que sigue describe la decisión original.
 ## Contexto
 
 El patrón canónico definido en
-[ADR_CANONICAL_WRITE_COMMANDS](ADR_CANONICAL_WRITE_COMMANDS.md) asume que
+[ADR_CANONICAL_WRITE_COMMANDS](../ADR_CANONICAL_WRITE_COMMANDS.md) asume que
 la persistencia se puede encapsular en una función de puerto pequeña
 (`persist<Op>(input) => Promise<Snapshot>`). Funciona limpio para `admit`
 porque escribir una admisión es básicamente un patch parcial sobre `beds.<bedId>`.
