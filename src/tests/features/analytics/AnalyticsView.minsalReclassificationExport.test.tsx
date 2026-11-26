@@ -455,6 +455,62 @@ describe('AnalyticsView MINSAL specialty reclassification export verification', 
     }
   });
 
+  it('retains last visible remote figures, alert, and disabled export when the refreshed aggregate rejects on its final attempt', async () => {
+    mockFetchRecordsRangeSorted.mockResolvedValue([]);
+    mockSyncRecordsRange.mockResolvedValue([]);
+    mockFetchReclassifications.mockResolvedValue([]);
+    mockCallable
+      .mockResolvedValueOnce({
+        data: {
+          periodStart: recordDate,
+          periodEnd: recordDate,
+          totalDays: 1,
+          calendarDays: 1,
+          diasCamaDisponibles: 18,
+          diasCamaOcupados: 10,
+          tasaOcupacion: 55.6,
+          promedioDiasEstada: 2,
+          egresosTotal: 1,
+          egresosVivos: 1,
+          egresosFallecidos: 0,
+          egresosTraslados: 0,
+          mortalidadHospitalaria: 0,
+          indiceRotacion: 0.1,
+          pacientesActuales: 10,
+          camasOcupadas: 10,
+          camasBloqueadas: 0,
+          camasDisponibles: 18,
+          camasLibres: 8,
+          tasaOcupacionActual: 55.6,
+          porEspecialidad: [],
+        },
+      })
+      .mockRejectedValue(new Error('network lost mid-flight'));
+
+    const warmClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          retryDelay: 0,
+          gcTime: 60_000,
+          staleTime: 60_000,
+        },
+      },
+    });
+    renderAnalyticsView(warmClient);
+
+    const exportButton = await screen.findByRole('button', { name: /Exportar Excel/i });
+    expect(exportButton).toBeEnabled();
+    expect(screen.getByText('55.6%')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle('Actualizar datos'));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByText('55.6%')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Exportar Excel/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+  });
+
   it('shows the verification alert and retry button instead of empty-census guidance when offline with no local records, and retains warm remote stats on offline refresh', async () => {
     mockFetchRecordsRangeSorted.mockResolvedValue([]);
     mockSyncRecordsRange.mockResolvedValue([]);

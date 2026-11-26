@@ -1016,5 +1016,43 @@ describe('useMinsalStats', () => {
       await waitFor(() => expect(mockCallable).toHaveBeenCalledTimes(2));
       expect(result.current.canExportExcel).toBe(false);
     });
+
+    it('invokes calculateMinsalStats only once on refresh after an initial reclassification failure and stale remote cache', async () => {
+      const deferredLocalRefresh: { resolve?: (value: DailyRecord[]) => void } = {};
+      mockFetchRecordsRangeSorted.mockResolvedValueOnce([]).mockImplementationOnce(
+        () =>
+          new Promise<DailyRecord[]>(resolve => {
+            deferredLocalRefresh.resolve = resolve;
+          })
+      );
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(null);
+      mockFetchReclassifications.mockRejectedValue(new Error('reclassifications unavailable'));
+      mockCallable.mockResolvedValue({ data: buildStats({ tasaOcupacion: 55.5 }) });
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.stats?.tasaOcupacion).toBe(55.5));
+      expect(mockCallable).toHaveBeenCalledTimes(1);
+      expect(result.current.canExportExcel).toBe(false);
+
+      let refreshPromise: Promise<void> | undefined;
+      act(() => {
+        refreshPromise = result.current.refresh();
+      });
+
+      await waitFor(() => expect(mockFetchReclassifications.mock.calls.length).toBeGreaterThan(2));
+      expect(mockCallable).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        deferredLocalRefresh.resolve?.([]);
+        await refreshPromise;
+      });
+
+      await waitFor(() => expect(mockCallable).toHaveBeenCalledTimes(2));
+      expect(result.current.canExportExcel).toBe(false);
+    });
   });
 });
