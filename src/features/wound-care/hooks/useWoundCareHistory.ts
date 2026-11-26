@@ -45,6 +45,10 @@ interface UseWoundCareHistoryReturn {
   allConsents: WoundCareConsent[];
   isLoading: boolean;
   reload: () => void;
+  applyPhotoDescription: (photoId: string, description: string) => void;
+  applyDeletedPhoto: (photoId: string) => void;
+  applyUploadedPhoto: (photo: WoundCarePhoto) => void;
+  applyUploadedConsent: (consent: WoundCareConsent) => void;
 }
 
 const woundCareHistoryLogger = createScopedLogger('WoundCareHistory');
@@ -87,6 +91,62 @@ export const useWoundCareHistory = ({
   const isLoading = Boolean(patientRut) && result?.scope !== scope;
 
   const reload = useCallback(() => setLoadKey(k => k + 1), []);
+
+  const applyPhotoDescription = useCallback(
+    (photoId: string, description: string) => {
+      setResult(previous => {
+        if (!previous || previous.scope !== scope) return previous;
+        return {
+          ...previous,
+          photos: previous.photos.map(photo =>
+            photo.id === photoId ? { ...photo, description } : photo
+          ),
+        };
+      });
+    },
+    [scope]
+  );
+
+  const applyDeletedPhoto = useCallback(
+    (photoId: string) => {
+      setResult(previous => {
+        if (!previous || previous.scope !== scope) return previous;
+        return {
+          ...previous,
+          photos: previous.photos.filter(photo => photo.id !== photoId),
+        };
+      });
+    },
+    [scope]
+  );
+
+  const applyUploadedPhoto = useCallback(
+    (photo: WoundCarePhoto) => {
+      setResult(previous => {
+        if (!previous || previous.scope !== scope) return previous;
+        const remaining = previous.photos.filter(existing => existing.id !== photo.id);
+        return {
+          ...previous,
+          photos: [photo, ...remaining],
+        };
+      });
+    },
+    [scope]
+  );
+
+  const applyUploadedConsent = useCallback(
+    (consent: WoundCareConsent) => {
+      setResult(previous => {
+        if (!previous || previous.scope !== scope) return previous;
+        const remaining = previous.consents.filter(existing => existing.id !== consent.id);
+        return {
+          ...previous,
+          consents: [consent, ...remaining],
+        };
+      });
+    },
+    [scope]
+  );
 
   useEffect(() => {
     if (!scope.patientRut) return;
@@ -134,6 +194,9 @@ export const useWoundCareHistory = ({
       if (!existing || consent.status === 'signed') {
         consentByEpisode.set(consent.episodeKey, consent);
       }
+      if (!byEpisode.has(consent.episodeKey)) {
+        byEpisode.set(consent.episodeKey, []);
+      }
     }
 
     // If current episode has no photos yet, still show it
@@ -149,14 +212,24 @@ export const useWoundCareHistory = ({
         isCurrent: episodeKey === currentEpisodeKey,
       }))
       .sort((a, b) => {
-        // Current episode first, then by most recent photo
+        // Current episode first, then by most recent photo or consent
         if (a.isCurrent && !b.isCurrent) return -1;
         if (!a.isCurrent && b.isCurrent) return 1;
-        const aDate = a.photos[0]?.uploadedAt ?? '';
-        const bDate = b.photos[0]?.uploadedAt ?? '';
+        const aDate = a.photos[0]?.uploadedAt ?? a.consent?.uploadedAt ?? '';
+        const bDate = b.photos[0]?.uploadedAt ?? b.consent?.uploadedAt ?? '';
         return bDate.localeCompare(aDate);
       });
   })();
 
-  return { episodes, allPhotos, allConsents, isLoading, reload };
+  return {
+    episodes,
+    allPhotos,
+    allConsents,
+    isLoading,
+    reload,
+    applyPhotoDescription,
+    applyDeletedPhoto,
+    applyUploadedPhoto,
+    applyUploadedConsent,
+  };
 };

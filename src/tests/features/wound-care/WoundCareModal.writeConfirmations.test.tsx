@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { WoundCareModal } from '@/features/wound-care/components/WoundCareModal';
 import { useWoundCareUpload } from '@/features/wound-care/hooks/useWoundCareUpload';
 import type { WoundCareConsent, WoundCarePhoto } from '@/types/domain/woundCare';
@@ -489,5 +497,97 @@ describe('WoundCareModal write confirmations & concurrency resilience', () => {
     const outcome = await uploadPromise;
     expect(outcome.success).toBe(false);
     expect(uploadConsentUseCaseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reconciles accredited description, consent, and deletion immediately during slow reload and blocks Escape on body while deleting', async () => {
+    const onCloseModal = vi.fn();
+    const slowReloadPhotos = createDeferred<WoundCarePhoto[]>();
+    const slowReloadConsents = createDeferred<WoundCareConsent[]>();
+
+    executeUpdatePhotoDescriptionMock.mockResolvedValue({
+      status: 'success',
+      data: null,
+      issues: [],
+    });
+    uploadConsentUseCaseMock.mockResolvedValueOnce({
+      status: 'success',
+      data: signedConsent,
+      issues: [],
+    });
+
+    const deferredDelete = createDeferred<{ status: 'success'; data: null; issues: [] }>();
+    deletePhotoUseCaseMock.mockReturnValueOnce(deferredDelete.promise);
+
+    render(
+      <WoundCareModal
+        isOpen
+        onClose={onCloseModal}
+        patientName={episodeAt10.patientName}
+        patientRut={episodeAt10.patientRut}
+        episodeContext={episodeAt10}
+      />
+    );
+
+    await screen.findByAltText('Curación A');
+
+    // Keep subsequent reloads pending so we assert accredited local reconciliation during slow reload.
+    listPhotosByPatientRutMock.mockReturnValue(slowReloadPhotos.promise);
+    listConsentsByPatientRutMock.mockReturnValue(slowReloadConsents.promise);
+
+    // 1. Confirmed description must appear immediately and pre-fill subsequent edits during slow reload.
+    fireEvent.click(screen.getByAltText('Curación A').closest('button')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Editar descripción' }));
+    fireEvent.change(screen.getByPlaceholderText('Agregar descripción...'), {
+      target: { value: 'Texto confirmado' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar descripción' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Descripción actualizada')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Editar descripción' }));
+    expect(screen.getByPlaceholderText('Agregar descripción...')).toHaveValue('Texto confirmado');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar edición de descripción' }));
+    const lightbox = screen.getByRole('dialog', { name: 'Visor de fotografías de curaciones' });
+    fireEvent.click(within(lightbox).getByRole('button', { name: 'Cerrar' }));
+
+    // 2. Confirmed consent must immediately switch "Subir CI" into read-only view during slow reload.
+    fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    const consentInput = fileInputs[fileInputs.length - 1] as HTMLInputElement;
+    fireEvent.change(consentInput, {
+      target: { files: [new File(['%PDF'], 'consentimiento.pdf', { type: 'application/pdf' })] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /subir consentimiento/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Consentimiento guardado')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+    expect(screen.getByText('Ver documento PDF')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /subir consentimiento/i })).not.toBeInTheDocument();
+    const closeButtons = screen.getAllByRole('button', { name: /cerrar modal/i });
+    fireEvent.click(closeButtons[closeButtons.length - 1]);
+
+    // 3. Escape on body during pending deletion must NOT close dialog or WoundCareModal;
+    //    once accredited, the deleted photo must vanish immediately during slow reload.
+    fireEvent.click(screen.getAllByTitle('Eliminar foto')[0]);
+    fireEvent.click(screen.getByRole('button', { name: /^eliminar$/i }));
+
+    document.body.focus();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onCloseModal).not.toHaveBeenCalled();
+    expect(screen.getByText('Eliminar fotografía')).toBeInTheDocument();
+
+    await act(async () => {
+      deferredDelete.resolve({ status: 'success', data: null, issues: [] });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Foto eliminada')).toBeInTheDocument();
+    });
+    expect(screen.queryByAltText('Texto confirmado')).not.toBeInTheDocument();
+    expect(screen.getAllByTitle('Eliminar foto')).toHaveLength(1);
   });
 });

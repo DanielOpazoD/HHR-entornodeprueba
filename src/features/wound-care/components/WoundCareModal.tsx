@@ -149,6 +149,9 @@ const EpisodeSection: React.FC<EpisodeSectionProps> = ({
 // Main Modal
 // ============================================================================
 
+// Deduplicate in-flight photo deletes across modal remounts for the same photo ID.
+const inFlightPhotoDeletes = new Map<string, Promise<{ success: boolean; error?: string }>>();
+
 interface WoundCareModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -181,9 +184,6 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
     isOpen,
     patientRut,
   });
-  const inFlightDeletesRef = useRef<Map<string, Promise<{ success: boolean; error?: string }>>>(
-    new Map()
-  );
 
   useEffect(() => {
     activeScopeRef.current = {
@@ -202,7 +202,15 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
     };
   }, []);
 
-  const { episodes, isLoading, reload } = useWoundCareHistory({
+  const {
+    episodes,
+    isLoading,
+    reload,
+    applyPhotoDescription,
+    applyDeletedPhoto,
+    applyUploadedPhoto,
+    applyUploadedConsent,
+  } = useWoundCareHistory({
     patientRut: isOpen ? patientRut : undefined,
     currentEpisodeKey: episodeContext.episodeKey,
   });
@@ -225,7 +233,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
     storagePath: string;
     thumbnailStoragePath: string;
   }): Promise<{ success: boolean; error?: string }> => {
-    const existingRequest = inFlightDeletesRef.current.get(photo.id);
+    const existingRequest = inFlightPhotoDeletes.get(photo.id);
     if (existingRequest) {
       return existingRequest;
     }
@@ -235,6 +243,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
       try {
         const result = await deletePhoto(photo.id, photo.storagePath, photo.thumbnailStoragePath);
         if (result.success && isSameActivePatient(requestPatientRut)) {
+          applyDeletedPhoto(photo.id);
           reload();
           showToast('Foto eliminada');
         }
@@ -248,11 +257,11 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
               : 'No se pudo eliminar la fotografía.',
         };
       } finally {
-        inFlightDeletesRef.current.delete(photo.id);
+        inFlightPhotoDeletes.delete(photo.id);
       }
     })();
 
-    inFlightDeletesRef.current.set(photo.id, requestPromise);
+    inFlightPhotoDeletes.set(photo.id, requestPromise);
     return requestPromise;
   };
 
@@ -265,6 +274,7 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
       const outcome = await executeUpdatePhotoDescription(photoId, description);
       if (outcome.status === 'success') {
         if (isSameActivePatient(requestPatientRut)) {
+          applyPhotoDescription(photoId, description);
           reload();
           showToast('Descripción actualizada');
         }
@@ -375,8 +385,11 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
         <ConsentUploadModal
           isOpen
           onClose={() => setShowConsentModal(false)}
-          onUploaded={() => {
+          onUploaded={consent => {
             if (!isSameActivePatient(patientRut)) return;
+            if (consent) {
+              applyUploadedConsent(consent);
+            }
             reload();
             showToast('Consentimiento guardado');
           }}
@@ -392,8 +405,11 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
             setShowPhotoModal(false);
             setSelectedFile(null);
           }}
-          onUploaded={() => {
+          onUploaded={photo => {
             if (!isSameActivePatient(patientRut)) return;
+            if (photo) {
+              applyUploadedPhoto(photo);
+            }
             reload();
             showToast('Foto subida exitosamente');
           }}

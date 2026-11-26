@@ -26,6 +26,22 @@ export const PhotoDeleteConfirm: React.FC<PhotoDeleteConfirmProps> = ({
     };
   }, []);
 
+  // Capture Escape on document so Chromium dropping focus to body when "Eliminar" disables
+  // never closes the confirmation dialog mid-delete or bubbles to the parent WoundCareModal.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      if (!isSubmittingRef.current) {
+        onCancel();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [onCancel]);
+
   const handleConfirm = async () => {
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;

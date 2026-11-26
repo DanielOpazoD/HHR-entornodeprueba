@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Camera, Upload, Calendar } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { EpisodeContext } from '@/features/wound-care/use-cases/woundCareUseCases';
+import type { WoundCarePhoto } from '@/types/domain/woundCare';
 import { useWoundCareUpload } from '../hooks/useWoundCareUpload';
 import { BODY_LOCATION_OPTIONS } from '../domain/woundCareValidation';
 import {
@@ -14,7 +15,7 @@ import {
 interface PhotoUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUploaded?: () => void;
+  onUploaded?: (photo?: WoundCarePhoto) => void;
   file: File | null;
   episodeContext: EpisodeContext;
 }
@@ -92,7 +93,7 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
       if (!isMountedRef.current) return;
       if (result.success) {
         if (activePatientRutRef.current === requestPatientRut) {
-          onUploaded?.();
+          onUploaded?.(result.data ?? undefined);
         }
         handleClose();
       } else if (activePatientRutRef.current === requestPatientRut) {

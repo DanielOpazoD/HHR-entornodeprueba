@@ -9,7 +9,7 @@ import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 interface ConsentUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUploaded?: () => void;
+  onUploaded?: (consent?: WoundCareConsent) => void;
   episodeContext: EpisodeContext;
   existingConsent: WoundCareConsent | null;
 }
@@ -88,7 +88,7 @@ export const ConsentUploadModal: React.FC<ConsentUploadModalProps> = ({
       if (!isMountedRef.current) return;
       if (result.success) {
         if (activePatientRutRef.current === requestPatientRut) {
-          onUploaded?.();
+          onUploaded?.(result.data ?? undefined);
         }
         handleClose();
       } else if (activePatientRutRef.current === requestPatientRut) {

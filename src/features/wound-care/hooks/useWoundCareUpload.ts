@@ -9,7 +9,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
-import type { WoundCareAuditActor } from '@/types/domain/woundCare';
+import type {
+  WoundCareAuditActor,
+  WoundCareConsent,
+  WoundCarePhoto,
+} from '@/types/domain/woundCare';
 import type { EpisodeContext } from '@/features/wound-care/use-cases/woundCareUseCases';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import {
@@ -28,11 +32,11 @@ interface UseWoundCareUploadReturn {
     file: File,
     episodeContext: EpisodeContext,
     options?: { description?: string; bodyLocation?: string; takenAt?: string }
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; data?: WoundCarePhoto | null; error?: string }>;
   uploadConsent: (
     file: File,
     episodeContext: EpisodeContext
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; data?: WoundCareConsent | null; error?: string }>;
   deletePhoto: (
     photoId: string,
     storagePath: string,
@@ -157,7 +161,7 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
       file: File,
       episodeContext: EpisodeContext,
       options?: { description?: string; bodyLocation?: string; takenAt?: string }
-    ): Promise<{ success: boolean; error?: string }> => {
+    ): Promise<{ success: boolean; data?: WoundCarePhoto | null; error?: string }> => {
       if (!currentUser) {
         return { success: false, error: 'Debe iniciar sesión para subir fotos.' };
       }
@@ -185,7 +189,7 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
 
         if (result.status === 'success') {
           setProgress({ stage: 'done', message: 'Fotografía guardada correctamente.' });
-          return { success: true };
+          return { success: true, data: result.data };
         }
 
         const errorMsg =
@@ -209,7 +213,7 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
     async (
       file: File,
       episodeContext: EpisodeContext
-    ): Promise<{ success: boolean; error?: string }> => {
+    ): Promise<{ success: boolean; data?: WoundCareConsent | null; error?: string }> => {
       if (!currentUser) {
         return { success: false, error: 'Debe iniciar sesión para subir el consentimiento.' };
       }
@@ -234,7 +238,7 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
 
         if (result.status === 'success') {
           setProgress({ stage: 'done', message: 'Consentimiento guardado correctamente.' });
-          return { success: true };
+          return { success: true, data: result.data };
         }
 
         const errorMsg =
