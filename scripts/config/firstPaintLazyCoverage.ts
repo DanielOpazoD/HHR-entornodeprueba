@@ -31,6 +31,8 @@ const OPTIONAL_TARGETS: Record<string, string> = {
   'firebase/functions':
     'Firebase Functions SDK loads only for explicit online census actions with their own error fallback.',
   jspdf: 'PDF generator loads only when exporting an antecedent prescription on request.',
+  'src/app-shell/runtime/CensusEmailRuntimeBridge':
+    'Deferred census email runtime loads after first paint with a safe local fallback until ready.',
   'src/app-shell/runtime/HandoffExtensionConnection':
     'Extension handoff linking dialog mounts only on /conectar-entrega-turno.',
   'src/application/clinical-documents/clinicalDocumentUseCases':
