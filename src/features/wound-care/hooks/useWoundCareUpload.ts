@@ -6,10 +6,14 @@
  * tracking, and error reporting.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
-import type { WoundCareAuditActor } from '@/types/domain/woundCare';
+import type {
+  WoundCareAuditActor,
+  WoundCareConsent,
+  WoundCarePhoto,
+} from '@/types/domain/woundCare';
 import type { EpisodeContext } from '@/features/wound-care/use-cases/woundCareUseCases';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import {
@@ -28,16 +32,17 @@ interface UseWoundCareUploadReturn {
     file: File,
     episodeContext: EpisodeContext,
     options?: { description?: string; bodyLocation?: string; takenAt?: string }
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; data?: WoundCarePhoto | null; error?: string }>;
   uploadConsent: (
     file: File,
     episodeContext: EpisodeContext
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; data?: WoundCareConsent | null; error?: string }>;
   deletePhoto: (
     photoId: string,
     storagePath: string,
     thumbnailStoragePath: string
   ) => Promise<{ success: boolean; error?: string }>;
+  cancelPendingRetries: () => void;
   progress: UploadProgress | null;
   isUploading: boolean;
 }
@@ -69,6 +74,49 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
   const { currentUser, role } = useAuth();
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const isMountedRef = useRef(true);
+  const retryGenerationRef = useRef(0);
+  const pendingRetryCleanupRef = useRef<(() => void) | null>(null);
+
+  const cancelPendingRetries = useCallback(() => {
+    retryGenerationRef.current += 1;
+    pendingRetryCleanupRef.current?.();
+    pendingRetryCleanupRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      cancelPendingRetries();
+    };
+  }, [cancelPendingRetries]);
+
+  const waitForRetryDelay = useCallback(
+    (delayMs: number, generation: number): Promise<boolean> =>
+      new Promise(resolve => {
+        if (!isMountedRef.current || retryGenerationRef.current !== generation) {
+          resolve(false);
+          return;
+        }
+        let settled = false;
+        const finish = (shouldContinue: boolean) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (pendingRetryCleanupRef.current === abort) {
+            pendingRetryCleanupRef.current = null;
+          }
+          resolve(shouldContinue);
+        };
+        const abort = () => finish(false);
+        const timer = setTimeout(() => {
+          finish(isMountedRef.current && retryGenerationRef.current === generation);
+        }, delayMs);
+        pendingRetryCleanupRef.current = abort;
+      }),
+    []
+  );
 
   /**
    * Retry wrapper for upload operations.
@@ -80,10 +128,12 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
       fn: () => Promise<ApplicationOutcome<T>>,
       maxRetries: number = 1
     ): Promise<ApplicationOutcome<T>> => {
+      const generation = retryGenerationRef.current;
       let lastResult = await fn();
       let attempts = 0;
 
       while (lastResult.status === 'failed' && attempts < maxRetries) {
+        if (!isMountedRef.current || retryGenerationRef.current !== generation) break;
         const isRetryable = lastResult.issues.some(i => i.kind !== 'validation');
         if (!isRetryable) break;
 
@@ -93,14 +143,17 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
           message: `Reintentando... (${attempts}/${maxRetries})`,
         });
 
-        // Small delay before retry
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Small delay before retry — aborted if the caller cancels or unmounts.
+        const shouldContinue = await waitForRetryDelay(1500, generation);
+        if (!shouldContinue || !isMountedRef.current || retryGenerationRef.current !== generation) {
+          break;
+        }
         lastResult = await fn();
       }
 
       return lastResult;
     },
-    []
+    [waitForRetryDelay]
   );
 
   const uploadPhoto = useCallback(
@@ -108,7 +161,7 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
       file: File,
       episodeContext: EpisodeContext,
       options?: { description?: string; bodyLocation?: string; takenAt?: string }
-    ): Promise<{ success: boolean; error?: string }> => {
+    ): Promise<{ success: boolean; data?: WoundCarePhoto | null; error?: string }> => {
       if (!currentUser) {
         return { success: false, error: 'Debe iniciar sesión para subir fotos.' };
       }
@@ -136,7 +189,7 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
 
         if (result.status === 'success') {
           setProgress({ stage: 'done', message: 'Fotografía guardada correctamente.' });
-          return { success: true };
+          return { success: true, data: result.data };
         }
 
         const errorMsg =
@@ -160,7 +213,7 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
     async (
       file: File,
       episodeContext: EpisodeContext
-    ): Promise<{ success: boolean; error?: string }> => {
+    ): Promise<{ success: boolean; data?: WoundCareConsent | null; error?: string }> => {
       if (!currentUser) {
         return { success: false, error: 'Debe iniciar sesión para subir el consentimiento.' };
       }
@@ -185,10 +238,13 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
 
         if (result.status === 'success') {
           setProgress({ stage: 'done', message: 'Consentimiento guardado correctamente.' });
-          return { success: true };
+          return { success: true, data: result.data };
         }
 
-        const errorMsg = result.issues[0]?.message || 'Error al subir el consentimiento.';
+        const errorMsg =
+          result.issues[0]?.userSafeMessage ||
+          result.issues[0]?.message ||
+          'Error al subir el consentimiento.';
         setProgress({ stage: 'error', message: errorMsg });
         return { success: false, error: errorMsg };
       } catch (error) {
@@ -224,7 +280,13 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
           return { success: true };
         }
 
-        return { success: false, error: result.issues[0]?.message || 'Error al eliminar.' };
+        return {
+          success: false,
+          error:
+            result.issues[0]?.userSafeMessage ||
+            result.issues[0]?.message ||
+            'Error al eliminar la fotografía.',
+        };
       } catch (error) {
         return {
           success: false,
@@ -235,5 +297,12 @@ export const useWoundCareUpload = (): UseWoundCareUploadReturn => {
     [currentUser, role]
   );
 
-  return { uploadPhoto, uploadConsent, deletePhoto, progress, isUploading };
+  return {
+    uploadPhoto,
+    uploadConsent,
+    deletePhoto,
+    cancelPendingRetries,
+    progress,
+    isUploading,
+  };
 };

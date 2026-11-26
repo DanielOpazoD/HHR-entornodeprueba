@@ -6,7 +6,7 @@
  * collapsible sections. The current episode always sorts first.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { WoundCareConsent, WoundCarePhoto } from '@/types/domain/woundCare';
 import {
   defaultWoundCarePhotoPort,
@@ -45,6 +45,10 @@ interface UseWoundCareHistoryReturn {
   allConsents: WoundCareConsent[];
   isLoading: boolean;
   reload: () => void;
+  applyPhotoDescription: (photoId: string, description: string) => void;
+  applyDeletedPhoto: (photoId: string) => void;
+  applyUploadedPhoto: (photo: WoundCarePhoto) => void;
+  applyUploadedConsent: (consent: WoundCareConsent) => void;
 }
 
 const woundCareHistoryLogger = createScopedLogger('WoundCareHistory');
@@ -75,6 +79,9 @@ export const useWoundCareHistory = ({
     [patientRut, photoPort, consentPort]
   );
   const [loadKey, setLoadKey] = useState(0);
+  // Monotonic generation bumped synchronously on reload() and accredited local updates so an
+  // already-in-flight fetch settling in a microtask before React commits cannot overwrite newer writes.
+  const fetchGenerationRef = useRef(0);
   const [result, setResult] = useState<{
     scope: typeof scope;
     loadKey: number;
@@ -83,25 +90,90 @@ export const useWoundCareHistory = ({
   } | null>(null);
   const allPhotos = result?.scope === scope ? result.photos : [];
   const allConsents = result?.scope === scope ? result.consents : [];
-  const isLoading = Boolean(patientRut) && (result?.scope !== scope || result.loadKey !== loadKey);
+  // Keep loaded episodes mounted during background reloads so active modals/editors are preserved.
+  const isLoading = Boolean(patientRut) && result?.scope !== scope;
 
-  const reload = useCallback(() => setLoadKey(k => k + 1), []);
+  const reload = useCallback(() => {
+    fetchGenerationRef.current += 1;
+    setLoadKey(k => k + 1);
+  }, []);
+
+  const applyPhotoDescription = useCallback(
+    (photoId: string, description: string) => {
+      fetchGenerationRef.current += 1;
+      setResult(previous => {
+        if (!previous || previous.scope !== scope) return previous;
+        return {
+          ...previous,
+          photos: previous.photos.map(photo =>
+            photo.id === photoId ? { ...photo, description } : photo
+          ),
+        };
+      });
+    },
+    [scope]
+  );
+
+  const applyDeletedPhoto = useCallback(
+    (photoId: string) => {
+      fetchGenerationRef.current += 1;
+      setResult(previous => {
+        if (!previous || previous.scope !== scope) return previous;
+        return {
+          ...previous,
+          photos: previous.photos.filter(photo => photo.id !== photoId),
+        };
+      });
+    },
+    [scope]
+  );
+
+  const applyUploadedPhoto = useCallback(
+    (photo: WoundCarePhoto) => {
+      fetchGenerationRef.current += 1;
+      setResult(previous => {
+        if (!previous || previous.scope !== scope) return previous;
+        const remaining = previous.photos.filter(existing => existing.id !== photo.id);
+        return {
+          ...previous,
+          photos: [photo, ...remaining],
+        };
+      });
+    },
+    [scope]
+  );
+
+  const applyUploadedConsent = useCallback(
+    (consent: WoundCareConsent) => {
+      fetchGenerationRef.current += 1;
+      setResult(previous => {
+        if (!previous || previous.scope !== scope) return previous;
+        const remaining = previous.consents.filter(existing => existing.id !== consent.id);
+        return {
+          ...previous,
+          consents: [consent, ...remaining],
+        };
+      });
+    },
+    [scope]
+  );
 
   useEffect(() => {
     if (!scope.patientRut) return;
 
     let cancelled = false;
+    const generation = ++fetchGenerationRef.current;
 
     Promise.all([
       scope.photoPort.listByPatientRut(scope.patientRut),
       scope.consentPort.listByPatientRut(scope.patientRut),
     ])
       .then(([photos, consents]) => {
-        if (cancelled) return;
+        if (cancelled || fetchGenerationRef.current !== generation) return;
         setResult({ scope, loadKey, photos, consents });
       })
       .catch(error => {
-        if (cancelled) return;
+        if (cancelled || fetchGenerationRef.current !== generation) return;
         woundCareHistoryLogger.error('Error loading wound care history', error);
         setResult(previous => ({
           scope,
@@ -133,6 +205,9 @@ export const useWoundCareHistory = ({
       if (!existing || consent.status === 'signed') {
         consentByEpisode.set(consent.episodeKey, consent);
       }
+      if (!byEpisode.has(consent.episodeKey)) {
+        byEpisode.set(consent.episodeKey, []);
+      }
     }
 
     // If current episode has no photos yet, still show it
@@ -148,14 +223,24 @@ export const useWoundCareHistory = ({
         isCurrent: episodeKey === currentEpisodeKey,
       }))
       .sort((a, b) => {
-        // Current episode first, then by most recent photo
+        // Current episode first, then by most recent photo or consent
         if (a.isCurrent && !b.isCurrent) return -1;
         if (!a.isCurrent && b.isCurrent) return 1;
-        const aDate = a.photos[0]?.uploadedAt ?? '';
-        const bDate = b.photos[0]?.uploadedAt ?? '';
+        const aDate = a.photos[0]?.uploadedAt ?? a.consent?.uploadedAt ?? '';
+        const bDate = b.photos[0]?.uploadedAt ?? b.consent?.uploadedAt ?? '';
         return bDate.localeCompare(aDate);
       });
   })();
 
-  return { episodes, allPhotos, allConsents, isLoading, reload };
+  return {
+    episodes,
+    allPhotos,
+    allConsents,
+    isLoading,
+    reload,
+    applyPhotoDescription,
+    applyDeletedPhoto,
+    applyUploadedPhoto,
+    applyUploadedConsent,
+  };
 };

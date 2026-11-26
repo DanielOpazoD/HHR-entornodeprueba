@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
 
 interface PhotoDeleteConfirmProps {
   photo: WoundCarePhoto;
-  onConfirm: () => Promise<void>;
+  onConfirm: () => Promise<{ success: boolean; error?: string }>;
   onCancel: () => void;
 }
 
@@ -14,18 +14,64 @@ export const PhotoDeleteConfirm: React.FC<PhotoDeleteConfirmProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const isMountedRef = useRef(true);
+  const isSubmittingRef = useRef(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Capture Escape on document so Chromium dropping focus to body when "Eliminar" disables
+  // never closes the confirmation dialog mid-delete or bubbles to the parent WoundCareModal.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      if (!isSubmittingRef.current) {
+        onCancel();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [onCancel]);
 
   const handleConfirm = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setError(null);
     setIsDeleting(true);
-    await onConfirm();
-    setIsDeleting(false);
+    try {
+      const result = await onConfirm();
+      if (!isMountedRef.current) return;
+      if (!result.success) {
+        setError(result.error || 'No se pudo eliminar la fotografía.');
+      }
+    } catch (unknownError) {
+      if (!isMountedRef.current) return;
+      setError(
+        unknownError instanceof Error ? unknownError.message : 'No se pudo eliminar la fotografía.'
+      );
+    } finally {
+      isSubmittingRef.current = false;
+      if (isMountedRef.current) {
+        setIsDeleting(false);
+      }
+    }
   };
 
   return (
     <BaseModal
       isOpen={true}
-      onClose={onCancel}
+      onClose={() => {
+        if (!isDeleting) onCancel();
+      }}
       title="Eliminar fotografía"
       icon={<Trash2 className="w-5 h-5" />}
       size="sm"
@@ -48,11 +94,21 @@ export const PhotoDeleteConfirm: React.FC<PhotoDeleteConfirmProps> = ({
           </div>
         </div>
 
+        {error && (
+          <div
+            role="alert"
+            className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700"
+          >
+            {error}
+          </div>
+        )}
+
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            disabled={isDeleting}
+            className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
             Cancelar
           </button>

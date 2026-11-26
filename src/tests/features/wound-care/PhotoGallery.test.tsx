@@ -10,7 +10,7 @@ type MockPhotoLightboxProps = {
 };
 
 type MockPhotoDeleteConfirmProps = {
-  onConfirm: () => void | Promise<void>;
+  onConfirm: () => Promise<{ success: boolean; error?: string }>;
   onCancel: () => void;
 };
 
