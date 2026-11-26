@@ -2435,6 +2435,76 @@ describe('UpcClassificationWindowProvider', () => {
     await runEdge('same-name-crib-then-mother');
   });
 
+  it('keeps opening R1 when mother and crib already share the same name before click (with distinct RUTs and accredited newborn, or unchanged legacy)', async () => {
+    const runPreExistingSameName = async (accreditedCrib: boolean) => {
+      vi.resetModules();
+      vi.doMock(UPC_WINDOW_MODULE_PATH, () => ({
+        UpcClassificationWindow: ({ initialBedId }: MockUpcWindowProps) => (
+          <div role="dialog" aria-label="Clasificación UPC">
+            {initialBedId}
+          </div>
+        ),
+      }));
+
+      const {
+        DailyRecordBedsContext,
+        resolveUpcCellSubjectIdentity,
+        UpcClassificationWindowProvider,
+        useUpcClassificationWindowOpener,
+      } = await loadFreshContext();
+
+      const crib = DataFactory.createMockPatient('R1', {
+        patientName: 'Maria Lopez',
+        rut: accreditedCrib ? '28.000.001-1' : '11.111.111-1',
+        clinicalEpisodeId: accreditedCrib ? 'ep-rn-homonym' : 'legacy_ep_homonym',
+        admissionDate: '2026-11-24',
+        admissionTime: '08:00',
+      });
+      const mother = DataFactory.createMockPatient('R1', {
+        patientName: 'Maria Lopez',
+        rut: '11.111.111-1',
+        clinicalEpisodeId: 'legacy_ep_homonym',
+        admissionDate: '2026-11-24',
+        admissionTime: '08:00',
+        clinicalCrib: crib,
+      });
+
+      const Trigger = () => {
+        const { openUpcWindow } = useUpcClassificationWindowOpener();
+        return (
+          <button
+            type="button"
+            onClick={event =>
+              openUpcWindow('R1', {
+                episodeIdentity: resolveUpcCellSubjectIdentity(mother),
+                triggerElement: event.currentTarget,
+              })
+            }
+          >
+            Abrir R1 homonimos
+          </button>
+        );
+      };
+
+      const view = render(
+        <DailyRecordBedsContext.Provider value={{ R1: mother }}>
+          <UpcClassificationWindowProvider currentDateString="2026-11-24">
+            <Trigger />
+          </UpcClassificationWindowProvider>
+        </DailyRecordBedsContext.Provider>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir R1 homonimos' }));
+      expect(await screen.findByRole('dialog', { name: 'Clasificación UPC' })).toHaveTextContent(
+        'R1'
+      );
+      view.unmount();
+    };
+
+    await runPreExistingSameName(true);
+    await runPreExistingSameName(false);
+  });
+
   it('restores focus to the clicked trigger button on Escape even when activeElement stayed on an ancestor wrapper', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     let attempts = 0;

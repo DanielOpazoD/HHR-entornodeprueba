@@ -5,7 +5,7 @@ import { PatientRow } from '@/features/census/components/PatientRow';
 import { UpcClassificationWindowProvider } from '@/features/census/components/patient-row/UpcClassificationWindowContext';
 import { BedType } from '@/types/domain/beds';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
-import { render } from '../integration/setup';
+import { createMockDailyRecordContext, createMockRecord, render } from '../integration/setup';
 import { DataFactory } from '../factories/DataFactory';
 
 const { mockAlert, mockConfirm } = vi.hoisted(() => ({
@@ -160,6 +160,10 @@ describe('PatientRow layout and actions', () => {
   });
 
   it('opens the day UPC panel from the classification chip', async () => {
+    const record = {
+      ...createMockRecord('2023-01-01'),
+      beds: { R1: mockPatient },
+    };
     render(
       <UpcClassificationWindowProvider currentDateString="2023-01-01">
         <table>
@@ -173,7 +177,8 @@ describe('PatientRow layout and actions', () => {
             />
           </tbody>
         </table>
-      </UpcClassificationWindowProvider>
+      </UpcClassificationWindowProvider>,
+      { contextValue: createMockDailyRecordContext(record) }
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Evaluación UPC pendiente' }));

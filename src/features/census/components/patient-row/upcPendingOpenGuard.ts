@@ -3,6 +3,8 @@ import type { PatientData } from '@/types/domain/patient';
 export interface LegacyCensusObservation {
   otherActiveNames: Set<string>;
   otherSlotIdentities: Map<string, string>;
+  subjectStartedUnnamed: boolean;
+  pairedStartedUnnamed: boolean;
 }
 
 const IGNORED_SLOT_AND_NAME_KEYS = new Set([
@@ -274,7 +276,27 @@ const getBedSlotSubject = (
 const createEmptyLegacyCensusObservation = (): LegacyCensusObservation => ({
   otherActiveNames: new Set(),
   otherSlotIdentities: new Map(),
+  subjectStartedUnnamed: false,
+  pairedStartedUnnamed: false,
 });
+
+const arePairedSubjectsDistinguishedByIdentity = (
+  expectedTuple: LegacyUpcSubjectTuple,
+  pairedSubject: Partial<PatientData> | undefined
+): boolean => {
+  if (!pairedSubject) return false;
+  const pairedIdentity = resolveUpcCellSubjectIdentity(pairedSubject);
+  if (pairedIdentity && !isLegacyUpcSubjectIdentity(pairedIdentity)) {
+    return true;
+  }
+  const expectedDocType = expectedTuple[2];
+  const expectedRut = expectedTuple[3];
+  const pairedDocType = pairedSubject.documentType?.trim() || 'RUT';
+  const pairedRut = pairedSubject.rut?.trim() || '';
+  return Boolean(
+    expectedRut && pairedRut && (pairedRut !== expectedRut || pairedDocType !== expectedDocType)
+  );
+};
 
 /**
  * Snapshots or updates observed census occupancy while a legacy (unaccredited) open is pending.
@@ -298,6 +320,9 @@ export const recordLegacyCensusObservation = (
   }
   const expectedTuple = parseLegacyUpcSubjectTuple(expectedIdentity);
   const clickedSlotKey = isCrib ? `${rawBedId}:crib` : rawBedId;
+  if (isInitialCapture) {
+    observation.subjectStartedUnnamed = Boolean(expectedTuple && expectedTuple[4] === '');
+  }
 
   for (const [bedId, bed] of Object.entries(beds)) {
     const entries: Array<[string, Partial<PatientData> | undefined]> = [
@@ -307,11 +332,19 @@ export const recordLegacyCensusObservation = (
     for (const [slotKey, subject] of entries) {
       if (slotKey === clickedSlotKey || !subject) continue;
       const normalizedName = normalizePatientNameKey(subject.patientName);
-      if (normalizedName) {
+      const skipDistinctPairedName = Boolean(
+        slotKey === pairedSlotKey &&
+        expectedTuple &&
+        arePairedSubjectsDistinguishedByIdentity(expectedTuple, subject)
+      );
+      if (normalizedName && !skipDistinctPairedName) {
         observation.otherActiveNames.add(normalizedName);
       }
       if (!expectedTuple) continue;
       if (slotKey === pairedSlotKey) {
+        if (isInitialCapture) {
+          observation.pairedStartedUnnamed = !normalizedName;
+        }
         if (isCrib) continue;
         const slotIdentity = resolveUpcCellSubjectIdentity(subject);
         if (isInitialCapture) {
@@ -391,7 +424,15 @@ export const hasLegacyCensusAmbiguity = (
       if (slotKey === clickedSlotKey) continue;
       if (slotKey === pairedSlotKey) {
         const pairedNameKey = normalizePatientNameKey(subject?.patientName);
-        if (currentNameKey && pairedNameKey && pairedNameKey === currentNameKey) {
+        const hasPendingPairedNaming =
+          observation.subjectStartedUnnamed || observation.pairedStartedUnnamed;
+        if (
+          hasPendingPairedNaming &&
+          !arePairedSubjectsDistinguishedByIdentity(expectedTuple, subject) &&
+          currentNameKey &&
+          pairedNameKey &&
+          pairedNameKey === currentNameKey
+        ) {
           return true;
         }
         if (isCrib) continue;
