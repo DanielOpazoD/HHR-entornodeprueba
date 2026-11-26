@@ -88,6 +88,20 @@ const mergeByDateDesc = (base: DailyRecord[], incoming: DailyRecord[]): DailyRec
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
+const buildReclassificationsSignature = (items: SpecialtyReclassification[]): string =>
+  items
+    .map(item =>
+      [
+        item.date ?? '',
+        item.movementKind,
+        item.movementId,
+        String(item.specialty),
+        item.updatedAt ?? '',
+      ].join('|')
+    )
+    .sort()
+    .join(';');
+
 export function useMinsalStats(
   initialPreset: DateRangePreset = 'lastMonth',
   calculationOptions: MinsalCalculationOptions = {}
@@ -124,14 +138,6 @@ export function useMinsalStats(
   const localRecordsQueryKey = useMemo(
     () => queryKeys.analytics.recordsRange(previousPeriodStart, endDate),
     [previousPeriodStart, endDate]
-  );
-  const remoteStatsQueryKey = useMemo(
-    () =>
-      [
-        ...queryKeys.analytics.remoteStats(hospitalId, startDate, endDate),
-        JSON.stringify(safeRemoteOptions),
-      ] as const,
-    [hospitalId, startDate, endDate, safeRemoteOptions]
   );
   const reclassificationsQueryKey = useMemo(
     () => queryKeys.analytics.specialtyReclassifications(hospitalId, previousPeriodStart, endDate),
@@ -207,29 +213,6 @@ export function useMinsalStats(
     [rangeRecords, startDate, endDate]
   );
 
-  const remoteStatsQuery = useQuery({
-    queryKey: remoteStatsQueryKey,
-    // The screen shows the local stats whenever this range has local records (see
-    // resolveDisplayedMinsalStats), so the server calculation, which reads every day of the
-    // range, only runs when it is the one shown: no local records, or the local read failed.
-    enabled: recordsQuery.isError || (recordsQuery.isSuccess && currentRangeRecords.length === 0),
-    queryFn: async (): Promise<MinsalStatistics> => {
-      const functions = await defaultFunctionsRuntime.getFunctions();
-      const { httpsCallable } = await import('firebase/functions');
-      const calculateStats = httpsCallable(functions, 'calculateMinsalStats');
-      const result = await calculateStats({
-        hospitalId,
-        startDate,
-        endDate,
-        options: safeRemoteOptions,
-      });
-      return result.data as MinsalStatistics;
-    },
-    staleTime: 5 * 60 * 1000,
-    gcTime: 20 * 60 * 1000,
-    retry: 1,
-  });
-
   const reclassificationsQuery = useQuery({
     queryKey: reclassificationsQueryKey,
     queryFn: () =>
@@ -244,8 +227,12 @@ export function useMinsalStats(
       saveAnalyticsSpecialtyReclassification({ ...request, hospitalId }),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: reclassificationsQueryKey }),
-        queryClient.invalidateQueries({ queryKey: remoteStatsQueryKey }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.analytics.specialtyReclassificationsByHospital(hospitalId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.analytics.remoteStatsByHospital(hospitalId),
+        }),
       ]);
     },
   });
@@ -265,6 +252,86 @@ export function useMinsalStats(
       ),
     [allPeriodReclassifications, endDate, startDate]
   );
+
+  const reclassificationsError = useMemo(() => {
+    if (reclassificationsQuery.error) {
+      return getErrorMessage(
+        reclassificationsQuery.error,
+        'No se pudieron cargar las reclasificaciones estadísticas de especialidad.'
+      );
+    }
+
+    if (reclassificationsQuery.isPaused) {
+      return 'Sin conexión para verificar las reclasificaciones estadísticas de especialidad.';
+    }
+
+    return null;
+  }, [reclassificationsQuery.error, reclassificationsQuery.isPaused]);
+
+  const isReclassificationsVerified =
+    reclassificationsQuery.status === 'success' &&
+    !reclassificationsQuery.error &&
+    !reclassificationsQuery.isFetching &&
+    !reclassificationsQuery.isPaused &&
+    reclassificationsQuery.failureCount === 0 &&
+    !saveReclassificationMutation.isPending;
+
+  const hasVerifiedReclassificationsSnapshot =
+    reclassificationsQuery.status === 'success' &&
+    !reclassificationsQuery.error &&
+    !reclassificationsQuery.isPaused &&
+    reclassificationsQuery.dataUpdatedAt > 0;
+
+  const remoteReclassificationsKey = useMemo(
+    () =>
+      hasVerifiedReclassificationsSnapshot
+        ? `verified:${reclassificationsQuery.dataUpdatedAt}:${buildReclassificationsSignature(reclassifications)}`
+        : 'unverified',
+    [hasVerifiedReclassificationsSnapshot, reclassifications, reclassificationsQuery.dataUpdatedAt]
+  );
+
+  const remoteStatsQueryKey = useMemo(
+    () =>
+      [
+        ...queryKeys.analytics.remoteStats(hospitalId, startDate, endDate),
+        JSON.stringify(safeRemoteOptions),
+        remoteReclassificationsKey,
+      ] as const,
+    [hospitalId, startDate, endDate, safeRemoteOptions, remoteReclassificationsKey]
+  );
+
+  const shouldUseRemoteStats =
+    recordsQuery.isError || (recordsQuery.isSuccess && currentRangeRecords.length === 0);
+  const isReclassificationsSettled =
+    !reclassificationsQuery.isFetching &&
+    !saveReclassificationMutation.isPending &&
+    (isReclassificationsVerified || Boolean(reclassificationsError));
+
+  const remoteStatsQuery = useQuery({
+    queryKey: remoteStatsQueryKey,
+    // The screen shows the local stats whenever this range has local records (see
+    // resolveDisplayedMinsalStats), so the server calculation, which reads every day of the
+    // range, only runs when it is the one shown: no local records, or the local read failed.
+    // Waiting for the reclassification read to settle ensures a recovered read never reuses an
+    // older cached server aggregate from before the reclassification change.
+    enabled: shouldUseRemoteStats && isReclassificationsSettled,
+    queryFn: async (): Promise<MinsalStatistics> => {
+      const functions = await defaultFunctionsRuntime.getFunctions();
+      const { httpsCallable } = await import('firebase/functions');
+      const calculateStats = httpsCallable(functions, 'calculateMinsalStats');
+      const result = await calculateStats({
+        hospitalId,
+        startDate,
+        endDate,
+        options: safeRemoteOptions,
+      });
+      return result.data as MinsalStatistics;
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    retry: 1,
+  });
+
   const effectiveCalculationOptions = useMemo<MinsalCalculationOptions>(
     () => ({
       ...calculationOptions,
@@ -328,20 +395,15 @@ export function useMinsalStats(
     return null;
   }, [recordsQuery.error, remoteStatsQuery.isError, remoteStatsQuery.error, localFallbackStats]);
 
-  const reclassificationsError = useMemo(() => {
-    if (!reclassificationsQuery.error) {
-      return null;
-    }
-
-    return getErrorMessage(
-      reclassificationsQuery.error,
-      'No se pudieron cargar las reclasificaciones estadísticas de especialidad.'
-    );
-  }, [reclassificationsQuery.error]);
-
-  const isReclassificationsVerified =
-    reclassificationsQuery.status === 'success' && !reclassificationsQuery.error;
-  const canExportExcel = Boolean(stats) && isReclassificationsVerified;
+  const isUsingRemoteStats = !localRangeStats && shouldUseRemoteStats;
+  const isRemoteStatsVerified =
+    !isUsingRemoteStats ||
+    (remoteStatsQuery.status === 'success' &&
+      !remoteStatsQuery.error &&
+      !remoteStatsQuery.isFetching &&
+      !remoteStatsQuery.isPaused &&
+      remoteStatsQuery.failureCount === 0);
+  const canExportExcel = Boolean(stats) && isReclassificationsVerified && isRemoteStatsVerified;
 
   const comparison = useMemo<MinsalComparisonSummary | null>(() => {
     if (!stats) {
@@ -399,7 +461,7 @@ export function useMinsalStats(
         queryKey: localRecordsQueryKey,
       }),
       queryClient.invalidateQueries({
-        queryKey: remoteStatsQueryKey,
+        queryKey: queryKeys.analytics.remoteStats(hospitalId, startDate, endDate),
       }),
       queryClient.invalidateQueries({
         queryKey: reclassificationsQueryKey,
@@ -408,10 +470,11 @@ export function useMinsalStats(
   }, [
     queryClient,
     localRecordsQueryKey,
-    remoteStatsQueryKey,
+    hospitalId,
+    startDate,
+    endDate,
     reclassificationsQueryKey,
     previousPeriodStart,
-    endDate,
   ]);
 
   return {

@@ -11,6 +11,7 @@ interface SpecialtyReportingControlsProps {
   canEdit?: boolean;
   isSaving?: boolean;
   reclassificationsError?: string | null;
+  isReclassificationsVerified?: boolean;
   onGroupingModeChange: (mode: SpecialtyGroupingMode) => void;
   onReclassificationChange: (
     row: AnalyticsMovementReclassificationRow,
@@ -36,6 +37,7 @@ export const SpecialtyReportingControls: React.FC<SpecialtyReportingControlsProp
   canEdit = false,
   isSaving = false,
   reclassificationsError = null,
+  isReclassificationsVerified = reclassificationsError === null,
   onGroupingModeChange,
   onReclassificationChange,
 }) => (
@@ -75,6 +77,13 @@ export const SpecialtyReportingControls: React.FC<SpecialtyReportingControlsProp
           >
             No se pudieron leer las reclasificaciones actuales. La edición queda deshabilitada hasta
             recuperar la lectura.
+          </div>
+        ) : !isReclassificationsVerified ? (
+          <div
+            role="status"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
+          >
+            Verificando reclasificaciones actuales...
           </div>
         ) : rows.length > 0 ? (
           <div className="max-h-72 overflow-auto rounded-lg border border-slate-200">

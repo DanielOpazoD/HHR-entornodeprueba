@@ -193,6 +193,12 @@ vi.mock('firebase/firestore', () => {
     doc: vi.fn(() => ({ id: 'mock-doc-path' })),
     getDoc: vi.fn().mockResolvedValue(mockSnap),
     getDocs: vi.fn().mockResolvedValue({ docs: [], empty: true, size: 0 }),
+    getDocsFromServer: vi.fn().mockResolvedValue({
+      docs: [],
+      empty: true,
+      size: 0,
+      metadata: { fromCache: false },
+    }),
     setDoc: vi.fn().mockResolvedValue(undefined),
     updateDoc: vi.fn().mockResolvedValue(undefined),
     deleteDoc: vi.fn().mockResolvedValue(undefined),

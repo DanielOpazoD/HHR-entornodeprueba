@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  getDocsFromServer,
   limit,
   onSnapshot,
   orderBy,
@@ -27,6 +28,7 @@ export interface FirestoreProviderApi {
   doc: typeof doc;
   getDoc: typeof getDoc;
   getDocs: typeof getDocs;
+  getDocsFromServer?: typeof getDocsFromServer;
   limit: typeof limit;
   onSnapshot: typeof onSnapshot;
   orderBy: typeof orderBy;
@@ -44,6 +46,7 @@ const defaultFirestoreProviderApi: FirestoreProviderApi = {
   doc,
   getDoc,
   getDocs,
+  getDocsFromServer,
   limit,
   onSnapshot,
   orderBy,
@@ -95,7 +98,14 @@ export class FirestoreProvider implements IDatabaseProvider {
   async getDocs<T>(collectionName: string, options?: QueryOptions): Promise<T[]> {
     const constraints = this.buildConstraints(options);
     const collectionRef = this.api.collection(this.getFirestoreInstance(), collectionName);
-    const snapshot = await this.api.getDocs(this.api.query(collectionRef, ...constraints));
+    const readDocs =
+      options?.source === 'server'
+        ? (this.api.getDocsFromServer ?? getDocsFromServer)
+        : this.api.getDocs;
+    const snapshot = await readDocs(this.api.query(collectionRef, ...constraints));
+    if (options?.source === 'server' && snapshot.metadata?.fromCache) {
+      throw new Error('Server read unavailable: Firestore returned cached results.');
+    }
     return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }) as T);
   }
 

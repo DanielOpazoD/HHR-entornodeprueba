@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { focusManager } from '@tanstack/react-query';
+import { focusManager, onlineManager } from '@tanstack/react-query';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useMinsalStats } from '@/features/analytics/hooks/useMinsalStats';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
@@ -611,6 +611,213 @@ describe('useMinsalStats', () => {
       );
       expect(result.current.isReclassificationsVerified).toBe(false);
       expect(result.current.canExportExcel).toBe(false);
+    });
+
+    it('keeps Excel export blocked while a post-save reclassification re-read is retrying after an initial failure', async () => {
+      const local = [{ date: '2026-03-31' } as DailyRecord];
+      const deferredRetry: { resolve?: (value: unknown) => void } = {};
+      const retryPromise = new Promise(resolve => {
+        deferredRetry.resolve = resolve;
+      });
+      const updatedReclassification = {
+        date: '2026-03-31',
+        movementKind: 'discharge' as const,
+        movementId: 'd-1',
+        specialty: 'Cirugía',
+      };
+
+      mockFetchRecordsRangeSorted.mockResolvedValue(local);
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(buildStats());
+      mockSaveReclassification.mockResolvedValue(undefined);
+      mockFetchReclassifications
+        .mockResolvedValueOnce([])
+        .mockRejectedValueOnce(new Error('transient re-read failure'))
+        .mockImplementationOnce(() => retryPromise);
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+
+      let savePromise: Promise<void> | undefined;
+      act(() => {
+        savePromise = result.current.saveReclassification({
+          date: '2026-03-31',
+          movementKind: 'discharge',
+          movementId: 'd-1',
+          reportingSpecialty: 'Cirugía',
+        });
+      });
+
+      await waitFor(() => expect(mockFetchReclassifications).toHaveBeenCalledTimes(3));
+      expect(result.current.isReclassificationsVerified).toBe(false);
+      expect(result.current.canExportExcel).toBe(false);
+
+      await act(async () => {
+        deferredRetry.resolve?.([updatedReclassification]);
+        await savePromise;
+      });
+
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+      expect(result.current.isReclassificationsVerified).toBe(true);
+      expect(result.current.reclassifications).toEqual([updatedReclassification]);
+    });
+
+    it('refetches remote stats instead of reusing a stale cached aggregate when reclassifications recover after switching ranges', async () => {
+      const staleRemoteStats = buildStats({
+        porEspecialidad: [
+          {
+            specialty: 'Oftalmología',
+            pacientesActuales: 0,
+            egresos: 1,
+            fallecidos: 0,
+            traslados: 0,
+            aerocardal: 0,
+            fach: 0,
+            diasOcupados: 1,
+            contribucionRelativa: 100,
+            tasaMortalidad: 0,
+            promedioDiasEstada: 1,
+            promedioDiasEstadaMinima: 1,
+            promedioDiasEstadaMaxima: 1,
+          },
+        ],
+      });
+      const updatedRemoteStats = buildStats({
+        porEspecialidad: [
+          {
+            specialty: 'Cirugía',
+            pacientesActuales: 0,
+            egresos: 1,
+            fallecidos: 0,
+            traslados: 0,
+            aerocardal: 0,
+            fach: 0,
+            diasOcupados: 1,
+            contribucionRelativa: 100,
+            tasaMortalidad: 0,
+            promedioDiasEstada: 1,
+            promedioDiasEstadaMinima: 1,
+            promedioDiasEstadaMaxima: 1,
+          },
+        ],
+      });
+      const recoveredReclassification = {
+        date: '2026-03-31',
+        movementKind: 'discharge' as const,
+        movementId: 'd-1',
+        specialty: 'Cirugía',
+      };
+
+      mockGetDateRangeFromPreset.mockImplementation((preset: string) =>
+        preset === 'last7days'
+          ? { startDate: '2026-03-25', endDate: '2026-03-31' }
+          : { startDate: '2026-03-01', endDate: '2026-03-31' }
+      );
+      mockFetchRecordsRangeSorted.mockResolvedValue([]);
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(null);
+      mockFetchReclassifications.mockImplementation((start: string, end: string) => {
+        if (start === '2026-01-29' && end === '2026-03-31') {
+          const callsForRange = mockFetchReclassifications.mock.calls.filter(
+            ([callStart, callEnd]) => callStart === '2026-01-29' && callEnd === '2026-03-31'
+          ).length;
+          if (callsForRange <= 2) {
+            return Promise.reject(new Error('reclassifications temporarily unavailable'));
+          }
+          return Promise.resolve([recoveredReclassification]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const deferredFreshRemote: { resolve?: (value: { data: MinsalStatistics }) => void } = {};
+      const freshRemotePromise = new Promise<{ data: MinsalStatistics }>(resolve => {
+        deferredFreshRemote.resolve = resolve;
+      });
+      let rangeACallCount = 0;
+      mockCallable.mockImplementation((payload: { startDate: string }) => {
+        if (payload.startDate === '2026-03-01') {
+          rangeACallCount += 1;
+          if (rangeACallCount === 1) {
+            return Promise.resolve({ data: staleRemoteStats });
+          }
+          return freshRemotePromise;
+        }
+        return Promise.resolve({ data: buildStats({ periodStart: '2026-03-25' }) });
+      });
+
+      const wrapper = createQueryClientTestWrapper({
+        config: {
+          defaultOptions: {
+            queries: {
+              retry: false,
+              retryDelay: 0,
+            },
+          },
+        },
+      }).wrapper;
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), { wrapper });
+
+      await waitFor(() =>
+        expect(result.current.stats?.porEspecialidad[0]?.specialty).toBe('Oftalmología')
+      );
+      expect(result.current.canExportExcel).toBe(false);
+
+      act(() => {
+        result.current.setPreset('last7days');
+      });
+      await waitFor(() => expect(result.current.stats?.periodStart).toBe('2026-03-25'));
+
+      act(() => {
+        result.current.setPreset('lastMonth');
+      });
+
+      await waitFor(() => expect(rangeACallCount).toBe(2));
+      expect(result.current.canExportExcel).toBe(false);
+
+      await act(async () => {
+        deferredFreshRemote.resolve?.({ data: updatedRemoteStats });
+      });
+
+      await waitFor(() => expect(result.current.canExportExcel).toBe(true));
+      expect(result.current.stats?.porEspecialidad[0]?.specialty).toBe('Cirugía');
+    });
+
+    it('keeps reclassificationsError active and Excel export blocked when retrying while offline', async () => {
+      const local = [{ date: '2026-03-31' } as DailyRecord];
+      mockFetchRecordsRangeSorted.mockResolvedValue(local);
+      mockSyncRecordsRange.mockResolvedValue([]);
+      mockCalculateMinsalStats.mockReturnValue(buildStats());
+      mockFetchReclassifications.mockRejectedValue(new Error('network unavailable'));
+
+      const { result } = renderHook(() => useMinsalStats('lastMonth'), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() =>
+        expect(result.current.reclassificationsError).toBe('network unavailable')
+      );
+
+      try {
+        act(() => {
+          onlineManager.setOnline(false);
+        });
+
+        await act(async () => {
+          await result.current.refresh();
+        });
+
+        await waitFor(() => expect(result.current.isReclassificationsVerified).toBe(false));
+        expect(result.current.reclassificationsError).toMatch(/Sin conexión/i);
+        expect(result.current.canExportExcel).toBe(false);
+      } finally {
+        act(() => {
+          onlineManager.setOnline(true);
+        });
+      }
     });
   });
 });

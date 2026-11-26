@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AnalyticsView } from '@/features/analytics/public';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { getTodayISO } from '@/utils/dateCoreUtils';
@@ -201,5 +201,70 @@ describe('AnalyticsView MINSAL specialty reclassification export verification', 
     await waitFor(() => expect(mockDownloadBlob).toHaveBeenCalledTimes(1));
     const blob = mockDownloadBlob.mock.calls[0]?.[0] as Blob;
     await expect(readSpecialtyDischargeRows(blob)).resolves.toEqual([['Cirugía', 1]]);
+  });
+
+  it('keeps Excel export disabled during a post-save retry window and exports Cirugía once the retry completes', async () => {
+    const deferredRetry: { resolve?: (value: SpecialtyReclassification[]) => void } = {};
+    const retryPromise = new Promise<SpecialtyReclassification[]>(resolve => {
+      deferredRetry.resolve = resolve;
+    });
+
+    mockSaveReclassification.mockResolvedValue(undefined);
+    mockFetchReclassifications
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error('transient re-read error'))
+      .mockImplementationOnce(() => retryPromise);
+
+    renderAnalyticsView();
+
+    const exportButton = await screen.findByRole('button', { name: /Exportar Excel/i });
+    expect(exportButton).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Especialidades' }));
+    const select = screen.getByLabelText('Reclasificar Paciente Sintético');
+    fireEvent.change(select, { target: { value: 'Cirugía' } });
+
+    await waitFor(() => expect(mockFetchReclassifications).toHaveBeenCalledTimes(3));
+    expect(screen.getByRole('button', { name: /Exportar Excel/i })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Exportar Excel/i }));
+    expect(mockDownloadBlob).not.toHaveBeenCalled();
+
+    deferredRetry.resolve?.([syntheticReclassification]);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Exportar Excel/i })).toBeEnabled()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Exportar Excel/i }));
+
+    await waitFor(() => expect(mockDownloadBlob).toHaveBeenCalledTimes(1));
+    const blob = mockDownloadBlob.mock.calls[0]?.[0] as Blob;
+    await expect(readSpecialtyDischargeRows(blob)).resolves.toEqual([['Cirugía', 1]]);
+  });
+
+  it('keeps the warning visible and never reports empty reclassifications when retrying offline', async () => {
+    mockFetchReclassifications.mockRejectedValue(new Error('Firestore unavailable'));
+
+    renderAnalyticsView();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/No se pudieron verificar las reclasificaciones/i);
+
+    try {
+      onlineManager.setOnline(false);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+      expect(screen.getByRole('button', { name: /Exportar Excel/i })).toBeDisabled();
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Trazabilidad' }));
+      expect(screen.queryByText('Sin reclasificaciones vigentes.')).not.toBeInTheDocument();
+      expect(
+        screen.getByText(/No se pudieron verificar las reclasificaciones vigentes/i)
+      ).toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 });

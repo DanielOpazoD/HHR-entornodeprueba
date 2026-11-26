@@ -200,7 +200,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
             disabled={!canExportExcel}
             title={
               !canExportExcel
-                ? 'Exportación bloqueada: no se pudieron verificar las reclasificaciones de especialidad'
+                ? reclassificationsError
+                  ? 'Exportación bloqueada: no se pudieron verificar las reclasificaciones de especialidad'
+                  : 'Exportación bloqueada mientras se verifican las estadísticas y reclasificaciones de especialidad'
                 : undefined
             }
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -361,12 +363,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
             canEdit={isAdmin && isReclassificationsVerified}
             isSaving={isSavingReclassification}
             reclassificationsError={reclassificationsError}
+            isReclassificationsVerified={isReclassificationsVerified}
             onGroupingModeChange={setSpecialtyGroupingMode}
             onReclassificationChange={handleReclassificationChange}
           />
           <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
             <h3 className="font-bold text-slate-700 mb-4">Desglose por especialidad del período</h3>
-            {reclassificationsError && (
+            {reclassificationsError ? (
               <div
                 role="status"
                 className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900"
@@ -374,7 +377,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
                 Distribución preliminar sin reclasificaciones verificadas. Reintenta antes de usar o
                 exportar estas cifras.
               </div>
-            )}
+            ) : !isReclassificationsVerified ? (
+              <div
+                role="status"
+                className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600"
+              >
+                Actualizando la distribución por especialidad con las reclasificaciones vigentes...
+              </div>
+            ) : null}
             <SpecialtyBreakdownTable
               data={stats.porEspecialidad || []}
               records={allRecords}
@@ -390,6 +400,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
           dataQualityIssues={dataQualityIssues}
           reclassifications={reclassifications}
           reclassificationsError={reclassificationsError}
+          isReclassificationsVerified={isReclassificationsVerified}
           onOpenCensusDate={onOpenCensusDate}
         />
       )}
