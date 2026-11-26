@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import 'fake-indexeddb/auto';

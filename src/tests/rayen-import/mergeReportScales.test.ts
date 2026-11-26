@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { mergeReportScales, type EvaluationScale } from '@/features/rayen-import';
 import type { PatientData } from '@/types/domain/patient';

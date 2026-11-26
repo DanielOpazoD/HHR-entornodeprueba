@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
 import { createWorkbook, BORDER_THIN, HEADER_FILL } from '@/services/exporters/excelUtils';
 

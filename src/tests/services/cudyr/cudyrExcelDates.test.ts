@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { cudyrExcelDateText, cudyrExcelMoment } from '@/features/cudyr/export/cudyrExcelDates';
 import { exportSheet, row, source } from './cudyrSourceTable.fixtures';

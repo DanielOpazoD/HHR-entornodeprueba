@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Synthetic-only: a browser may still hold a specialist note task queued before the old medical
  * handoff was retired. The queue no longer knows that type: it keeps the row exactly as it was,

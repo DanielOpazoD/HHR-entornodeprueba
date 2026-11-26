@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveSpecialtyRoundRule } from '@/features/census/components/specialty-round/specialtyRoundModel';
 import type { SpecialtyCatalogRule } from '@/features/census/services/specialtyJevClient';

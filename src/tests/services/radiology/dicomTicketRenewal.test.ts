@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DicomTicketExpiredError } from '@/features/radiology/services/dicomLoadState';
 import { createDicomStudyPrefetch } from '@/features/radiology/services/dicomStudyPrefetch';

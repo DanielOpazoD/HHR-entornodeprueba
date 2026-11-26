@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { areRayenStructuralPlansEquivalent } from '@/features/rayen-import/hooks/confirmRayenImport';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';

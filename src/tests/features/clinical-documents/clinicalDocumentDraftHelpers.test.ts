@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveAutosaveIndicatorState } from '@/features/clinical-documents/components/ClinicalDocumentStatusBar';
 import { resolveClinicalDocumentInsertTarget } from '@/features/clinical-documents/components/ClinicalDocumentsWorkspace';

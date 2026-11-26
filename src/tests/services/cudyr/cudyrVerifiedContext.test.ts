@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { cudyrEligibilityOrigin } from '@/features/cudyr/report/cudyrDailyControl';
 import { describe, expect, it } from 'vitest';
 import {

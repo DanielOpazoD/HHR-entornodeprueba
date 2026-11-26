@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * The clinical batch callable (`applyRayenClinicalEnrichmentBatch`) has its limits on both sides:
  * the app splits a synchronization into batches it sizes itself, and the server rejects a batch

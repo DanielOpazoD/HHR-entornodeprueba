@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import { applyCudyrMonthlyAbsenceLinks } from '@/services/cudyr/cudyrMonthlyAbsenceLinks';
 import { applyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyProjection';

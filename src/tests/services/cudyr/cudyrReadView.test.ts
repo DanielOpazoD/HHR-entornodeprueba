@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { gzipSync } from 'node:zlib';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { readCudyrReadView, saveCudyrReadView } from '@/features/cudyr/report/cudyrReadView';

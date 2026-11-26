@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RayenPatientClinicalBundle } from '@/features/rayen-import/contracts/patientClinicalBundle';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { applyEgresoLookupFallback, type CensusImportDiff } from '@/features/rayen-import';
 import { EMPTY_PATIENT } from '@/constants/patient';

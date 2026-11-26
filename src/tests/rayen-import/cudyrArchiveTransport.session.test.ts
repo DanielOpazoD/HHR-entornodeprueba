@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { patchDailyRecordWithClinicalAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';

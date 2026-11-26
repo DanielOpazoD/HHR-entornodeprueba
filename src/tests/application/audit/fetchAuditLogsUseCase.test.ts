@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { executeFetchAuditLogs } from '@/application/audit/fetchAuditLogsUseCase';
 import * as auditService from '@/services/admin/auditService';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ pages: vi.fn(), save: vi.fn(), local: vi.fn() }));
 vi.mock('firebase/firestore', () => ({

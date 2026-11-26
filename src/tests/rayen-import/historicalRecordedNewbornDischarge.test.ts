@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import type { DischargeData } from '@/types/domain/movements';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';

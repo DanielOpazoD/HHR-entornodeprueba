@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { loadExecuteWriteAuditEventFrom } from '@/application/audit/writeAuditEventUseCaseLoader';
 import { createApplicationSuccess } from '@/shared/contracts/applicationOutcomeFactories';

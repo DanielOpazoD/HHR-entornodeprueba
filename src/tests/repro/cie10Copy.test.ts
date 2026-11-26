@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, it, expect } from 'vitest';
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { deriveRayenRecoveryAction } from '@/features/rayen-import/bridge/rayenRecoveryAction';
 import {

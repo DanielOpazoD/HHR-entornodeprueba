@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { exportSheet, row, source } from './cudyrSourceTable.fixtures';
 import { CUDYR_EXCLUSION_LABELS, type CudyrExclusionReason } from '@/types/domain/cudyrExclusion';
 import { describe, expect, it, vi } from 'vitest';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveRepeatedMonthlyEpisodes } from '@/services/cudyr/cudyrMonthlyEpisodeLink';
 import { applyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyProjection';

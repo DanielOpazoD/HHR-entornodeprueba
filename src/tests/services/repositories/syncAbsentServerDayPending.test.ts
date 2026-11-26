@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { resolveNeonatalPlacements } from '@/features/rayen-import/domain/neonatalPlacementReview';
 import { describe, expect, it } from 'vitest';
 import {

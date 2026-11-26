@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { executeDeleteClinicalDocument } from '@/application/clinical-documents/clinicalDocumentUseCases';
 import type { ClinicalDocumentPort } from '@/application/ports/clinicalDocumentPort';

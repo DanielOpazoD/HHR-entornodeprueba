@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS,

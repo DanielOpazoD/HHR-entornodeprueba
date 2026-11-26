@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { Reminder, ReminderVisibilityContext } from '@/types/reminders';
 import type { ReminderDraftInput } from '@/features/reminders/domain/reminderValidation';

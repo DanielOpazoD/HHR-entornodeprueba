@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { createRayenSyncRunLifecycle } from '@/features/rayen-import/domain/rayenSyncRunLifecycle';
 import type { RayenSyncRun } from '@/features/rayen-import/domain/rayenSyncHistory';

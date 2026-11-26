@@ -1,3 +1,4 @@
+// @vitest-environment node
 import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vitest';
 import PizZip from 'pizzip';

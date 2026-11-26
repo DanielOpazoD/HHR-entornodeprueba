@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { parseClinicalPanel } from '@/features/rayen-import/mapping/parseClinicalPanel';
 import type { RayenClinicalPanelEvent } from '@/features/rayen-import/bridge/clinicalPanelBridge';

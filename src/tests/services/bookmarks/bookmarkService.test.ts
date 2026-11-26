@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Bookmark Service Tests
  * Tests for patient bookmark operations with Firestore

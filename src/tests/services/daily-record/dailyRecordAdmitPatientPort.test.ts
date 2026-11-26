@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { describe, expect, it, vi } from 'vitest';
 import {

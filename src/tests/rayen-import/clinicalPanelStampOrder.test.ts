@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
 import { compareStamps } from '@/features/rayen-import/mapping/clinicalPanelParsingUtils';
 import { parseClinicalPanel } from '@/features/rayen-import/mapping/parseClinicalPanel';

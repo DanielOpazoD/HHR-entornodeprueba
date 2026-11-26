@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests for the episode grouping logic used in global patient search.
  *

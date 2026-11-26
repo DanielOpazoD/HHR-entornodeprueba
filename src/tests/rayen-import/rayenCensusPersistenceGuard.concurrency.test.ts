@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
 import { classifyRayenApplyFailureReason } from '@/features/rayen-import/observability/rayenSyncDiagnostics';

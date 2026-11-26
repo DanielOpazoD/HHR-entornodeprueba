@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

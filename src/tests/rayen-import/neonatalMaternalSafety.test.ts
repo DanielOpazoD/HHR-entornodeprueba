@@ -1,3 +1,4 @@
+// @vitest-environment node
 import {
   REVIEWED_AT as at,
   applyNeonatalReview as apply,

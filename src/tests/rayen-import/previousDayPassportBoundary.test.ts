@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { EMPTY_PATIENT } from '@/constants/patient';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { isVersionAtLeast } from '@/features/census/components/clinical-explorer/clinicalExplorerDownloadModel';
 import {

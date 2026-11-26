@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('@/services/storage/firestore/firestoreServiceRuntime', () => ({
   defaultFirestoreServiceRuntime: { ready: Promise.resolve(), getDb: vi.fn() },

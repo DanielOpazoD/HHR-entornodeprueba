@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { runClinicalFill, type ClinicalFillDeps } from './support/batchClinicalFill';
 import { mergeClinicalDeviceRead } from '@/features/rayen-import/domain/mergeClinicalDeviceRead';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateHandoffPdf } from '@/services/pdf/handoffPdfGenerator';
 import { openPdfPrintDialog } from '@/services/pdf/pdfBase';

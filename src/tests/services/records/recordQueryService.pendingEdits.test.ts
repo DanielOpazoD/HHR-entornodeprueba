@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

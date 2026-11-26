@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { createClinicalCudyrCoordinator } from '@/features/rayen-import/domain/clinicalCudyrCoordinator';
 import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';

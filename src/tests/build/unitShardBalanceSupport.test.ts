@@ -244,6 +244,39 @@ describe('unit shard balance support', () => {
     });
   });
 
+  it('applies lower per-file overhead to files declaring @vitest-environment node', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hhr-node-overhead-'));
+    roots.push(root);
+    fs.mkdirSync(path.join(root, 'src/tests'), { recursive: true });
+    const nodeFile = 'src/tests/pureNode.test.ts';
+    const jsdomFile = 'src/tests/uiJsdom.test.tsx';
+    fs.writeFileSync(path.join(root, nodeFile), '// @vitest-environment node\nexport {};\n');
+    fs.writeFileSync(path.join(root, jsdomFile), 'export {};\n');
+
+    const profile = buildUnitShardRuntimeProfile({
+      root,
+      files: [nodeFile, jsdomFile],
+      durationByFile: {
+        [nodeFile]: 100,
+        [jsdomFile]: 100,
+      },
+      config: {
+        shardCount: 2,
+        tolerancePercent: 200,
+        perFileOverheadMs: 350,
+        nodePerFileOverheadMs: 150,
+        criticalTestGlobs: [],
+        lockedAssignments: {},
+      },
+    });
+
+    expect(profile.durationByFile).toEqual({
+      [nodeFile]: 250,
+      [jsdomFile]: 450,
+    });
+    expect(profile.summary.nodePerFileOverheadMs).toBe(150);
+  });
+
   it('parses the shard argument while preserving passthrough Vitest flags', () => {
     expect(parseUnitShardRunArguments(['2/4', '--reporter=dot', '--runInBand'])).toEqual({
       requestedShard: { index: 2, count: 4 },

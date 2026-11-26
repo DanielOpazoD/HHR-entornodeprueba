@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The reader chunk fails to load (offline on first use, a stale hash after a deploy).

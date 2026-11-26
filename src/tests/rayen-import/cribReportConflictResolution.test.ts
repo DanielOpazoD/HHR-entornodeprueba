@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { dropRedundantUnverifiedReportConflicts } from '@/features/rayen-import/domain/redundantReportRowConflicts';
 import { expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';

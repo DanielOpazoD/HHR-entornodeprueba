@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { captureAuthoringSession } from '@/services/session/authoringSession';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';

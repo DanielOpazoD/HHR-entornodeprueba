@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { decodeClinicalReadFailure } from '@/features/rayen-import/contracts/clinicalReadError';
 import { mapScalesFormsPayload } from '@/features/rayen-import/bridge/patientClinicalBundleChannel';

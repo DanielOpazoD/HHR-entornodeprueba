@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { upsertSpecialtyRule } from '@/features/census/components/specialty-round/specialtyRulesEditorModel';
 describe('diagnosis rule staging', () => {

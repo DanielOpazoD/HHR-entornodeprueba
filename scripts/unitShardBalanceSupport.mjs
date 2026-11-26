@@ -174,6 +174,33 @@ export const parseUnitShardRunArguments = args => {
   };
 };
 
+const NODE_ENVIRONMENT_DIRECTIVE = /@vitest-environment\s+node\b/;
+
+const hasNodeEnvironmentDirective = (root, file) => {
+  try {
+    const fd = fs.openSync(path.join(root, file), 'r');
+    try {
+      const buffer = Buffer.alloc(400);
+      const bytesRead = fs.readSync(fd, buffer, 0, 400, 0);
+      return NODE_ENVIRONMENT_DIRECTIVE.test(buffer.toString('utf8', 0, bytesRead));
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return false;
+  }
+};
+
+const resolvePerFileOverheadMs = (root, file, config) => {
+  const defaultOverheadMs = Number(config?.perFileOverheadMs || 0);
+  if (config?.nodePerFileOverheadMs === undefined || config?.nodePerFileOverheadMs === null) {
+    return defaultOverheadMs;
+  }
+  return hasNodeEnvironmentDirective(root, file)
+    ? Number(config.nodePerFileOverheadMs || 0)
+    : defaultOverheadMs;
+};
+
 export const estimateDurationByFile = ({
   root = process.cwd(),
   files,
@@ -181,26 +208,26 @@ export const estimateDurationByFile = ({
   measuredDurations = {},
 }) => {
   const durationByFile = {};
-  const perFileOverheadMs = Number(config?.perFileOverheadMs || 0);
   for (const file of sortFiles(files)) {
     durationByFile[file] =
       (Number(measuredDurations[file] || 0) ||
         durationHintsForFile(file, config) ||
-        fileSizeEstimate(root, file)) + perFileOverheadMs;
+        fileSizeEstimate(root, file)) + resolvePerFileOverheadMs(root, file, config);
   }
   return durationByFile;
 };
 
-export const normalizePersistedDurationByFile = (report, config = {}) => {
+export const normalizePersistedDurationByFile = (report, config = {}, root = process.cwd()) => {
   const persisted = report?.durationByFile || {};
-  const persistedOverheadMs = Number(
-    report?.summary?.perFileOverheadMs ?? config?.perFileOverheadMs ?? 0
-  );
+  const overheadConfig = {
+    perFileOverheadMs: report?.summary?.perFileOverheadMs ?? config?.perFileOverheadMs ?? 0,
+    nodePerFileOverheadMs: report?.summary?.nodePerFileOverheadMs ?? config?.nodePerFileOverheadMs,
+  };
 
   return Object.fromEntries(
     Object.entries(persisted).map(([file, duration]) => [
       file,
-      Math.max(1, Number(duration || 0) - persistedOverheadMs),
+      Math.max(1, Number(duration || 0) - resolvePerFileOverheadMs(root, file, overheadConfig)),
     ])
   );
 };
@@ -435,6 +462,9 @@ export const buildUnitShardRuntimeProfile = ({
       spreadPercent: spread.spreadPercent,
       tolerancePercent: Number(config.tolerancePercent || 0),
       perFileOverheadMs: Number(config.perFileOverheadMs || 0),
+      ...(config.nodePerFileOverheadMs !== undefined && config.nodePerFileOverheadMs !== null
+        ? { nodePerFileOverheadMs: Number(config.nodePerFileOverheadMs || 0) }
+        : {}),
     },
     shards,
     spread,
@@ -458,7 +488,7 @@ export const buildUnitShardBalanceReport = (root, { useLocalMeasurements = false
     config.durationSource === 'hints' && !useLocalMeasurements
       ? {}
       : {
-          ...normalizePersistedDurationByFile(persistedProfile, config),
+          ...normalizePersistedDurationByFile(persistedProfile, config, root),
           ...readVitestJsonDurations(root, RAW_VITEST_PROFILE_PATH),
         };
   const profile = buildUnitShardRuntimeProfile({

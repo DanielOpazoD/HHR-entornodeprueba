@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
 import { QueryClient } from '@tanstack/react-query';

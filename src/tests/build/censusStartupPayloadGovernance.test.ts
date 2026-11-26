@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { ONLINE_ONLY_PRECACHE_PATTERNS } from '../../../scripts/config/onlineOnlyAssets.mjs';
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';

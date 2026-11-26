@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { PatientStatus } from '@/types/domain/patientClassification';

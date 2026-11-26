@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { captureAuthoringSession } from '@/services/session/authoringSession';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

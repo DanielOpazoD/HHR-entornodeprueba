@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { FIXED_ISO_TIMESTAMP } from './excelExport.testUtils';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';

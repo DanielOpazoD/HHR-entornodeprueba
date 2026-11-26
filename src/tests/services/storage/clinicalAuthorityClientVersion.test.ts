@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Clinical authority callables carry the client runtime contract version as its own top-level
  * field (D7 of DESIGN_DAILY_RECORD_PHASE1_CLINICAL_DERIVED.md): outside `syncContract`, digests and

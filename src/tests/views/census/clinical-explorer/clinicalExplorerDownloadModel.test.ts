@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { AuditDocumentsResult } from '@/features/audit-documents/eloisa-history';
 import {

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildRayenSyncCoverage } from '@/features/rayen-import/domain/rayenSyncHistory';
 import { RayenSyncMetaSchema } from '@/schemas/zod/dailyRecord';

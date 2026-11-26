@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';

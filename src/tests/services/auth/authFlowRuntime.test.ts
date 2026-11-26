@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as firebaseAuth from 'firebase/auth';
 import type { AuthRuntime } from '@/services/firebase-runtime/authRuntime';

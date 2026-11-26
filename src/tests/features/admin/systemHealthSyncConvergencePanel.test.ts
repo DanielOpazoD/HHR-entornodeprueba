@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { UserHealthStatus } from '@/services/admin/healthService';
 import { buildSystemHealthSyncConvergencePanelModel } from '@/features/admin/components/systemHealthSyncConvergenceModel';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { applyConfirmedRayenImport } from '@/features/rayen-import/hooks/confirmRayenImport';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';

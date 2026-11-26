@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests for the IEEH print controller (epicrisis → IEEH PDF data mapping).
  */

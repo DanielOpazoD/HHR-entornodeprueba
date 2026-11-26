@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { saveBackupImport } from '@/services/repositories/dailyRecordBackupImportWriteService';

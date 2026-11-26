@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { PDFDocument } from 'pdf-lib';
 import PizZip from 'pizzip';
 import { describe, expect, it } from 'vitest';

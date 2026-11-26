@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { executeWriteAuditEvent } from '@/application/audit/writeAuditEventUseCase';
 import * as auditService from '@/services/admin/auditService';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import { buildAppliedRayenSyncEvent } from '@/features/rayen-import/domain/rayenSyncHistory';

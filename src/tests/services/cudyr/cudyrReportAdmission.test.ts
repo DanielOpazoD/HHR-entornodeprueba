@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
 import { reportInput, reportPatient, reportRecord, reportObservation } from './reportFixtures';

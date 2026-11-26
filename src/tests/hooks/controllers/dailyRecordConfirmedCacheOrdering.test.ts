@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { createServerDailyRecordSubscriptionResult } from '@/tests/factories/dailyRecordSubscriptionResult';

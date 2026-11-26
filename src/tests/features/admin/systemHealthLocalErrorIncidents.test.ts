@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildSystemHealthIncidentRows } from '@/features/admin/components/systemHealthIncidentUtils';
 import { baseStatus } from './systemHealthIncidentTestFixtures';

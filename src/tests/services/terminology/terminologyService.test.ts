@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests: Servicio de Terminología CIE-10 (terminologyService)
  *

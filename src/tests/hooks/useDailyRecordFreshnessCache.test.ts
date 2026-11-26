@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ensureDailyRecordRemoteFreshness } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import { generateAuditWorkbook } from '@/features/admin/services/auditWorkbook';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { applyCensusImportDiff, reconcileCensus } from '@/features/rayen-import';
 import { resolveNeonatalPlacements } from '@/features/rayen-import/domain/neonatalPlacementReview';

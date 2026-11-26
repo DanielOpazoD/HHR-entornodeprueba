@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { SyncQueueStats } from '@/features/rayen-import/hooks/useSyncQueueMonitor';
 import { RAYEN_SYNC_FAILURE_REASONS, type RayenSyncEvent } from '@/types/domain/rayenSync';

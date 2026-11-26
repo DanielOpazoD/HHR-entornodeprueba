@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClinicalDerivedEpisodeDoc } from '@/types/domain/clinicalDerived';
 import { ClinicalDerivedEpisodeDocSchema } from '@/schemas/zod/clinicalDerived';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 /* Synthetic only: the post-deploy refresh through the real sync path and the real local stores. */
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';

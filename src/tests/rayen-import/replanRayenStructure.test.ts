@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { rayenToPatientData } from '@/features/rayen-import/mapping/rayenToPatientData';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildStructuralReviewEvidence } from '@/features/rayen-import/domain/clinicalStageResolution';
 import { createEmptyCensusImportDiff } from '@/features/rayen-import/domain/censusImportDiffFactory';

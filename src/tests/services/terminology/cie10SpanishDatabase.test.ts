@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Tests: Motor de Búsqueda Local Asíncrono CIE-10 (searchCIE10)
  *

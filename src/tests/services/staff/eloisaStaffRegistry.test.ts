@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';

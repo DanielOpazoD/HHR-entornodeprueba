@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositoryReadService';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';

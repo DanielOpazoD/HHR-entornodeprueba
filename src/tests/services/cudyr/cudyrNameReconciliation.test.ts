@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { applyCudyrMonthlySources } from '@/services/cudyr/cudyrMonthlyProjection';
 import { createCudyrIdentityResolver } from '@/services/cudyr/cudyrNameReconciliation';

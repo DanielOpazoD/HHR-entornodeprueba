@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, it, vi } from 'vitest';
 import { ClinicalDocumentRepository } from '@/services/repositories/ClinicalDocumentRepository';
 import { defaultClinicalDocumentPort } from '@/application/ports/clinicalDocumentPort';

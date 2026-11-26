@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { prepareClinicalEnrichmentBatchPayload } from '@/features/rayen-import/hooks/clinicalEnrichmentBatchPayload';
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';

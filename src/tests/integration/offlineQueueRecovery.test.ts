@@ -1,3 +1,4 @@
+// @vitest-environment node
 import * as sessionOwner from '@/services/session/sessionOwnerKey';
 import { captureAuthoringSession } from '@/services/session/authoringSession';
 import 'fake-indexeddb/auto';
