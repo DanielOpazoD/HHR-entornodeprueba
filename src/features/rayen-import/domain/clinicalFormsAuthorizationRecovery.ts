@@ -53,12 +53,18 @@ export const createClinicalFormsAuthorizationRecovery = (
         signal.throwIfAborted();
         const live = snapshot?.encounters.filter(item => item.encounterId === encounterId) ?? [];
         const singleLive = live.length === 1 ? live[0] : undefined;
-        // A changed identity is a contradiction, not permission to fall back to the old patient.
-        if (live.length)
-          return (
-            singleLive !== undefined &&
-            canonicalRun(singleLive.run, passport) === canonicalRun(run, passport)
-          );
+        // A changed identity is a contradiction, unless HHR explicitly overrode this episode's
+        // personal document (ID-01/SRC-02) and the live capture proves the exact unique episode.
+        if (live.length) {
+          if (!singleLive) return false;
+          const liveMatchesLocal =
+            canonicalRun(singleLive.run, passport) === canonicalRun(run, passport);
+          const manualOverrideMatchesLiveEpisode =
+            patient.documentManualOverride === true &&
+            (passport || Boolean(ownRun)) &&
+            Boolean(canonicalRun(singleLive.run, true));
+          return liveMatchesLocal || manualOverrideMatchesLiveEpisode;
+        }
       }
       // The older lookup queries RUN/maternal RUN only. A passport needs live source proof.
       if (passport) return false;

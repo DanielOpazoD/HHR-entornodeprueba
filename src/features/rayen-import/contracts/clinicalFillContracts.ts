@@ -89,7 +89,8 @@ export interface ClinicalFillDeps {
     rut: string,
     observedAt: string,
     identityKind?: 'patient' | 'maternal',
-    maternalRut?: string
+    maternalRut?: string,
+    options?: { allowManualDocumentOverride?: boolean }
   ) => Promise<import('@/types/domain/cudyrPlacement').CudyrSourcePlacement[]>;
   /** Invoked only after the server confirms a receipt containing recovered bed history. */
   onCudyrPlacementsArchived?: (episode: string) => void;

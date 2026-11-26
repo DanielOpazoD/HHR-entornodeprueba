@@ -23,6 +23,38 @@ export interface MergeDevicesContext {
 const buildNote = (device: MappedDevice): string =>
   [device.location, device.note].filter(part => part.trim().length > 0).join(' · ');
 
+const canonicalDeviceDocument = (value?: string): string =>
+  String(value || '')
+    .replace(/[.\s-]/g, '')
+    .toUpperCase();
+
+const sameDeviceDocument = (left?: string, right?: string): boolean => {
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const canonicalLeft = canonicalDeviceDocument(left);
+  const canonicalRight = canonicalDeviceDocument(right);
+  return Boolean(canonicalLeft && canonicalRight && canonicalLeft === canonicalRight);
+};
+
+/**
+ * Matches a persisted device instance to its current episode owner.
+ * When `patient.documentManualOverride` is active, an instance already stamped with the exact
+ * same `clinicalEpisodeId` stays owned after the user corrects the document number or type.
+ * Without an explicit manual override, a conflicting `patientRut` remains foreign.
+ */
+export const deviceInstanceBelongsToEpisode = (
+  item: Pick<DeviceInstance, 'clinicalEpisodeId' | 'patientRut'>,
+  patient: Pick<PatientData, 'clinicalEpisodeId' | 'rut' | 'documentManualOverride'>
+): boolean => {
+  if (!patient.clinicalEpisodeId || item.clinicalEpisodeId !== patient.clinicalEpisodeId) {
+    return false;
+  }
+  if (!item.patientRut || sameDeviceDocument(item.patientRut, patient.rut)) {
+    return true;
+  }
+  return patient.documentManualOverride === true;
+};
+
 export const sameDeviceInstallation = (
   item: Pick<DeviceInstance, 'type' | 'installationDate' | 'installationTime' | 'source'>,
   device: MappedDevice
@@ -85,16 +117,14 @@ export const mergeReportDevices = (
   const activeTypes = new Set(normalizedPatient.devices ?? []);
 
   for (const incoming of devices) {
-    const owned = (item: DeviceInstance) =>
-      item.clinicalEpisodeId === patient.clinicalEpisodeId &&
-      (!item.patientRut || item.patientRut === patient.rut);
+    const owned = (item: DeviceInstance) => deviceInstanceBelongsToEpisode(item, patient);
     const matches = history.filter(item => owned(item) && sameDeviceInstallation(item, incoming));
     if (
       matches.length > 1 ||
       history.some(
         item =>
           !item.clinicalEpisodeId &&
-          (!item.patientRut || item.patientRut === patient.rut) &&
+          (!item.patientRut || sameDeviceDocument(item.patientRut, patient.rut)) &&
           item.status === 'Removed' &&
           sameDeviceInstallation(item, incoming)
       )

@@ -6,6 +6,7 @@ import { decodePdfBase64 } from '../domain/historicalStatisticalDischargeRecover
 import {
   CUDYR_PATIENT_FLOW_SOURCE,
   cudyrPlacementsFromPatientFlow,
+  type CudyrPatientFlowIdentityOptions,
 } from '../mapping/cudyrPatientFlowPlacements';
 
 const MAX_CACHED_ARCHIVED_FLOW_EPISODES = 500;
@@ -88,7 +89,8 @@ export const recoverCudyrHospitalHistory = async (
   signal: AbortSignal,
   observedAt: string,
   identityKind: 'patient' | 'maternal' = 'patient',
-  maternalRut?: string
+  maternalRut?: string,
+  options?: CudyrPatientFlowIdentityOptions
 ) => {
   signal.throwIfAborted();
   if (archivedSetForActiveHospital().episodes.has(episode)) return [];
@@ -124,5 +126,13 @@ export const recoverCudyrHospitalHistory = async (
   if (report.error || !report.base64) throw new Error('Informe de movimientos no disponible.');
   const text = await extractPdfTextFromBuffer(decodePdfBase64(report.base64));
   signal.throwIfAborted();
-  return cudyrPlacementsFromPatientFlow(text, episode, rut, observedAt, identityKind, maternalRut);
+  return cudyrPlacementsFromPatientFlow(
+    text,
+    episode,
+    rut,
+    observedAt,
+    identityKind,
+    maternalRut,
+    options
+  );
 };

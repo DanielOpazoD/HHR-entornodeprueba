@@ -467,3 +467,73 @@ it('accepts a numeric passport without treating a personal header as maternal id
     )
   ).toThrow();
 });
+
+it('accepts an unambiguous personal header for an exact episode under manual document override', async () => {
+  const sourceFlow = `Flujo del Paciente\nPaciente: Persona sintética RUN: 55.123.456-7\n17/10/2026 19:38:01 Área Médico Quirúrgica Indiferenciada Área Cuidados Intermedios Adulto Servicio Hospitalizados HHR Recuperacion 2 Intermedia R2`;
+  const opts = { allowManualDocumentOverride: true };
+
+  expect(
+    cudyrPlacementsFromPatientFlow(
+      sourceFlow,
+      '1001',
+      'AB987654',
+      '2026-10-18T02:00:00Z',
+      'patient',
+      undefined,
+      opts
+    )
+  ).toMatchObject([{ clinicalEpisodeId: '1001', bedId: 'R2', modality: 'hospitalizacion' }]);
+
+  // Without explicit manual override, a document mismatch is still rejected.
+  expect(() =>
+    cudyrPlacementsFromPatientFlow(sourceFlow, '1001', 'AB987654', '2026-10-18T02:00:00Z')
+  ).toThrow();
+
+  // Even with manual override, blank, maternal-only, contradictory headers or empty HHR doc fail.
+  for (const invalidText of [
+    sourceFlow.replace('RUN: 55.123.456-7', ''),
+    sourceFlow.replace('RUN: 55.123.456-7', 'RUN Materno/progenitor(a): 11.111.111-1'),
+    sourceFlow + '\nPasaporte: OTHER999',
+  ]) {
+    expect(() =>
+      cudyrPlacementsFromPatientFlow(
+        invalidText,
+        '1001',
+        'AB987654',
+        '2026-10-18T02:00:00Z',
+        'patient',
+        undefined,
+        opts
+      )
+    ).toThrow();
+  }
+  expect(() =>
+    cudyrPlacementsFromPatientFlow(
+      sourceFlow,
+      '1001',
+      '',
+      '2026-10-18T02:00:00Z',
+      'patient',
+      undefined,
+      opts
+    )
+  ).toThrow();
+
+  // Verify the option propagates through recoverCudyrHospitalHistory as well.
+  vi.resetAllMocks();
+  resetArchivedFlowEpisodesForTests();
+  vi.mocked(readCudyrEpisodeCaptures).mockResolvedValue({ captures: [], nextCursor: null });
+  vi.mocked(requestPatientFlowReport).mockResolvedValue({ base64: btoa('pdf') });
+  vi.mocked(extractPdfTextFromBuffer).mockResolvedValue(sourceFlow);
+  expect(
+    await recoverCudyrHospitalHistory(
+      '1001',
+      'AB987654',
+      new AbortController().signal,
+      '2026-10-18T02:00:00Z',
+      'patient',
+      undefined,
+      opts
+    )
+  ).toMatchObject([{ clinicalEpisodeId: '1001', bedId: 'R2', modality: 'hospitalizacion' }]);
+});

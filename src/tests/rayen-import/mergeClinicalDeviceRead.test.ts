@@ -369,6 +369,41 @@ describe('current complete Eloísa JSON device reconciliation', () => {
     expect(sync(before, []).devices).toEqual(['CVC', 'VVP#1']);
   });
 
+  it('keeps reconciling devices after reformatting or manually overriding the episode document', () => {
+    const before = installed();
+    const reformatted: PatientData = {
+      ...before,
+      documentType: 'Pasaporte',
+      rut: '999999911',
+    };
+    expect(sync(reformatted, [cvc, vvp1, vvp2])).toBe(reformatted);
+    expect(sync(reformatted, [cvc]).devices).toEqual(['CVC']);
+
+    const overridden: PatientData = {
+      ...before,
+      documentType: 'Pasaporte',
+      rut: 'AB987654',
+      documentManualOverride: true,
+    };
+    expect(sync(overridden, [cvc, vvp1, vvp2])).toBe(overridden);
+    expect(history(sync(overridden, [cvc, vvp1, vvp2]))).toHaveLength(3);
+
+    const retired = sync(overridden, [cvc]);
+    expect(retired.devices).toEqual(['CVC']);
+    expect(history(retired).map(item => item.status)).toEqual(['Active', 'Removed', 'Removed']);
+
+    // Even with documentManualOverride, a device stamped with a different episode stays protected.
+    const withForeignEpisode = installed();
+    history(withForeignEpisode)[0].clinicalEpisodeId = 'foreign-episode';
+    const overriddenForeign: PatientData = {
+      ...withForeignEpisode,
+      documentType: 'Pasaporte',
+      rut: 'AB987654',
+      documentManualOverride: true,
+    };
+    expect(sync(overriddenForeign, []).devices).toEqual(['CVC']);
+  });
+
   it('does not retire on a partial array with an undated row, or a malformed JSON payload', () => {
     const before = installed();
     const result = sync(before, [{ name: 'CVC' }]);

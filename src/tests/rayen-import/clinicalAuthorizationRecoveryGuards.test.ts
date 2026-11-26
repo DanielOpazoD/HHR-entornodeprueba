@@ -83,6 +83,82 @@ describe('clinical authorization recovery guards', () => {
     }
   );
 
+  it.each([
+    {
+      label: 'manually overridden passport differing from Eloísa RUN',
+      patch: { documentType: 'Pasaporte' as const, rut: 'AB987654', documentManualOverride: true },
+      liveRun: '55.123.456-7',
+    },
+    {
+      label: 'manually corrected valid RUT differing from provisional Eloísa RUN',
+      patch: { documentType: 'RUT' as const, rut: '12.345.678-5', documentManualOverride: true },
+      liveRun: '99999999',
+    },
+  ])('renews live authorization for $label', async ({ patch, liveRun }) => {
+    const refreshSnapshot = vi.fn(
+      async () => ({ encounters: [{ encounterId: '142040', run: liveRun }] }) as RayenCensusSnapshot
+    );
+    const readForms = vi.fn(async () => ({ forms: [{ synthetic: true }] }));
+    const verifyEpisode = vi.fn();
+    const recovery = createClinicalFormsAuthorizationRecovery(
+      [patient(patch)],
+      new AbortController().signal,
+      { readForms, verifyEpisode, refreshSnapshot }
+    );
+    recovery.observe('142040', denial);
+    expect(await recovery.readForms('142040')).toEqual({ forms: [{ synthetic: true }] });
+    expect(refreshSnapshot).toHaveBeenCalledTimes(1);
+    expect(verifyEpisode).not.toHaveBeenCalled();
+    expect(readForms).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    {
+      label: 'absent encounter in live snapshot',
+      patch: { documentType: 'Pasaporte' as const, rut: 'AB987654', documentManualOverride: true },
+      encounters: [],
+    },
+    {
+      label: 'duplicate live encounter',
+      patch: { documentType: 'Pasaporte' as const, rut: 'AB987654', documentManualOverride: true },
+      encounters: [
+        { encounterId: '142040', run: '551234567' },
+        { encounterId: '142040', run: '551234567' },
+      ],
+    },
+    {
+      label: 'blank source identifier in live encounter',
+      patch: { documentType: 'Pasaporte' as const, rut: 'AB987654', documentManualOverride: true },
+      encounters: [{ encounterId: '142040', run: '   ' }],
+    },
+    {
+      label: 'provisional identity even with override flag',
+      patch: {
+        documentType: 'Pasaporte' as const,
+        rut: 'AB987654',
+        identityStatus: 'provisional' as const,
+        documentManualOverride: true,
+      },
+      encounters: [{ encounterId: '142040', run: '551234567' }],
+    },
+  ])(
+    'still refuses renewal under documentManualOverride when live evidence fails ($label)',
+    async ({ patch, encounters }) => {
+      const refreshSnapshot = vi.fn(async () => ({ encounters }) as RayenCensusSnapshot);
+      const readForms = vi.fn();
+      const verifyEpisode = vi.fn();
+      const recovery = createClinicalFormsAuthorizationRecovery(
+        [patient(patch)],
+        new AbortController().signal,
+        { readForms, verifyEpisode, refreshSnapshot }
+      );
+      recovery.observe('142040', denial);
+      expect(await recovery.readForms('142040')).toEqual(denial);
+      expect(readForms).not.toHaveBeenCalled();
+      expect(verifyEpisode).not.toHaveBeenCalled();
+    }
+  );
+
   it('shares one fresh capture across different denied episodes', async () => {
     const refreshSnapshot = vi.fn(
       async () =>
