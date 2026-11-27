@@ -157,12 +157,15 @@ export const buildRayenSyncCoverage = (
     // Match the exact episode in the attempt's record; never identify an old failure
     // using today's occupant of the same bed (nor a mother sharing her RN's RUN).
     const candidates = record
-      ? Object.values(record.beds).flatMap(patient =>
-          [patient, patient.clinicalCrib].filter(
-            candidate =>
-              candidate &&
-              error.clinicalEpisodeId &&
-              candidate.clinicalEpisodeId === error.clinicalEpisodeId
+      ? Object.entries(record.beds).flatMap(([bedId, patient]) =>
+          [
+            { bedId, patient },
+            ...(patient.clinicalCrib
+              ? [{ bedId: `C-${bedId}`, patient: patient.clinicalCrib }]
+              : []),
+          ].filter(
+            entry =>
+              error.clinicalEpisodeId && entry.patient.clinicalEpisodeId === error.clinicalEpisodeId
           )
         )
       : [];
@@ -176,8 +179,9 @@ export const buildRayenSyncCoverage = (
         )
       : [];
     const moved = !candidates.length && movements.length === 1 ? movements[0] : undefined;
-    const patient = candidates.length === 1 ? candidates[0] : moved;
-    const movedBed = moved && 'bedId' in moved ? moved.bedId : undefined;
+    const candidate = candidates.length === 1 ? candidates[0] : undefined;
+    const patient = candidate?.patient ?? moved;
+    const resolvedBed = candidate?.bedId ?? (moved && 'bedId' in moved ? moved.bedId : undefined);
     const cause = rayenSyncErrorCause(error);
     const issue: RayenSyncCoverageIssue = {
       bedId: error.bedId,
@@ -191,7 +195,7 @@ export const buildRayenSyncCoverage = (
         ? {
             diagnostic: {
               censusDate: record.date,
-              bedId: (error.bedId === '*' && movedBed ? movedBed : error.bedId).slice(0, 80),
+              bedId: (error.bedId === '*' && resolvedBed ? resolvedBed : error.bedId).slice(0, 80),
               clinicalEpisodeId: (error.clinicalEpisodeId ?? '').slice(0, 100),
               ...(patient
                 ? {

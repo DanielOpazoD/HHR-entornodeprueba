@@ -4,12 +4,14 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import { useOptionalDailyRecordBeds } from '@/context/DailyRecordContext';
 import { PanelModuleRetry, RecoverableClinicalPanelModule } from './RecoverableClinicalPanelModule';
 import {
-  captureLegacyCensusObservation,
-  hasLegacyCensusAmbiguity,
   isLegacyUpcSubjectIdentity,
   isSameUpcCellSubjectIdentity,
-  recordLegacyCensusObservation,
   resolveUpcCellSubjectIdentity,
+} from './upcCellSubjectIdentity';
+import {
+  captureLegacyCensusObservation,
+  hasLegacyCensusAmbiguity,
+  recordLegacyCensusObservation,
   type LegacyCensusObservation,
 } from './upcPendingOpenGuard';
 
