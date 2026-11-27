@@ -5,38 +5,20 @@ import { SYNC_TONE } from './syncTone';
 interface Props {
   installedVersion?: string;
   verifiedId?: string;
-  samePackage: boolean;
-  differentPackage: boolean;
-  unidentified: boolean;
   incompatible: boolean;
 }
 
 const RayenExtensionDownloadDetails: React.FC<Props> = ({
   installedVersion,
   verifiedId,
-  samePackage,
-  differentPackage,
-  unidentified,
   incompatible,
 }) => (
   <>
     <p className="mt-1">Detectada: {installedVersion ?? 'sin reporte'}</p>
-    <p title={verifiedId}>Paquete instalado: {verifiedId?.slice(0, 12) ?? 'sin identificador'}</p>
+    {verifiedId && <p title={verifiedId}>Paquete instalado: {verifiedId.slice(0, 12)}</p>}
     <p className="mt-1" title={release.buildId}>
       Publicada: {release.version} · Paquete {release.buildId.slice(0, 12)}
     </p>
-    {samePackage && (
-      <p className="mt-2 text-teal-700">El identificador coincide con el publicado.</p>
-    )}
-    {(differentPackage || unidentified) && (
-      <p className={`mt-2 ${SYNC_TONE.review.text}`}>
-        {differentPackage
-          ? 'El paquete instalado es distinto del publicado.'
-          : 'Esta extensión no informa una identidad verificable.'}{' '}
-        El número de versión por sí solo no confirma sus funciones. Si usas una variante de
-        desarrollo, revisa sus cambios antes de reemplazarla.
-      </p>
-    )}
     {incompatible && (
       <p className={`mt-2 ${SYNC_TONE.review.text}`}>
         Instala la versión publicada y vuelve a comprobar la conexión: esta versión ya no es
@@ -54,9 +36,7 @@ const RayenExtensionDownloadDetails: React.FC<Props> = ({
       </li>
       <li>Recarga HHR y las pestañas de Eloísa.</li>
     </ol>
-    <p className="mt-2 text-slate-500">
-      La instalación es manual. La coincidencia se confirma por versión y huella del paquete.
-    </p>
+    <p className="mt-2 text-slate-500">La instalación es manual.</p>
   </>
 );
 
