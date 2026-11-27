@@ -1,6 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
+import {
+  createIdleRayenFillProgress,
+  createRayenImportState,
+  createReadyRayenExtensionHealth,
+} from './rayenImportButtonTestFixtures';
 
 const mocks = vi.hoisted(() => ({
   useRayenImport: vi.fn(),
@@ -17,15 +22,12 @@ vi.mock('@/features/rayen-import/hooks/useRayenImport', () => ({
 }));
 
 vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
-  useRayenFillProgress: () => ({ running: false, done: 0, total: 0, errors: 0 }),
+  useRayenFillProgress: () => createIdleRayenFillProgress(),
 }));
 
 vi.mock('@/features/rayen-import/hooks/useRayenExtensionHealth', () => ({
   useRayenExtensionHealth: () => ({
-    connection: 'ready',
-    report: null,
-    message: 'Extensión operativa.',
-    canSync: true,
+    ...createReadyRayenExtensionHealth({ report: null, message: 'Extensión operativa.' }),
     refresh: mocks.refreshExtension,
   }),
 }));
@@ -59,30 +61,17 @@ vi.mock('@/features/rayen-import/components/RayenNursingShiftProposalModal', () 
 describe('RayenImportButton staffing review', () => {
   beforeEach(() => {
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
-    mocks.refreshExtension.mockResolvedValue({
-      connection: 'ready',
-      report: null,
-      message: 'Extensión operativa.',
-      canSync: true,
-    });
-    mocks.useRayenImport.mockReturnValue({
-      mode: 'preview',
-      diff: null,
-      isPreviewOpen: false,
-      result: null,
-      hasSkippedItems: false,
-      error: null,
-      staffingProposal: { censusDate: '2026-08-07' },
-      isStaffingProposalBusy: false,
-      staffingProposalError: null,
-      refreshStaffingProposal: vi.fn(async () => ({ censusDate: '2026-08-07' })),
-      triggerImport: vi.fn(),
-      retryClinicalFill: vi.fn(),
-      confirm: vi.fn(),
-      cancel: vi.fn(),
-      confirmStaffingProposal: vi.fn(async () => true),
-      dismissStaffingProposal: vi.fn(),
-    });
+    mocks.refreshExtension.mockResolvedValue(
+      createReadyRayenExtensionHealth({ report: null, message: 'Extensión operativa.' })
+    );
+    mocks.useRayenImport.mockReturnValue(
+      createRayenImportState({
+        hasSkippedItems: false,
+        staffingProposal: { censusDate: '2026-08-07' },
+        refreshStaffingProposal: vi.fn(async () => ({ censusDate: '2026-08-07' })),
+        confirmStaffingProposal: vi.fn(async () => true),
+      })
+    );
   });
 
   it('refreshes staffing explicitly without blocking the main synchronization action', async () => {

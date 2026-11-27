@@ -1,10 +1,14 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
-import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
 import { buildSyncQueueTelemetryFromRows } from '@/services/storage/sync/syncQueueTelemetryController';
 import { buildSyncQueueStats } from '@/features/rayen-import/hooks/syncQueueMonitorController';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import {
+  createIdleRayenFillProgress,
+  createRayenImportState,
+  createReadyRayenExtensionHealth,
+} from './rayenImportButtonTestFixtures';
 
 const mocks = vi.hoisted(() => ({
   useSyncQueueMonitor: vi.fn(),
@@ -33,16 +37,7 @@ vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
 
 vi.mock('@/features/rayen-import/hooks/useRayenExtensionHealth', () => ({
   useRayenExtensionHealth: () => ({
-    connection: 'ready',
-    report: {
-      version: '0.48.61',
-      protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
-      checkedAt: '2026-07-14T05:00:00.000Z',
-      fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
-      gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
-    },
-    message: 'Extensión Eloísa v0.6.0 operativa.',
-    canSync: true,
+    ...createReadyRayenExtensionHealth(),
     refresh: vi.fn().mockResolvedValue(undefined),
   }),
 }));
@@ -68,29 +63,13 @@ describe('RayenImportButton feedback', () => {
       refresh: vi.fn(),
     });
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
-    mocks.useRayenFillProgress.mockReturnValue({
-      running: false,
-      done: 0,
-      total: 0,
-      errors: 0,
-      lastCompletedAt: null,
-      outcome: null,
-      attemptId: null,
-      staffingOutcome: null,
-    });
-    mocks.useRayenImport.mockReturnValue({
-      mode: 'preview',
-      execution: null,
-      diff: null,
-      isPreviewOpen: false,
-      result: null,
-      error: null,
-      staffingProposal: null,
-      triggerImport: mocks.triggerImport,
-      retryClinicalFill: mocks.retryClinicalFill,
-      confirm: vi.fn(),
-      cancel: vi.fn(),
-    });
+    mocks.useRayenFillProgress.mockReturnValue(createIdleRayenFillProgress());
+    mocks.useRayenImport.mockReturnValue(
+      createRayenImportState({
+        triggerImport: mocks.triggerImport,
+        retryClinicalFill: mocks.retryClinicalFill,
+      })
+    );
   });
 
   it('shows failed CUDYR archive sends in the Eloísa panel without a floating queue chip', async () => {
