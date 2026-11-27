@@ -254,10 +254,31 @@ async function start(motherLegacy: boolean, newbornLegacy = true) {
     },
   };
 }
+const toLastUpdatedMillis = (value: unknown): number => {
+  if (
+    value &&
+    typeof value === 'object' &&
+    'toMillis' in value &&
+    typeof value.toMillis === 'function'
+  ) {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  const parsed = typeof value === 'string' ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 async function push(changes: Record<string, unknown>) {
   const patch = Object.fromEntries(Object.entries(changes).map(([k, v]) => ['beds.R1.' + k, v]));
   await act(async () => {
-    await admin.doc(path).update({ ...patch, lastUpdated: new Date().toISOString() });
+    // Serialize with any concurrent debounced authority transaction so the external mother
+    // correction always advances `lastUpdated` monotonically instead of inverting timestamps.
+    await admin.runTransaction(async transaction => {
+      const ref = admin.doc(path);
+      const snapshot = await transaction.get(ref);
+      const currentMillis = toLastUpdatedMillis(snapshot.data()?.lastUpdated);
+      const nextLastUpdated = new Date(Math.max(Date.now(), currentMillis + 1)).toISOString();
+      transaction.update(ref, { ...patch, lastUpdated: nextLastUpdated });
+    });
   });
   await waitFor(
     () => {
