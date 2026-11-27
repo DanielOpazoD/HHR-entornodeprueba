@@ -30,12 +30,12 @@ const buildExactTitlePattern = titles =>
   `(?:${titles.map(title => `(?:^|\\s)${escapeRegex(title)}(?:\\s|$)`).join('|')})`;
 
 /**
- * Duration-balanced DICOM lane assignments based on observed CI runs (run 45944646023).
- * Non-stress DICOM tests (~482 s total) are partitioned across three lanes (`dicom-1`,
- * `dicom-2` by explicit title sets ~163–166 s each, and `dicom-3` as their exact complement
- * at ~153 s) so no two 3D MP4 export tests share a lane, every lane stays within the wall-clock
- * window of `app` (~243 s total), and `dicom-3` automatically absorbs newly added tests without
- * dropping coverage.
+ * Duration-balanced DICOM lane assignments based on observed CI runs (runs 45944646023,
+ * 45954335192, and 45956171816). Non-stress DICOM tests (~482 s total) are partitioned
+ * across three lanes (`dicom-1` and `dicom-2` by explicit title sets, and `dicom-3` as
+ * their exact complement) so no two heavy 3D/annex tests share a lane, every lane stays
+ * balanced within the wall-clock window of `app`, and `dicom-3` automatically absorbs
+ * newly added tests without dropping coverage.
  */
 export const DICOM_BALANCED_LANE_TITLES = Object.freeze({
   'dicom-1': [
@@ -55,7 +55,6 @@ export const DICOM_BALANCED_LANE_TITLES = Object.freeze({
   ],
   'dicom-2': [
     'turns the 3D view into a downloadable MP4 about a chosen axis and restores the camera',
-    'loads only on explicit open, renders original/MPR/3D, captures PNG and appends patient-bound Word annexes',
     'lists measurements by slice, jumps to them and copies plain text',
     'labels radiograph distances by where they were calibrated',
     'Original reports HU on validated CT',
