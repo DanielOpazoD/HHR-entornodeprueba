@@ -98,6 +98,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
     () => buildAnalyticsMovementReclassificationRows(allRecords, reclassifications),
     [allRecords, reclassifications]
   );
+  const specialtyTraceabilityOptions = React.useMemo(
+    () => ({
+      specialtyGroupingMode,
+      specialtyReclassifications: reclassifications,
+    }),
+    [reclassifications, specialtyGroupingMode]
+  );
 
   const handleReclassificationChange = React.useCallback(
     async (row: Parameters<typeof applySpecialtyReclassificationChange>[1], specialty: string) => {
@@ -427,6 +434,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onOpenCensusDate }
               data={stats.porEspecialidad || []}
               records={allRecords}
               summary={stats}
+              calculationOptions={specialtyTraceabilityOptions}
               onOpenCensusDate={onOpenCensusDate}
             />
           </div>

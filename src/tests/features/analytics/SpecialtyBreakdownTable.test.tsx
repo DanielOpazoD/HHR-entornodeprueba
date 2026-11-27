@@ -1,7 +1,37 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { BEDS } from '@/constants/beds';
 import { SpecialtyBreakdownTable } from '@/features/analytics/components/internal/SpecialtyBreakdownTable';
+import {
+  buildSpecialtyTraceability,
+  calculateMinsalStats,
+} from '@/features/analytics/services/minsalStatsCalculator';
 import type { MinsalStatistics } from '@/features/analytics/types/minsalTypes';
+import type { PatientData } from '@/types/domain/patient';
+import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
+import type { DailyRecordMovementState } from '@/types/domain/dailyRecordSlices';
+
+const primaryBed = BEDS[0];
+
+const makePatient = (overrides: Partial<PatientData> = {}): PatientData => ({
+  bedId: primaryBed.id,
+  bedName: primaryBed.name,
+  isBlocked: false,
+  bedMode: 'Cama',
+  hasCompanionCrib: false,
+  patientName: '',
+  rut: '',
+  age: '40',
+  pathology: '',
+  specialty: Specialty.MEDICINA,
+  status: PatientStatus.ESTABLE,
+  admissionDate: '',
+  hasWristband: true,
+  devices: [],
+  surgicalComplication: false,
+  isUPC: false,
+  ...overrides,
+});
 
 const summary: MinsalStatistics = {
   periodStart: '2026-03-01',
@@ -331,5 +361,207 @@ describe('SpecialtyBreakdownTable', () => {
     fireEvent.click(screen.getByRole('button', { name: /Ordenar por egresos/i }));
 
     expect(screen.getByText('Cirugía')).toBeInTheDocument();
+  });
+
+  it('keeps bed-days traceability empty when diasOcupadosList is [] even if a transfer exists in records', () => {
+    const record: DailyRecordMovementState = {
+      date: '2026-03-10',
+      beds: {
+        [primaryBed.id]: makePatient(),
+      },
+      discharges: [],
+      transfers: [
+        {
+          id: 'tr-1',
+          bedName: primaryBed.name,
+          bedId: primaryBed.id,
+          bedType: 'Básica',
+          patientName: 'Paciente Traslado Pediatría',
+          rut: '12.345.678-9',
+          diagnosis: 'Bronquiolitis',
+          time: '14:00',
+          evacuationMethod: 'Aerocardal',
+          receivingCenter: 'Hospital Base',
+          specialty: Specialty.PEDIATRIA,
+          admissionDate: '2026-03-09',
+        },
+      ],
+      cma: [],
+    };
+
+    const stats = calculateMinsalStats([record], '2026-03-10', '2026-03-10');
+    const pediatria = stats.porEspecialidad.find(item => item.specialty === Specialty.PEDIATRIA);
+    expect(pediatria?.diasOcupados).toBe(0);
+    expect(pediatria?.diasOcupadosList).toEqual([]);
+    expect(pediatria?.traslados).toBe(1);
+
+    render(
+      <SpecialtyBreakdownTable data={stats.porEspecialidad} records={[record]} summary={stats} />
+    );
+
+    const pediatriaRow = screen.getByText('Pediatría').closest('tr');
+    expect(pediatriaRow).not.toBeNull();
+    const rowScope = within(pediatriaRow!);
+
+    fireEvent.click(rowScope.getByTitle('Ver detalle de pacientes'));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Detalle: Días Cama - Pediatría')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('No hay registros detallados disponibles.')
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText('Paciente Traslado Pediatría')).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /Cerrar/i }));
+
+    const transferButtons = rowScope.getAllByRole('button', { name: '1' });
+    fireEvent.click(transferButtons[0]);
+
+    const transferDialog = screen.getByRole('dialog');
+    expect(within(transferDialog).getByText('Detalle: Traslados - Pediatría')).toBeInTheDocument();
+    expect(within(transferDialog).getAllByText('Paciente Traslado Pediatría')).toHaveLength(1);
+  });
+
+  it('reconstructs fallback traceability cleanly when lists are omitted, without leaking transfers or mixing episodes', () => {
+    const day1: DailyRecordMovementState = {
+      date: '2026-03-01',
+      beds: {
+        [primaryBed.id]: makePatient({
+          patientName: 'Paciente Reingreso',
+          rut: '15.555.555-5',
+          clinicalEpisodeId: 'ep_1',
+          pathology: 'Arritmia',
+          specialty: 'Cardiología' as Specialty,
+          admissionDate: '2026-03-01',
+        }),
+      },
+      discharges: [
+        {
+          id: 'dis-1',
+          bedName: primaryBed.name,
+          bedId: primaryBed.id,
+          bedType: 'Básica',
+          patientName: 'Paciente Reingreso',
+          rut: '15.555.555-5',
+          clinicalEpisodeId: 'ep_1',
+          diagnosis: 'Arritmia',
+          status: 'Vivo',
+          time: '18:00',
+          specialty: 'Cardiología' as Specialty,
+          admissionDate: '2026-03-01',
+        },
+      ],
+      transfers: [
+        {
+          id: 'tr-2',
+          bedName: BEDS[1].name,
+          bedId: BEDS[1].id,
+          bedType: 'Básica',
+          patientName: 'Paciente Traslado Especial',
+          rut: '16.666.666-6',
+          diagnosis: 'Infarto',
+          time: '19:00',
+          evacuationMethod: 'FACH',
+          receivingCenter: 'Hospital Salvador',
+          specialty: 'Cardiología' as Specialty,
+          admissionDate: '2026-03-01',
+        },
+      ],
+      cma: [],
+    };
+
+    const day2: DailyRecordMovementState = {
+      date: '2026-03-05',
+      beds: {
+        [primaryBed.id]: makePatient({
+          patientName: 'Paciente Reingreso',
+          rut: '15.555.555-5',
+          clinicalEpisodeId: 'ep_2',
+          pathology: 'Síncope',
+          specialty: 'Cardiología' as Specialty,
+          admissionDate: '2026-03-05',
+        }),
+      },
+      discharges: [
+        {
+          id: 'dis-2',
+          bedName: primaryBed.name,
+          bedId: primaryBed.id,
+          bedType: 'Básica',
+          patientName: 'Paciente Fallecido',
+          rut: '17.777.777-7',
+          diagnosis: 'Insuficiencia cardíaca',
+          status: 'Fallecido',
+          time: '10:00',
+          specialty: 'Cardiología' as Specialty,
+          admissionDate: '2026-03-04',
+        },
+      ],
+      transfers: [],
+      cma: [],
+    };
+
+    const records = [day1, day2];
+    const options = { specialtyGroupingMode: 'group-other' as const };
+
+    const bedDays = buildSpecialtyTraceability(records, Specialty.OTRO, 'dias-cama', options);
+    expect(bedDays).toEqual([
+      expect.objectContaining({
+        name: 'Paciente Reingreso',
+        clinicalEpisodeId: 'ep_1',
+        admissionDate: '2026-03-01',
+        dischargeDate: '2026-03-01',
+      }),
+      expect.objectContaining({
+        name: 'Paciente Reingreso',
+        clinicalEpisodeId: 'ep_2',
+        admissionDate: '2026-03-05',
+      }),
+    ]);
+    expect(bedDays[1]?.dischargeDate).toBeUndefined();
+
+    expect(buildSpecialtyTraceability(records, Specialty.OTRO, 'fallecidos', options)).toEqual([
+      expect.objectContaining({
+        name: 'Paciente Fallecido',
+        date: '2026-03-05',
+      }),
+    ]);
+
+    expect(buildSpecialtyTraceability(records, Specialty.OTRO, 'estada', options)).toHaveLength(3);
+    expect(buildSpecialtyTraceability([day1], Specialty.PEDIATRIA, 'dias-cama', options)).toEqual(
+      []
+    );
+
+    render(
+      <SpecialtyBreakdownTable
+        data={[
+          {
+            specialty: Specialty.OTRO,
+            pacientesActuales: 1,
+            egresos: 2,
+            fallecidos: 1,
+            traslados: 1,
+            aerocardal: 0,
+            fach: 1,
+            diasOcupados: 2,
+            contribucionRelativa: 100,
+            tasaMortalidad: 33.3,
+            promedioDiasEstada: 1,
+            promedioDiasEstadaMinima: 1,
+            promedioDiasEstadaMaxima: 1,
+          },
+        ]}
+        records={records}
+        summary={summary}
+        calculationOptions={options}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Ver detalle de pacientes'));
+
+    const dialog = screen.getByRole('dialog');
+    const bodyRows = within(dialog).getAllByRole('row').slice(1);
+    expect(bodyRows).toHaveLength(2);
+    expect(within(dialog).queryByText('Paciente Traslado Especial')).not.toBeInTheDocument();
   });
 });
