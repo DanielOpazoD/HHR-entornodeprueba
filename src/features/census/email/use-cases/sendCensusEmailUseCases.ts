@@ -1,5 +1,5 @@
 import { formatDateDDMMYYYY as formatDate } from '@/utils/dateDisplayUtils';
-import { resolveSendingRecipients } from '@/features/census';
+import { resolveSendingRecipients } from '@/application/census/controllers/censusEmailRecipientsController';
 import { buildCensusWorkbookPlan } from '@/features/census/email/controllers/censusExcelSheetController';
 import {
   buildCensusEmailConfirmationText,

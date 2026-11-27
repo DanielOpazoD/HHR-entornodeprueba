@@ -25,7 +25,8 @@ export {
 } from './DailyRecordContext';
 
 // Authentication & Roles
-export { AuthProvider, useAuth, useCanEdit } from './AuthContext';
+export { AuthProvider } from './AuthProvider';
+export { useAuth, useCanEdit } from './AuthContext';
 export type { UserRole, AuthContextType } from './AuthContext';
 
 // Audit Logging

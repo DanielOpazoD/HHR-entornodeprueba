@@ -3,13 +3,15 @@ import type { CensusHeaderPatientContract } from '@/features/census/contracts/ce
 import {
   type CensusAccessProfile,
   isSpecialistCensusAccessProfile,
+} from '@/shared/access/censusAccessProfile';
+import {
   resolveAdmissionsCountForRecord,
   resolveStaffDetailsState,
   resolveStaffIndicatorsState,
   resolveMovementSummaryState,
   resolveStaffSelectorsClassName,
   resolveStaffSelectorsState,
-} from '@/features/census';
+} from './censusStaffHeaderController';
 import type { DischargeData, TransferData } from '@/types/domain/movements';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 
