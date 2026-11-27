@@ -219,8 +219,9 @@ Además, el estado operativo conserva una `reason` interna para diagnóstico fin
 
 ### Archivos Relacionados
 
-- `services/repositories/DailyRecordRepository.ts` - Función `getForDate()`
-- `hooks/useDailyRecordQuery.ts` - Prefetch del día anterior
+- `src/services/repositories/dailyRecordRepositoryReadService.ts` - Lectura de registros por fecha (`getForDate`, `getForDateWithMeta`)
+- `src/services/repositories/dailyRecordRepositoryWriteService.ts` - Escritura y actualización de registros diarios
+- `src/hooks/useDailyRecordQuery.ts` - Prefetch del día anterior
 
 ---
 
