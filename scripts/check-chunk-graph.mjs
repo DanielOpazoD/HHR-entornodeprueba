@@ -18,6 +18,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { extractAssetChunkImports } from './lib/staticChunkImports.mjs';
 
 const assetsDir = path.join(process.cwd(), 'dist', 'assets');
 
@@ -28,13 +29,6 @@ if (!fs.existsSync(assetsDir)) {
 
 const jsFiles = fs.readdirSync(assetsDir).filter(f => f.endsWith('.js'));
 
-/** Extract static and dynamic import targets from a JS chunk. */
-const extractImports = content => {
-  const staticImports = [...content.matchAll(/from"\.\/([^"]+)"/g)].map(m => m[1]);
-  const dynamicImports = [...content.matchAll(/import\("\.\/([^"]+)"\)/g)].map(m => m[1]);
-  return { static: staticImports, dynamic: dynamicImports };
-};
-
 const isVendorChunk = name => name.startsWith('vendor-');
 const isFeatureChunk = name => name.startsWith('feature-');
 
@@ -44,8 +38,8 @@ for (const file of jsFiles) {
   if (!isVendorChunk(file)) continue;
 
   const content = fs.readFileSync(path.join(assetsDir, file), 'utf8');
-  const imports = extractImports(content);
-  const allImports = [...imports.static, ...imports.dynamic];
+  const imports = extractAssetChunkImports(content);
+  const allImports = [...new Set([...imports.static, ...imports.dynamic])];
 
   for (const dep of allImports) {
     if (isFeatureChunk(dep)) {
@@ -82,7 +76,7 @@ for (const file of jsFiles) {
   if (!isVendorChunk(file)) continue;
 
   const content = fs.readFileSync(path.join(assetsDir, file), 'utf8');
-  const imports = extractImports(content);
+  const imports = extractAssetChunkImports(content);
   const vendorDeps = imports.static.filter(isVendorChunk);
   vendorGraph.set(file, vendorDeps);
 }
@@ -142,8 +136,14 @@ const startupChunks = new Set(
   [...entryHtml.matchAll(/<script type="module"[^>]*src="\/assets\/([^"]+)"/g)].map(m => m[1])
 );
 for (const file of startupChunks) {
-  const content = fs.readFileSync(path.join(assetsDir, file), 'utf8');
-  for (const m of content.matchAll(/(?:from|import)"\.\/([^"]+)"/g)) startupChunks.add(m[1]);
+  const filePath = path.join(assetsDir, file);
+  if (!fs.existsSync(filePath)) continue;
+  const content = fs.readFileSync(filePath, 'utf8');
+  for (const dep of extractAssetChunkImports(content).static) {
+    if (fs.existsSync(path.join(assetsDir, dep))) {
+      startupChunks.add(dep);
+    }
+  }
 }
 const forbiddenStartup = [...startupChunks].filter(file =>
   LOGIN_FORBIDDEN_CHUNKS.some(prefix => file.startsWith(prefix))

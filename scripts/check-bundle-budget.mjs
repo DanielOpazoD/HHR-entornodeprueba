@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ONLINE_ONLY_PRECACHE_PATTERNS } from './config/onlineOnlyAssets.mjs';
+import { extractStaticRelativeJsImports } from './lib/staticChunkImports.mjs';
 
 const rootDir = process.cwd();
 const distDir = path.join(rootDir, 'dist');
@@ -108,8 +109,8 @@ const collectPreLoginStaticJsAssets = initialEntries => {
 
     const content = fs.readFileSync(asset.filePath, 'utf8');
     const assetDir = path.dirname(asset.filePath);
-    for (const match of content.matchAll(/(?:from|import)\s*["'](\.[^"']+\.js)["']/g)) {
-      const resolvedPath = path.resolve(assetDir, match[1]);
+    for (const specifier of extractStaticRelativeJsImports(content)) {
+      const resolvedPath = path.resolve(assetDir, specifier);
       if (!visited.has(resolvedPath) && fs.existsSync(resolvedPath)) {
         queue.push({
           name: path.basename(resolvedPath),
