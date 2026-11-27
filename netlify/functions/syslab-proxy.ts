@@ -41,8 +41,8 @@ import {
 } from './lib/http';
 
 const TIMEOUT_MS = 50_000; // Leave room for the gateway response within the platform budget.
-const DEFAULT_TELEMETRY_TIMEOUT_MS = 55_000;
-const DETAILS_TELEMETRY_TIMEOUT_MS = 55_000;
+const TELEMETRY_TIMEOUT_MS = 55_000;
+const TELEMETRY_MAX_ATTEMPTS = 1;
 const MAX_JSON_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_REQUEST_BODY_BYTES = 65_536;
 const MAX_LAB_LINK_LENGTH = 8192;
@@ -108,13 +108,6 @@ const isTimeoutError = (error: unknown): boolean => {
   const code = (error as { code?: unknown }).code;
   return error.name === 'AbortError' || error.name === 'TimeoutError' || code === 'ETIMEDOUT';
 };
-
-export const resolveSyslabTelemetryOptions = (
-  action: 'search' | 'details' | 'pdf'
-): { timeoutMs: number; maxAttempts: number } => ({
-  timeoutMs: action === 'details' ? DETAILS_TELEMETRY_TIMEOUT_MS : DEFAULT_TELEMETRY_TIMEOUT_MS,
-  maxAttempts: 1,
-});
 
 const proxyFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
   return fetch(url, {
@@ -487,14 +480,12 @@ export const createSyslabProxyHandler = (
         return handleHealth(proxyUrl, requestOrigin);
       }
 
-      const telemetryOptions = resolveSyslabTelemetryOptions(action);
-
       return await invokeWithTelemetry({
         service: 'syslab',
         operation: action,
-        timeoutMs: telemetryOptions.timeoutMs,
+        timeoutMs: TELEMETRY_TIMEOUT_MS,
         // search/pdf are idempotent GETs, details posts links but parsing is deterministic
-        maxAttempts: telemetryOptions.maxAttempts,
+        maxAttempts: TELEMETRY_MAX_ATTEMPTS,
         isFailureResult: result => result.statusCode >= 500 && result.statusCode < 600,
         hospitalId: process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
         context: { action },
