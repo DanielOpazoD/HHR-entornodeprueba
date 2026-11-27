@@ -196,7 +196,8 @@ const RULES = [
         'src/features/rayen-import/domain/clinicalFillStaffing',
         'src/hooks/useStaff',
         'src/hooks/useEloisaStaff',
-        'src/context/StaffContext'
+        'src/context/StaffContext',
+        'src/context/StaffProvider'
       )(file) &&
       ![
         'src/services/staff/nurseIdentity.ts',

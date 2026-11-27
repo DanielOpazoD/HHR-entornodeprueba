@@ -86,7 +86,7 @@ import { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 
 // Providers
 import { DailyRecordProvider } from '@/context/DailyRecordContext';
-import { StaffProvider } from '@/context/StaffContext';
+import { StaffProvider } from '@/context/StaffProvider';
 import { AuthProvider } from '@/context/AuthProvider';
 import { AuditProvider } from '@/context/AuditContext';
 import { UIProvider } from '@/context/UIContext';

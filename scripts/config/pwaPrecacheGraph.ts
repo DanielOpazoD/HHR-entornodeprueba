@@ -65,6 +65,8 @@ export const OFFLINE_BOOT_CHUNKS = [
   'NursingHandoffSessionNotice',
   // UPC classification round opens on demand from the census and must stay available offline.
   'UpcClassificationWindow',
+  // Staff catalog runtime loads asynchronously after first paint and must stay available offline.
+  'StaffProvider',
 ];
 
 type Chunk = Pick<Rollup.OutputChunk, 'fileName' | 'imports' | 'isEntry'>;

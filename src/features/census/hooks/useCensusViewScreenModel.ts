@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/context';
+import { useAuth } from '@/context/AuthContext';
 import { useDailyRecordSync } from '@/context/DailyRecordContext';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { useCensusMigrationBootstrap } from './useCensusMigrationBootstrap';

@@ -1,12 +1,14 @@
 import { memo, useLayoutEffect } from 'react';
 import { act, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { StaffProvider, useStaffContext, type StaffContextType } from '@/context/StaffContext';
+import { useStaffContext, type StaffContextType } from '@/context/StaffContext';
+import { StaffProvider } from '@/context/StaffProvider';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';
 import type { StaffUsage } from '@/services/staff/staffUsage';
 
 vi.unmock('@/context/StaffContext');
+vi.unmock('@/context/StaffProvider');
 
 const hooks = vi.hoisted(() => ({
   nurses: vi.fn(),

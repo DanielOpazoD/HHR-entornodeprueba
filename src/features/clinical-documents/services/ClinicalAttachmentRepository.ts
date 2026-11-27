@@ -11,7 +11,10 @@ import {
 } from '@/features/clinical-documents/controllers/clinicalAttachmentPathController';
 import { parseClinicalAttachmentRecord } from '@/features/clinical-documents/contracts/clinicalAttachmentRuntimeContracts';
 import { resolveClinicalAttachmentFilePolicy } from '@/features/clinical-documents/controllers/clinicalAttachmentFilePolicy';
-import { firestoreDb, type IDatabaseProvider } from '@/services/storage/firestore';
+import {
+  firestoreDb,
+  type IDatabaseProvider,
+} from '@/services/storage/firestore/firestoreDatabaseProvider';
 import {
   defaultClinicalAttachmentStorageRuntime,
   type ClinicalAttachmentStorageRuntime,

@@ -160,6 +160,26 @@ describe('chunkingPolicy', () => {
     expect(deferredSource).toContain("import('@/app-shell/runtime/CensusEmailRuntimeBridge')");
   });
 
+  it('keeps the staff catalog runtime and CatalogRepository out of the static authenticated shell graph', () => {
+    const appProvidersSource = readSource('src/components/AppProviders.tsx');
+    const staffContextSource = readSource('src/context/StaffContext.tsx');
+    const deferredStaffSource = readSource('src/context/DeferredStaffProvider.tsx');
+    const repositoryContextSource = readSource('src/context/RepositoryContext.tsx');
+
+    expect(appProvidersSource).not.toMatch(/from ['"]@\/context\/StaffProvider['"]/);
+    expect(appProvidersSource).not.toMatch(/from ['"]@\/context\/StaffContext['"]/);
+    expect(appProvidersSource).toContain("from '@/context/DeferredStaffProvider'");
+
+    expect(staffContextSource).not.toMatch(/from ['"]@\/hooks\/useStaff/);
+    expect(staffContextSource).not.toMatch(/from ['"]@\/services\/repositories\/CatalogRepository/);
+    expect(deferredStaffSource).not.toMatch(
+      /import\s+(?!type\b)[^;]+from ['"]@\/context\/StaffProvider['"]/
+    );
+    expect(deferredStaffSource).toContain("import('@/context/StaffProvider')");
+
+    expect(repositoryContextSource).not.toContain('CatalogRepository');
+  });
+
   it('keeps route-specific handoff, movement and staffing hooks out of useDailyRecordDomainModules', () => {
     const domainModulesSource = readSource('src/hooks/useDailyRecordDomainModules.ts');
 
@@ -546,6 +566,12 @@ describe('chunkingPolicy', () => {
       'census-view'
     );
     expect(chunkForModule('/repo/src/utils/htmlEscape.ts')).toBe('htmlEscape');
+    expect(
+      chunkForModule('/repo/src/services/storage/firestore/firestoreDatabaseProvider.ts')
+    ).toBe('firestoreDatabaseProvider');
+    expect(chunkForModule('/repo/src/services/infrastructure/db/FirestoreProvider.ts')).toBe(
+      'firestoreDatabaseProvider'
+    );
     for (const file of [
       'public.ts',
       'index.ts',

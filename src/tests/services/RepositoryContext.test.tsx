@@ -8,7 +8,6 @@ import {
   useRepositories,
 } from '@/context/RepositoryContext';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 
 describe('RepositoryContext', () => {
   it('requires RepositoryProvider at runtime', () => {
@@ -33,7 +32,6 @@ describe('RepositoryContext', () => {
     const { result } = renderHook(() => useRepositories(), { wrapper });
 
     expect(result.current.dailyRecord).toBe(customDailyRecordRepository);
-    expect(result.current.catalog).toBe(CatalogRepository);
   });
 
   it('provides the default repository container through DefaultRepositoryProvider', () => {
@@ -44,6 +42,5 @@ describe('RepositoryContext', () => {
     const { result } = renderHook(() => useRepositories(), { wrapper });
 
     expect(result.current.dailyRecord).toBe(defaultDailyRecordRepositoryPort);
-    expect(result.current.catalog).toBe(CatalogRepository);
   });
 });

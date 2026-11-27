@@ -17,6 +17,7 @@ const GUARDED_TARGETS: Record<string, string> = {
   'src/components/layout/navbar/MoaHelpButton': 'MoaHelpButton',
   'src/components/reminders/ReminderBadge': 'ReminderBadge',
   'src/components/ui/FunctionsRecoveryNotice': 'FunctionsRecoveryNotice',
+  'src/context/StaffProvider': 'StaffProvider',
   'src/features/census/census-view': 'census-view',
   'src/features/census/components/CensusModals': 'CensusModals',
   'src/features/census/components/CensusRegisterContent': 'census-view',

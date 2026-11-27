@@ -363,6 +363,14 @@ vi.mock('@/context/StaffContext', () => ({
   useStaffContext: () => mockStaffContextValue,
 }));
 
+vi.mock('@/context/StaffProvider', () => ({
+  StaffProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+vi.mock('@/context/DeferredStaffProvider', () => ({
+  DeferredStaffProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock useStabilityRules hook
 const mockStabilityRules = {
   isDateLocked: false,
