@@ -20,6 +20,7 @@ import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { invokeWithTelemetry } from './lib/observability';
 import { searchMistypedCheckDigitExams } from './lib/mmrad-check-digit-search';
 import {
+  buildCorsPreflightResponse,
   buildJsonResponse,
   buildTooManyRequestsResponse,
   getClientIp,
@@ -58,7 +59,7 @@ export const createMMRADSearchHandler = (
     }
 
     if (event.httpMethod === 'OPTIONS') {
-      return buildJsonResponse(200, {}, { requestOrigin });
+      return buildCorsPreflightResponse(requestOrigin, { allowedMethods: 'GET,OPTIONS' });
     }
 
     // Rate limit only the actual request, not the CORS preflight.

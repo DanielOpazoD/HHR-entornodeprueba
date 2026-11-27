@@ -6,6 +6,7 @@ import {
 } from './lib/firebase-auth';
 import {
   buildCorsHeaders,
+  buildCorsPreflightResponse,
   buildJsonResponse,
   getClientIp,
   getHeader,
@@ -73,7 +74,12 @@ export const createMMRADDicomHandler =
         ...(bytes ? { bytes } : {}),
       });
     if (!isOriginAllowed(requestOrigin)) return json(403, { error: 'Origin not allowed' });
-    if (event.httpMethod === 'OPTIONS') return json(200, {});
+    if (event.httpMethod === 'OPTIONS') {
+      return buildCorsPreflightResponse(requestOrigin, {
+        allowedMethods: 'POST,OPTIONS',
+        extraHeaders: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+      });
+    }
     if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
     const authorization = getHeader(event.headers, 'authorization');
     const authStart = performance.now();

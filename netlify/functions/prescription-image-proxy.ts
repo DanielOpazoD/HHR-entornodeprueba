@@ -2,6 +2,7 @@ import { readResponseWithinLimit } from './lib/bounded-response';
 import { safeErrorLog } from './lib/safe-error-message';
 import {
   buildCorsHeaders,
+  buildCorsPreflightResponse,
   buildJsonResponse,
   buildTooManyRequestsResponse,
   getClientIp,
@@ -188,11 +189,10 @@ export const createPrescriptionImageProxyHandler =
     }
 
     if (event.httpMethod === 'OPTIONS') {
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: '',
-      };
+      return buildCorsPreflightResponse(requestOrigin, {
+        allowedMethods: 'GET,OPTIONS',
+        extraHeaders: { 'Cache-Control': 'no-store' },
+      });
     }
 
     if (event.httpMethod !== 'GET') {

@@ -27,6 +27,7 @@ import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { invokeWithTelemetry } from './lib/observability';
 import { SERVERLESS_ALL_LOGIN_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 import {
+  buildCorsPreflightResponse,
   buildJsonResponse,
   buildTooManyRequestsResponse,
   getClientIp,
@@ -76,7 +77,7 @@ export const createSyslabProxyHandler = (
     }
 
     if (event.httpMethod === 'OPTIONS') {
-      return buildJsonResponse(200, {}, { requestOrigin });
+      return buildCorsPreflightResponse(requestOrigin);
     }
 
     const params = new URLSearchParams(event.rawQuery || '');

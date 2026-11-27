@@ -129,7 +129,7 @@ export const buildJsonResponse = (
 export const buildCorsPreflightResponse = (
   requestOrigin?: string,
   options?: Parameters<typeof buildCorsHeaders>[1]
-) => ({
+): { statusCode: number; headers: Record<string, string>; body: string } => ({
   statusCode: 200,
   headers: {
     ...buildCorsHeaders(requestOrigin, options),
