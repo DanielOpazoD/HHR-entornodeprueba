@@ -46,3 +46,8 @@ export {
   isClinicalCribDischarge,
   getStatisticalDischarges,
 } from '../domain/movements/movementTombstonePolicy';
+
+export {
+  createMinsalEpisodeExitTracker,
+  resolveBedDayAdmissionDate,
+} from './calculations/minsal/minsalEpisodeTraceability';

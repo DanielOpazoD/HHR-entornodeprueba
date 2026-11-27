@@ -11,8 +11,10 @@ const {
 const { createEpisodeAdmissionTracker } = require('./minsalEpisodeTracker');
 const { normalizeMovementReportingSnapshot } = require('./sharedMovementCompatibility');
 const {
+  createMinsalEpisodeExitTracker,
   getActiveMovements,
   getStatisticalDischarges,
+  resolveBedDayAdmissionDate,
 } = require('../generated/sharedDailyRecordContracts.cjs');
 
 const resolveTraceabilityDiagnosis = value => {
@@ -83,6 +85,7 @@ const calculateMinsalStatistics = ({
 
   const orderedRecords = [...records].sort((a, b) => a.date.localeCompare(b.date));
   const episodeTracker = createEpisodeAdmissionTracker();
+  const episodeExitTracker = createMinsalEpisodeExitTracker();
 
   let totalDiasCamaDisponibles = 0;
   let totalDiasCamaOcupados = 0;
@@ -97,10 +100,16 @@ const calculateMinsalStatistics = ({
 
   orderedRecords.forEach(record => {
     const closedEpisodes = [];
+    episodeExitTracker.beginDay(record.date);
 
     Object.values(record.beds || {}).forEach(bed => {
       episodeTracker.observeBed(bed, record.date);
     });
+
+    const activeDischarges = getStatisticalDischarges(record.discharges);
+    const activeTransfers = getActiveMovements(record.transfers);
+    const activeCma = getActiveMovements(record.cma);
+    const sameDayExits = [...activeDischarges, ...activeTransfers];
 
     const beds = record.beds || {};
     let ocupadas = 0;
@@ -124,24 +133,28 @@ const calculateMinsalStatistics = ({
       const specialty = specialtyResolution.reportingSpecialty;
       const existing = specialtyData.get(specialty) || createEmptySpecialtyBucket();
       existing.diasOcupados++;
-      existing.diasOcupadosList.push({
+      const bedDayRow = {
         name: bed.patientName,
         rut: bed.rut,
+        ...(bed.documentType ? { documentType: bed.documentType } : {}),
         diagnosis: resolveTraceabilityDiagnosis(bed.pathology),
         date: record.date,
         bedName: bed.bedName,
-        admissionDate: episodeTracker.resolveAdmissionDate(bed, bed.admissionDate),
+        admissionDate: resolveBedDayAdmissionDate({
+          patient: bed,
+          trackedAdmissionDate: episodeTracker.resolveAdmissionDate(bed, bed.admissionDate),
+          recordDate: record.date,
+          sameDayExits,
+        }),
         ...buildReportingSpecialtyTraceFields(specialtyResolution),
-      });
+      };
+      episodeExitTracker.observeOccupiedBedDay(bedDayRow, bed, record.date);
+      existing.diasOcupadosList.push(bedDayRow);
       specialtyData.set(specialty, existing);
     });
 
     totalDiasCamaDisponibles += hospitalCapacity - bloqueadas;
     totalDiasCamaOcupados += ocupadas;
-
-    const activeDischarges = getStatisticalDischarges(record.discharges);
-    const activeTransfers = getActiveMovements(record.transfers);
-    const activeCma = getActiveMovements(record.cma);
 
     if (activeDischarges.length) {
       activeDischarges.forEach(discharge => {
@@ -186,6 +199,7 @@ const calculateMinsalStatistics = ({
         } else {
           totalEgresosVivos++;
         }
+        episodeExitTracker.recordExit(discharge, record.date);
         if (discharge.rut) {
           closedEpisodes.push(discharge);
         }
@@ -229,6 +243,7 @@ const calculateMinsalStatistics = ({
           eventTime: transfer.time,
           ...buildReportingSpecialtyTraceFields(specialtyResolution),
         });
+        episodeExitTracker.recordExit(transfer, record.date);
         if (transfer.rut) {
           closedEpisodes.push(transfer);
         }
@@ -272,6 +287,7 @@ const calculateMinsalStatistics = ({
       cmaData.set(specialty, existing);
     });
 
+    episodeExitTracker.flushDayExits();
     closedEpisodes.forEach(episode => episodeTracker.closeEpisode(episode));
   });
 
