@@ -120,11 +120,12 @@ export const assertFirestoreConcurrency = async (
  * otherwise). Without `acceptsOtherVersion` any other version is refused, as mutations whose
  * invariant spans more than one field need (for example, moving one egreso classification to
  * another). `acceptsOtherVersion` decides, from the stored document, whether a patch may still
- * commit over a version other than its base.
+ * commit over a version other than its base; returning a `DocumentData` object substitutes the
+ * reconciled payload to write in this attempt.
  *
  * Resolves with the document data the committing attempt read. update() carries an updateTime
  * precondition on that read and no trigger writes daily records, so the committed document is
- * exactly that data with `partialData` applied (see firestoreUpdateProjection).
+ * exactly that data with the written payload applied (see firestoreUpdateProjection).
  */
 export const updateRecordPartiallyAtomically = async (
   docRef: DocumentReference,
@@ -138,7 +139,7 @@ export const updateRecordPartiallyAtomically = async (
     assertCanCommit,
   }: {
     historyPolicy?: 'snapshot' | 'skip';
-    acceptsOtherVersion?: (stored: DocumentData) => boolean;
+    acceptsOtherVersion?: (stored: DocumentData) => boolean | DocumentData;
     /** Runs in each attempt right before it writes; a throw aborts the write. */
     assertCanCommit?: () => void;
   } = {},
@@ -189,12 +190,19 @@ export const updateRecordPartiallyAtomically = async (
       Number.isFinite(remoteVersionMs) &&
       Number.isFinite(expectedVersionMs) &&
       remoteVersionMs === expectedVersionMs;
-    if (!sameVersion && !acceptsOtherVersion?.(data)) {
-      refuse(
-        expectedLastUpdated
-          ? { reason: 'base_version_mismatch', remoteLastUpdated, expectedLastUpdated }
-          : { reason: 'missing_base_version' }
-      );
+    let payloadToCommit = partialData;
+    if (!sameVersion) {
+      const verdict = acceptsOtherVersion?.(data);
+      if (!verdict) {
+        refuse(
+          expectedLastUpdated
+            ? { reason: 'base_version_mismatch', remoteLastUpdated, expectedLastUpdated }
+            : { reason: 'missing_base_version' }
+        );
+      }
+      if (verdict && typeof verdict === 'object') {
+        payloadToCommit = verdict;
+      }
     }
 
     assertCanCommit?.();
@@ -207,7 +215,7 @@ export const updateRecordPartiallyAtomically = async (
       historyWritten = true;
     }
     // The returned base is exact only while this stays a precondition-carrying update().
-    transaction.update(docRef, partialData);
+    transaction.update(docRef, payloadToCommit);
     return data;
   });
   if (historyWritten) markHistorySnapshotTaken(docRef.path);

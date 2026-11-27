@@ -253,4 +253,46 @@ describe('updateRecordPartiallyAtomically committed base', () => {
     );
     expect(committedAttempt.update).toHaveBeenCalledOnce();
   });
+
+  it('commits the reconciled payload returned by acceptsOtherVersion when another version wins', async () => {
+    const stored = {
+      lastUpdated: '2026-07-14T10:01:00.000Z',
+      discharges: [
+        { id: 'd1', time: '10:15' },
+        { id: 'd2', time: '11:00' },
+      ],
+    };
+    const tx = makeTx(stored);
+    mockRunTransaction.mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
+      fn(tx)
+    );
+    const reconciled = {
+      discharges: [
+        { id: 'd1', time: '10:15' },
+        { id: 'd2', time: '11:30' },
+      ],
+      lastUpdated: '2026-07-14T10:02:00.000Z',
+    };
+
+    const committedBase = await updateRecordPartiallyAtomically(
+      { kind: 'docRef' } as never,
+      {
+        discharges: [
+          { id: 'd1', time: '10:00' },
+          { id: 'd2', time: '11:30' },
+        ],
+        lastUpdated: '2026-07-14T10:02:00.000Z',
+      },
+      base,
+      'conflict',
+      'partial update',
+      {
+        historyPolicy: 'skip',
+        acceptsOtherVersion: () => reconciled,
+      }
+    );
+
+    expect(committedBase).toEqual(stored);
+    expect(tx.update).toHaveBeenCalledWith({ kind: 'docRef' }, reconciled);
+  });
 });
