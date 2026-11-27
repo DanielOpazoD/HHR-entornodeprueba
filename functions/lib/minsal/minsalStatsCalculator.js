@@ -97,6 +97,8 @@ const calculateMinsalStatistics = ({
   const specialtyData = new Map();
   const cmaData = new Map();
   const cmaPatientsList = [];
+  let latestRecordSnapshot = null;
+  let latestOccupiedSnapshot = null;
 
   orderedRecords.forEach(record => {
     const closedEpisodes = [];
@@ -114,6 +116,7 @@ const calculateMinsalStatistics = ({
     const beds = record.beds || {};
     let ocupadas = 0;
     let bloqueadas = 0;
+    const specialtyCountsOnDay = new Map();
 
     Object.keys(beds).forEach(bedId => {
       const bed = beds[bedId];
@@ -131,6 +134,7 @@ const calculateMinsalStatistics = ({
         options,
       });
       const specialty = specialtyResolution.reportingSpecialty;
+      specialtyCountsOnDay.set(specialty, (specialtyCountsOnDay.get(specialty) || 0) + 1);
       const existing = specialtyData.get(specialty) || createEmptySpecialtyBucket();
       existing.diasOcupados++;
       const bedDayRow = {
@@ -153,7 +157,22 @@ const calculateMinsalStatistics = ({
       specialtyData.set(specialty, existing);
     });
 
-    totalDiasCamaDisponibles += hospitalCapacity - bloqueadas;
+    const disponibles = hospitalCapacity - bloqueadas;
+    const dailyOccupancyRate =
+      disponibles > 0 ? Math.round((ocupadas / disponibles) * 1000) / 10 : 0;
+    const daySnapshot = {
+      ocupadas,
+      bloqueadas,
+      disponibles,
+      tasaOcupacion: dailyOccupancyRate,
+      specialtyCounts: specialtyCountsOnDay,
+    };
+    latestRecordSnapshot = daySnapshot;
+    if (ocupadas > 0) {
+      latestOccupiedSnapshot = daySnapshot;
+    }
+
+    totalDiasCamaDisponibles += disponibles;
     totalDiasCamaOcupados += ocupadas;
 
     if (activeDischarges.length) {
@@ -306,6 +325,15 @@ const calculateMinsalStatistics = ({
       ? (egresosTotal / avgAvailableBeds) * (30 / totalDaysInRange)
       : 0;
 
+  const referenceSnapshot = latestOccupiedSnapshot ||
+    latestRecordSnapshot || {
+      ocupadas: 0,
+      bloqueadas: 0,
+      disponibles: hospitalCapacity,
+      tasaOcupacion: 0,
+      specialtyCounts: new Map(),
+    };
+
   const porEspecialidad = Array.from(specialtyData.entries())
     .map(([specialty, bucket]) => {
       const egresosEsp = bucket.egresos || 0;
@@ -313,6 +341,7 @@ const calculateMinsalStatistics = ({
       const staySummary = buildStaySummary(bucket.stayDurations);
       return {
         specialty,
+        pacientesActuales: referenceSnapshot.specialtyCounts.get(specialty) || 0,
         egresos: bucket.egresos,
         fallecidos: bucket.fallecidos,
         traslados: bucket.traslados,
@@ -375,8 +404,12 @@ const calculateMinsalStatistics = ({
     mortalidadHospitalaria:
       egresosTotal > 0 ? Math.round((totalEgresosFallecidos / egresosTotal) * 1000) / 10 : 0,
     indiceRotacion: Math.round(indiceRotacion * 10) / 10,
-    pacientesActuales: 0,
-    camasLibres: 0,
+    pacientesActuales: referenceSnapshot.ocupadas,
+    camasOcupadas: referenceSnapshot.ocupadas,
+    camasBloqueadas: referenceSnapshot.bloqueadas,
+    camasDisponibles: referenceSnapshot.disponibles,
+    camasLibres: Math.max(0, referenceSnapshot.disponibles - referenceSnapshot.ocupadas),
+    tasaOcupacionActual: referenceSnapshot.tasaOcupacion,
     promedioDiasEstadaMinima: totalStaySummary.minimum,
     promedioDiasEstadaMaxima: totalStaySummary.maximum,
     porEspecialidad,

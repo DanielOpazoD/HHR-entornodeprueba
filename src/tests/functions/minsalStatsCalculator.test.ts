@@ -595,4 +595,176 @@ describe('functions minsalStatsCalculator', () => {
       egresos: 1,
     });
   });
+
+  it('matches browser current hospitalization snapshot for occupied, blocked, empty, and trailing-zero days', () => {
+    const bed1 = BEDS[0];
+    const bed2 = BEDS[1];
+    const bed3 = BEDS[2];
+    const bed4 = BEDS[3];
+    const bed5 = BEDS[4];
+    const makePatient = (overrides: Partial<PatientData>): PatientData => ({
+      bedId: bed1.id,
+      isBlocked: false,
+      bedMode: 'Cama',
+      hasCompanionCrib: false,
+      patientName: '',
+      rut: '',
+      age: '45',
+      pathology: 'Diagnóstico',
+      specialty: Specialty.CIRUGIA,
+      status: PatientStatus.ESTABLE,
+      admissionDate: '2026-03-01',
+      hasWristband: true,
+      devices: [],
+      surgicalComplication: false,
+      isUPC: false,
+      ...overrides,
+    });
+
+    // 1. Capacity 18, 1 occupied, 0 blocked -> 1 current patient, 17 free beds.
+    const singleOccupied: DailyRecordMovementState[] = [
+      {
+        date: '2026-03-01',
+        beds: {
+          [bed1.id]: makePatient({
+            bedId: bed1.id,
+            patientName: 'Paciente Único',
+            rut: '11.111.111-1',
+          }),
+        },
+        discharges: [],
+        transfers: [],
+        cma: [],
+      },
+    ];
+    const clientSingle = calculateMinsalStats(singleOccupied, '2026-03-01', '2026-03-01');
+    const serverSingle = calculateMinsalStatistics({
+      records: singleOccupied,
+      hospitalCapacity: HOSPITAL_CAPACITY,
+      startDate: '2026-03-01',
+      endDate: '2026-03-01',
+    });
+    expect({
+      pacientesActuales: serverSingle.pacientesActuales,
+      camasOcupadas: serverSingle.camasOcupadas,
+      camasBloqueadas: serverSingle.camasBloqueadas,
+      camasDisponibles: serverSingle.camasDisponibles,
+      camasLibres: serverSingle.camasLibres,
+      tasaOcupacionActual: serverSingle.tasaOcupacionActual,
+    }).toEqual({
+      pacientesActuales: clientSingle.pacientesActuales,
+      camasOcupadas: clientSingle.camasOcupadas,
+      camasBloqueadas: clientSingle.camasBloqueadas,
+      camasDisponibles: clientSingle.camasDisponibles,
+      camasLibres: clientSingle.camasLibres,
+      tasaOcupacionActual: clientSingle.tasaOcupacionActual,
+    });
+    expect(serverSingle.pacientesActuales).toBe(1);
+    expect(serverSingle.camasLibres).toBe(HOSPITAL_CAPACITY - 1);
+    expect(serverSingle.porEspecialidad[0]?.pacientesActuales).toBe(1);
+
+    // 2. Blocked beds + trailing empty day -> selects latest occupied day (2026-03-02).
+    const withBlockedAndTrailingZero: DailyRecordMovementState[] = [
+      {
+        date: '2026-03-02',
+        beds: {
+          [bed1.id]: makePatient({
+            bedId: bed1.id,
+            patientName: 'Paciente Uno',
+            rut: '11.111.111-1',
+          }),
+          [bed2.id]: makePatient({
+            bedId: bed2.id,
+            patientName: 'Paciente Dos',
+            rut: '22.222.222-2',
+          }),
+          [bed3.id]: makePatient({ bedId: bed3.id, isBlocked: true }),
+          [bed4.id]: makePatient({ bedId: bed4.id, isBlocked: true }),
+          [bed5.id]: makePatient({ bedId: bed5.id, isBlocked: true }),
+        },
+        discharges: [],
+        transfers: [],
+        cma: [],
+      },
+      {
+        date: '2026-03-03',
+        beds: {},
+        discharges: [],
+        transfers: [],
+        cma: [],
+      },
+    ];
+    const clientBlocked = calculateMinsalStats(
+      withBlockedAndTrailingZero,
+      '2026-03-02',
+      '2026-03-03'
+    );
+    const serverBlocked = calculateMinsalStatistics({
+      records: withBlockedAndTrailingZero,
+      hospitalCapacity: HOSPITAL_CAPACITY,
+      startDate: '2026-03-02',
+      endDate: '2026-03-03',
+    });
+    expect({
+      pacientesActuales: serverBlocked.pacientesActuales,
+      camasOcupadas: serverBlocked.camasOcupadas,
+      camasBloqueadas: serverBlocked.camasBloqueadas,
+      camasDisponibles: serverBlocked.camasDisponibles,
+      camasLibres: serverBlocked.camasLibres,
+      tasaOcupacionActual: serverBlocked.tasaOcupacionActual,
+    }).toEqual({
+      pacientesActuales: clientBlocked.pacientesActuales,
+      camasOcupadas: clientBlocked.camasOcupadas,
+      camasBloqueadas: clientBlocked.camasBloqueadas,
+      camasDisponibles: clientBlocked.camasDisponibles,
+      camasLibres: clientBlocked.camasLibres,
+      tasaOcupacionActual: clientBlocked.tasaOcupacionActual,
+    });
+    expect(serverBlocked.pacientesActuales).toBe(2);
+    expect(serverBlocked.camasBloqueadas).toBe(3);
+    expect(serverBlocked.camasLibres).toBe(HOSPITAL_CAPACITY - 3 - 2);
+
+    // 3. All days unoccupied with blocked beds on the latest day.
+    const allZeroOccupied: DailyRecordMovementState[] = [
+      {
+        date: '2026-03-04',
+        beds: {
+          [bed1.id]: makePatient({ bedId: bed1.id, isBlocked: true }),
+        },
+        discharges: [],
+        transfers: [],
+        cma: [],
+      },
+      {
+        date: '2026-03-05',
+        beds: {
+          [bed1.id]: makePatient({ bedId: bed1.id, isBlocked: true }),
+          [bed2.id]: makePatient({ bedId: bed2.id, isBlocked: true }),
+        },
+        discharges: [],
+        transfers: [],
+        cma: [],
+      },
+    ];
+    const clientAllZero = calculateMinsalStats(allZeroOccupied, '2026-03-04', '2026-03-05');
+    const serverAllZero = calculateMinsalStatistics({
+      records: allZeroOccupied,
+      hospitalCapacity: HOSPITAL_CAPACITY,
+      startDate: '2026-03-04',
+      endDate: '2026-03-05',
+    });
+    expect({
+      pacientesActuales: serverAllZero.pacientesActuales,
+      camasBloqueadas: serverAllZero.camasBloqueadas,
+      camasDisponibles: serverAllZero.camasDisponibles,
+      camasLibres: serverAllZero.camasLibres,
+      tasaOcupacionActual: serverAllZero.tasaOcupacionActual,
+    }).toEqual({
+      pacientesActuales: clientAllZero.pacientesActuales,
+      camasBloqueadas: clientAllZero.camasBloqueadas,
+      camasDisponibles: clientAllZero.camasDisponibles,
+      camasLibres: clientAllZero.camasLibres,
+      tasaOcupacionActual: clientAllZero.tasaOcupacionActual,
+    });
+  });
 });
