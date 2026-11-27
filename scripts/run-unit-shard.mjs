@@ -2,9 +2,8 @@
 
 import { spawnSync } from 'node:child_process';
 import {
-  buildUnitShardBalanceReport,
-  collectCurrentUnitShardBalanceIssues,
   parseUnitShardRunArguments,
+  resolveCurrentUnitShardBalance,
 } from './unitShardBalanceSupport.mjs';
 
 const root = process.cwd();
@@ -19,7 +18,7 @@ try {
   process.exit(1);
 }
 
-const issues = collectCurrentUnitShardBalanceIssues(root);
+const { report, issues } = resolveCurrentUnitShardBalance(root);
 if (issues.length > 0) {
   console.error('[unit-shard] Balance contract failed:');
   for (const issue of issues) {
@@ -28,7 +27,6 @@ if (issues.length > 0) {
   process.exit(1);
 }
 
-const report = buildUnitShardBalanceReport(root);
 if (requestedShard.count !== report.summary.shardCount) {
   console.error(
     `[unit-shard] Expected ${report.summary.shardCount} shards but received ${requestedShard.count}.`

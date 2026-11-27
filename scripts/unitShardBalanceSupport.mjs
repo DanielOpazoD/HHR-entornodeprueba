@@ -478,9 +478,12 @@ export const buildUnitShardRuntimeProfile = ({
   };
 };
 
-export const buildUnitShardBalanceReport = (root, { useLocalMeasurements = false } = {}) => {
-  const config = loadUnitShardBalanceConfig(root);
-  const files = discoverUnitTestFiles(root, config);
+export const buildUnitShardBalanceReport = (
+  root,
+  { useLocalMeasurements = false, config: preloadedConfig, files: preloadedFiles } = {}
+) => {
+  const config = preloadedConfig ?? loadUnitShardBalanceConfig(root);
+  const files = preloadedFiles ?? discoverUnitTestFiles(root, config);
   const persistedProfile = safeReadJson(root, REPORT_PATH);
   // Published calibration makes every runner use the same inputs. Historical
   // snapshots and private profiling output must not silently reshuffle CI files.
@@ -491,34 +494,29 @@ export const buildUnitShardBalanceReport = (root, { useLocalMeasurements = false
           ...normalizePersistedDurationByFile(persistedProfile, config, root),
           ...readVitestJsonDurations(root, RAW_VITEST_PROFILE_PATH),
         };
-  const profile = buildUnitShardRuntimeProfile({
+
+  return buildUnitShardRuntimeProfile({
     root,
     files,
     config,
     durationByFile: measuredDurations,
   });
-
-  return {
-    ...profile,
-    durationByFile: estimateDurationByFile({
-      root,
-      files,
-      config,
-      measuredDurations,
-    }),
-  };
 };
 
-export const collectCurrentUnitShardBalanceIssues = root => {
+export const resolveCurrentUnitShardBalance = root => {
   const config = loadUnitShardBalanceConfig(root);
   const files = discoverUnitTestFiles(root, config);
-  const profile = buildUnitShardBalanceReport(root);
-  return collectUnitShardBalanceIssues({
+  const report = buildUnitShardBalanceReport(root, { config, files });
+  const issues = collectUnitShardBalanceIssues({
     allFiles: files,
     config,
-    assignments: profile.shards,
+    assignments: report.shards,
   });
+  return { config, files, report, issues };
 };
+
+export const collectCurrentUnitShardBalanceIssues = root =>
+  resolveCurrentUnitShardBalance(root).issues;
 
 const formatMs = ms => `${(Number(ms || 0) / 1000).toFixed(1)}s`;
 
