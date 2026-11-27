@@ -8,12 +8,26 @@ import * as authBootstrapBudgets from '@/services/auth/authBootstrapBudgets';
 import * as indexedDbRecoveryBudgets from '@/services/storage/indexeddb/indexedDbRecoveryBudgets';
 import * as syncQueueBudgets from '@/services/storage/sync/syncQueueOperationalBudgets';
 import * as versionConstants from '@/constants/version';
+import { CONFLICT_CONTEXT_RUNBOOK_ACTIONS } from '@/services/repositories/conflictResolutionDomainPolicy';
+import { OPERATIONAL_RUNTIME_STATES } from '@/services/observability/operationalRuntimeState';
+import { resolveSyncDomainRetryProfile } from '@/services/storage/sync/syncDomainPolicy';
 
 // The operational-health report is what a maintainer reads to understand a delay; its runtime
 // budgets must be the exported values the app executes, not a re-reading of their source text.
 let root = '';
 let report: Partial<
-  Record<'schema' | 'syncQueue' | 'systemHealth' | 'authBootstrap' | 'localPersistence', unknown>
+  Record<
+    | 'schema'
+    | 'syncQueue'
+    | 'systemHealth'
+    | 'syncDomainProfiles'
+    | 'conflictContexts'
+    | 'authAccess'
+    | 'authBootstrap'
+    | 'localPersistence'
+    | 'operationalRuntimeStates',
+    unknown
+  >
 > = {};
 let markdown = '';
 
@@ -107,5 +121,32 @@ describe('operational health report runtime budgets', () => {
         `- Max background recovery attempts: ${indexedDbRecoveryBudgets.MAX_BACKGROUND_RECOVERY_ATTEMPTS}\n` +
         `- Recovery retry delays (ms): ${indexedDbRecoveryBudgets.INDEXED_DB_RECOVERY_RETRY_DELAYS_MS.join(', ')}\n`
     );
+  });
+
+  it('publishes the exported sync domain, conflict, runtime state and auth role policies', async () => {
+    const authConfig = (await import('../../../functions/lib/auth/authConfig.js')) as {
+      GENERAL_LOGIN_ROLES: Set<string>;
+      MANAGED_ASSIGNABLE_ROLES: Set<string>;
+    };
+
+    expect(report.syncDomainProfiles).toEqual([
+      resolveSyncDomainRetryProfile(['metadata']),
+      resolveSyncDomainRetryProfile(['movements']),
+      resolveSyncDomainRetryProfile(['staffing']),
+      resolveSyncDomainRetryProfile(['clinical']),
+      resolveSyncDomainRetryProfile(['clinical', 'staffing']),
+      resolveSyncDomainRetryProfile(['unknown']),
+    ]);
+    expect(report.conflictContexts).toEqual(CONFLICT_CONTEXT_RUNBOOK_ACTIONS);
+    expect(report.operationalRuntimeStates).toEqual({
+      contract: 'src/services/observability/operationalRuntimeState.ts',
+      states: [...OPERATIONAL_RUNTIME_STATES],
+    });
+    expect(report.authAccess).toMatchObject({
+      generalLoginRoles: [...authConfig.GENERAL_LOGIN_ROLES],
+      managedAssignableRoles: [...authConfig.MANAGED_ASSIGNABLE_ROLES],
+    });
+    expect(markdown).toContain('| `clinical_priority` | 5 | 1 |');
+    expect(markdown).toContain('| `mixed_clinical_priority` | 5 | 1 |');
   });
 });
