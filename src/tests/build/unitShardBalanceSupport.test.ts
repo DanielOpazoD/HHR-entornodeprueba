@@ -11,6 +11,7 @@ import {
   collectUnitShardBalanceIssues,
   normalizePersistedDurationByFile,
   parseUnitShardRunArguments,
+  resolveCurrentUnitShardBalance,
 } from '../../../scripts/unitShardBalanceSupport.mjs';
 
 const roots: string[] = [];
@@ -282,5 +283,38 @@ describe('unit shard balance support', () => {
       requestedShard: { index: 2, count: 4 },
       passthroughArgs: ['--reporter=dot', '--runInBand'],
     });
+  });
+
+  it('resolves report and balance issues in a single pass matching standalone evaluation', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hhr-single-pass-balance-'));
+    roots.push(root);
+    fs.mkdirSync(path.join(root, 'scripts/config'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'src/tests'), { recursive: true });
+    for (const name of ['a', 'b', 'c', 'd']) {
+      fs.writeFileSync(path.join(root, `src/tests/${name}.test.ts`), '// synthetic');
+    }
+    fs.writeFileSync(
+      path.join(root, 'scripts/config/unit-shard-balance.json'),
+      JSON.stringify({
+        shardCount: 4,
+        tolerancePercent: 25,
+        durationSource: 'hints',
+        perFileOverheadMs: 100,
+        durationHints: [{ globs: ['src/tests/**'], estimatedDurationMs: 50 }],
+      })
+    );
+
+    const resolved = resolveCurrentUnitShardBalance(root);
+    const standalone = buildUnitShardBalanceReport(root);
+
+    expect(resolved.issues).toEqual([]);
+    expect(resolved.report.shards).toEqual(standalone.shards);
+    expect(resolved.report.durationByFile).toEqual(standalone.durationByFile);
+    expect(resolved.files).toEqual([
+      'src/tests/a.test.ts',
+      'src/tests/b.test.ts',
+      'src/tests/c.test.ts',
+      'src/tests/d.test.ts',
+    ]);
   });
 });
