@@ -24,18 +24,12 @@ const read = relativePath => fs.readFileSync(path.join(workspaceRoot, relativePa
 const systemHealthBudgetContent = read(
   'src/features/admin/services/systemHealthOperationalBudgets.ts'
 );
-const syncDomainPolicyContent = read('src/services/storage/sync/syncDomainPolicy.ts');
-const conflictDomainContent = read('src/services/repositories/conflictResolutionDomainPolicy.ts');
-const authConfigContent = read('functions/lib/auth/authConfig.js');
 const authHelpersContent = read('functions/lib/auth/authHelpersFactory.js');
-const operationalRuntimeStateContent = read(
-  'src/services/observability/operationalRuntimeState.ts'
-);
 const bootstrapRuntimeTelemetryContent = read(
   'src/app-shell/bootstrap/bootstrapRuntimeTelemetry.ts'
 );
-// The runtime budget modules are dependency-free TypeScript that Node 22 strips natively, so the
-// report publishes the exported values the app runs instead of re-parsing their source text.
+// The runtime policy/budget modules are dependency-free (or type-only) TypeScript/CJS that Node 22
+// loads natively, so the report publishes the exported values the app runs instead of re-parsing text.
 const importRuntimeModule = relativePath =>
   import(pathToFileURL(path.join(workspaceRoot, relativePath)).href);
 const syncQueueBudgets = await importRuntimeModule(
@@ -46,6 +40,15 @@ const indexedDbRecoveryBudgets = await importRuntimeModule(
   'src/services/storage/indexeddb/indexedDbRecoveryBudgets.ts'
 );
 const versionConstants = await importRuntimeModule('src/constants/version.ts');
+const syncDomainPolicy = await importRuntimeModule('src/services/storage/sync/syncDomainPolicy.ts');
+const conflictDomainPolicy = await importRuntimeModule(
+  'src/services/repositories/conflictResolutionDomainPolicy.ts'
+);
+const operationalRuntimeState = await importRuntimeModule(
+  'src/services/observability/operationalRuntimeState.ts'
+);
+const authConfigModule = await importRuntimeModule('functions/lib/auth/authConfig.js');
+const authConfig = authConfigModule.default ?? authConfigModule;
 const repositoryFiles = [
   'src/services/repositories/dailyRecordRepositoryReadService.ts',
   'src/services/repositories/dailyRecordRepositoryInitializationService.ts',
@@ -69,55 +72,20 @@ const extractObjectNumbers = (content, objectName) => {
   );
 };
 
-const extractConstArrayStrings = (content, name) => {
-  const match = content.match(new RegExp(`const\\s+${name}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'm'));
-  if (!match) return [];
-
-  return [...match[1].matchAll(/'([^']+)'/g)].map(item => item[1]);
-};
-
-const extractSetStrings = (content, name) => {
-  const match = content.match(
-    new RegExp(`const\\s+${name}\\s*=\\s*new Set\\(\\[([\\s\\S]*?)\\]\\)`, 'm')
-  );
-  if (!match) return [];
-
-  return [...match[1].matchAll(/'([^']+)'/g)].map(item => item[1]);
-};
-
 const extractRoleNormalizationBridges = content =>
   [...content.matchAll(/role\s*===\s*'([^']+)'\s*\?\s*'([^']+)'\s*:\s*role/g)].map(match => ({
     from: match[1],
     to: match[2],
   }));
 
-const extractConstTupleStrings = (content, name) => {
-  const match = content.match(new RegExp(`const\\s+${name}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'm'));
-  if (!match) return [];
-
-  return [...match[1].matchAll(/'([^']+)'/g)].map(item => item[1]);
-};
-
-const extractSyncDomainProfiles = content =>
-  [
-    ...content.matchAll(
-      /id:\s*'([^']+)'\s*,[\s\S]*?retryBudget:\s*(\d+)\s*,[\s\S]*?delayMultiplier:\s*([\d.]+)\s*,[\s\S]*?conflictAction:\s*'([^']+)'/g
-    ),
-  ].map(match => ({
-    id: match[1],
-    retryBudget: Number(match[2]),
-    delayMultiplier: Number(match[3]),
-    conflictAction: match[4],
-  }));
-
-const extractConflictRunbookActions = content => {
-  const block = content.match(/CONFLICT_CONTEXT_RUNBOOK_ACTIONS:[\s\S]*?=\s*\{([\s\S]*?)\n\}/m);
-  if (!block) return {};
-
-  return Object.fromEntries(
-    [...block[1].matchAll(/([A-Za-z0-9_]+):\s*'([^']+)'/g)].map(match => [match[1], match[2]])
-  );
-};
+const SYNC_DOMAIN_PROFILE_SAMPLES = [
+  ['metadata'],
+  ['movements'],
+  ['staffing'],
+  ['clinical'],
+  ['clinical', 'staffing'],
+  ['unknown'],
+];
 
 const readJsonReport = relativePath => {
   const filePath = path.join(workspaceRoot, relativePath);
@@ -196,8 +164,10 @@ const systemHealthBudgets = extractObjectNumbers(
   systemHealthBudgetContent,
   'DEFAULT_SYSTEM_HEALTH_THRESHOLDS'
 );
-const syncDomainProfiles = extractSyncDomainProfiles(syncDomainPolicyContent);
-const conflictContexts = extractConflictRunbookActions(conflictDomainContent);
+const syncDomainProfiles = SYNC_DOMAIN_PROFILE_SAMPLES.map(contexts =>
+  syncDomainPolicy.resolveSyncDomainRetryProfile(contexts)
+);
+const conflictContexts = { ...conflictDomainPolicy.CONFLICT_CONTEXT_RUNBOOK_ACTIONS };
 const prolongedOfflineUserAgeMs = extractConstNumber(
   systemHealthBudgetContent,
   'PROLONGED_OFFLINE_USER_AGE_MS'
@@ -208,15 +178,15 @@ const localPersistence = {
   recoveryRetryDelaysMs: [...indexedDbRecoveryBudgets.INDEXED_DB_RECOVERY_RETRY_DELAYS_MS],
 };
 const authAccess = {
-  generalLoginRoles: extractSetStrings(authConfigContent, 'GENERAL_LOGIN_ROLES'),
-  managedAssignableRoles: extractSetStrings(authConfigContent, 'MANAGED_ASSIGNABLE_ROLES'),
+  generalLoginRoles: [...authConfig.GENERAL_LOGIN_ROLES],
+  managedAssignableRoles: [...authConfig.MANAGED_ASSIGNABLE_ROLES],
   roleNormalizationBridges: extractRoleNormalizationBridges(authHelpersContent),
   canonicalModelDoc: 'docs/AUTH_ACCESS_MODEL.md',
   authIncidentRunbook: 'docs/RUNBOOK_AUTH_ACCESS_INCIDENTS.md',
 };
 const operationalRuntimeStates = {
   contract: 'src/services/observability/operationalRuntimeState.ts',
-  states: extractConstTupleStrings(operationalRuntimeStateContent, 'OPERATIONAL_RUNTIME_STATES'),
+  states: [...operationalRuntimeState.OPERATIONAL_RUNTIME_STATES],
 };
 const authBootstrap = {
   pendingTtlMs: authBootstrapBudgets.AUTH_BOOTSTRAP_PENDING_TTL_MS,
