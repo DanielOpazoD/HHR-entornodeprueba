@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  MinsalCalculationOptions,
   MinsalStatistics,
   PatientTraceability,
   SpecialtyStats,
@@ -49,6 +50,7 @@ interface SpecialtyBreakdownTableProps {
   data: SpecialtyStats[];
   records?: DailyRecord[];
   summary?: MinsalStatistics;
+  calculationOptions?: MinsalCalculationOptions;
   onOpenCensusDate?: (date: string) => void;
 }
 
@@ -67,6 +69,7 @@ export const SpecialtyBreakdownTable: React.FC<SpecialtyBreakdownTableProps> = (
   data = [],
   records = [],
   summary,
+  calculationOptions,
   onOpenCensusDate,
 }) => {
   const [modalConfig, setModalConfig] = React.useState<{
@@ -87,10 +90,12 @@ export const SpecialtyBreakdownTable: React.FC<SpecialtyBreakdownTableProps> = (
   const handleOpenTraceability = (
     specialty: string,
     type: SpecialtyTraceabilityType,
-    patients: PatientTraceability[] = []
+    patients?: PatientTraceability[]
   ) => {
     const resolvedPatients =
-      patients.length > 0 ? patients : buildSpecialtyTraceability(records, specialty, type);
+      patients !== undefined
+        ? patients
+        : buildSpecialtyTraceability(records, specialty, type, calculationOptions);
     setModalConfig({
       isOpen: true,
       title: `Detalle: ${TRACEABILITY_TITLE_BY_TYPE[type]} - ${specialty}`,

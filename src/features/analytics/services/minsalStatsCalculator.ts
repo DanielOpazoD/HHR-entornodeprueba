@@ -4,6 +4,7 @@
 
 import {
   DailyStatsSnapshot,
+  MinsalCalculationOptions,
   SpecialtyTraceabilityType,
   PatientTraceability,
 } from '@/features/analytics/types/minsalTypes';
@@ -37,9 +38,10 @@ export function generateDailyTrend(records: MinsalDailyRecord[]): DailyStatsSnap
 export function buildSpecialtyTraceability(
   records: MinsalDailyRecord[],
   specialty: string,
-  type: SpecialtyTraceabilityType
+  type: SpecialtyTraceabilityType,
+  options?: MinsalCalculationOptions
 ): PatientTraceability[] {
-  return buildTraceability(records, specialty, type);
+  return buildTraceability(records, specialty, type, options);
 }
 
 // Re-export type
