@@ -11,9 +11,17 @@ import type {
 import { layoutClinicalFormText } from './clinicalFormPdfLayout';
 
 export const targetText = (target: ClinicalFormTarget, value: ClinicalFormValue): string => {
+  if (target.format === 'time_period' && typeof value === 'string') {
+    const period = Number(value.slice(0, 2)) < 12 ? 'am' : 'pm';
+    return period === target.equals ? 'X' : '';
+  }
   if (Object.hasOwn(target, 'equals')) return value === target.equals ? 'X' : '';
   if (value === null || value === undefined) return '';
   const text = String(value);
+  if (target.format === 'time_12h') {
+    const hour = Number(text.slice(0, 2)) % 12 || 12;
+    return `${String(hour).padStart(2, '0')}${text.slice(2)}`;
+  }
   if (target.format === 'sex_initial')
     return (
       ({ Masculino: 'M', Femenino: 'F', Indeterminado: 'I' } as Record<string, string>)[text] ?? ''

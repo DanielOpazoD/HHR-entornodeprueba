@@ -322,7 +322,6 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                 onFormChange={setActiveFormId}
                 onBack={() => requestExit('back')}
                 onClose={() => requestExit('close')}
-                patients={patients}
                 onDirtyChange={setMedifDirty}
               />
             </React.Suspense>
