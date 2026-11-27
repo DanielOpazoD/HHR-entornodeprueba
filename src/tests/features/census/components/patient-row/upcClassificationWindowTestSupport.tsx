@@ -16,18 +16,18 @@ const UPC_CONTEXT_MODULE_PATH =
   '@/features/census/components/patient-row/UpcClassificationWindowContext';
 
 export const loadFreshUpcContext = async () => {
-  const [mod, guardMod, providerTree] = await Promise.all([
+  const [mod, identityMod, providerTree] = await Promise.all([
     import(UPC_CONTEXT_MODULE_PATH),
-    import('@/features/census/components/patient-row/upcPendingOpenGuard'),
+    import('@/features/census/components/patient-row/upcCellSubjectIdentity'),
     import('@/context/dailyRecordProviderTree'),
   ]);
   return {
     DailyRecordBedsContext: providerTree.DailyRecordBedsContext,
-    isSameUpcCellSubjectIdentity: guardMod.isSameUpcCellSubjectIdentity as (
+    isSameUpcCellSubjectIdentity: identityMod.isSameUpcCellSubjectIdentity as (
       expected: string | null | undefined,
       current: string | null | undefined
     ) => boolean,
-    resolveUpcCellSubjectIdentity: guardMod.resolveUpcCellSubjectIdentity as (
+    resolveUpcCellSubjectIdentity: identityMod.resolveUpcCellSubjectIdentity as (
       subject?: Partial<PatientData> | null
     ) => string | null,
     UpcClassificationWindowProvider: mod.UpcClassificationWindowProvider as React.FC<{
