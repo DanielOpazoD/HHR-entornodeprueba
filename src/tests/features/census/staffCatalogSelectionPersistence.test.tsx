@@ -4,7 +4,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { StaffProvider } from '@/context/StaffContext';
+import { StaffProvider } from '@/context/StaffProvider';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
 import { useShiftStaffManagement } from '@/hooks/useShiftStaffManagement';
 import { StaffSelector } from '@/features/census/components/StaffSelector';
@@ -14,6 +14,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 vi.unmock('@/services/repositories/CatalogRepository');
 vi.unmock('@/context/StaffContext');
+vi.unmock('@/context/StaffProvider');
 const boundary = vi.hoisted(() => ({ enabled: true, read: vi.fn() }));
 vi.mock('@/services/repositories/repositoryConfig', async original => ({
   ...(await original<typeof import('@/services/repositories/repositoryConfig')>()),

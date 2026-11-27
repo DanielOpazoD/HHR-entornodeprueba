@@ -18,10 +18,19 @@ const readTree = (directory: string): FirstPaintSource[] =>
         : [];
   });
 const sources = ['src/app-shell', 'src/components/layout', 'src/features/census'].flatMap(readTree);
-sources.push({
-  file: 'src/components/ui/FunctionsRecovery.tsx',
-  source: fs.readFileSync(path.join(sourceRoot, 'src/components/ui/FunctionsRecovery.tsx'), 'utf8'),
-});
+sources.push(
+  {
+    file: 'src/components/ui/FunctionsRecovery.tsx',
+    source: fs.readFileSync(
+      path.join(sourceRoot, 'src/components/ui/FunctionsRecovery.tsx'),
+      'utf8'
+    ),
+  },
+  {
+    file: 'src/context/DeferredStaffProvider.tsx',
+    source: fs.readFileSync(path.join(sourceRoot, 'src/context/DeferredStaffProvider.tsx'), 'utf8'),
+  }
+);
 
 it('classifies every lazy call and dynamic import in the first-paint trees', () => {
   expect(() => assertFirstPaintLazyCoverage(sources)).not.toThrow();

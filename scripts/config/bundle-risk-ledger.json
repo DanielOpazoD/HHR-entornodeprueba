@@ -92,7 +92,7 @@
       "workflow": "Authenticated census shell",
       "loadReason": "Post-login shell required to render the census runtime; secondary concerns must stay behind lazy boundaries.",
       "startupBudgetLabel": "app-authenticated-shell",
-      "releasePosture": "Lowered to measured size plus ~5.8% on 2026-11-26 after deferring the census email hook tree; keep the hard ceiling and existing lazy boundaries.",
+      "releasePosture": "Lowered from 328,000 B to 305,000 B on 2026-11-27 after deferring StaffProvider behind DeferredStaffProvider and dropping unused CatalogRepository from RepositoryContext (measured 281,867 B, -25,152 B); keep the hard ceiling and existing lazy boundaries.",
       "guardrails": [
         "check:bundle-budget",
         "check:chunk-graph",

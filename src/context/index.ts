@@ -33,4 +33,6 @@ export type { UserRole, AuthContextType } from './AuthContext';
 export { AuditProvider, useAuditContext } from './AuditContext';
 
 // Staff Context
-export { StaffProvider, useStaffContext } from './StaffContext';
+export { StaffProvider } from './StaffProvider';
+export { useStaffContext } from './StaffContext';
+export type { StaffContextType } from './StaffContext';

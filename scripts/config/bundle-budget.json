@@ -36,8 +36,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "Lowered from 349000 on 2026-11-26 after deferring the census email hook tree behind CensusEmailRuntimeBridge: measured 309955 B (−14604 B); ~5.8% headroom. Re-measure above ~97% usage; see docs/BUNDLE_RISK_LEDGER.md.",
-      "maxBytes": 328000,
+      "_comment": "Lowered from 328000 on 2026-11-27 after deferring StaffProvider behind DeferredStaffProvider and removing unused CatalogRepository from RepositoryContext: measured 281867 B (−25152 B vs 307019 B); ~7.6% headroom. Re-measure above ~97% usage; see docs/BUNDLE_RISK_LEDGER.md.",
+      "maxBytes": 305000,
       "severity": "error"
     }
   ],

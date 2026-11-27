@@ -1,4 +1,7 @@
-import { firestoreDb, type IDatabaseProvider } from '@/services/storage/firestore';
+import {
+  firestoreDb,
+  type IDatabaseProvider,
+} from '@/services/storage/firestore/firestoreDatabaseProvider';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import {
   getDefaultClinicalDocumentIndicationsCatalog,

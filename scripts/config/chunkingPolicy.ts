@@ -141,6 +141,12 @@ export const chunkForModule = (
   )
     return 'census-view';
   if (normalizedId.endsWith('/src/utils/htmlEscape.ts')) return 'htmlEscape';
+  if (
+    normalizedId.endsWith('/src/services/storage/firestore/firestoreDatabaseProvider.ts') ||
+    normalizedId.endsWith('/src/services/infrastructure/db/FirestoreProvider.ts')
+  ) {
+    return 'firestoreDatabaseProvider';
+  }
   const inNodeModules = normalizedId.includes('/node_modules/');
   const has = (fragment: string): boolean => normalizedId.includes(fragment);
 

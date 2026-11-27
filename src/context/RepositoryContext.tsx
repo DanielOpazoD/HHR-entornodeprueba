@@ -3,19 +3,16 @@ import {
   defaultDailyRecordRepositoryPort,
   type DailyRecordRepositoryPort,
 } from '@/application/ports/dailyRecordPort';
-import { ICatalogRepository, CatalogRepository } from '@/services/repositories/CatalogRepository';
 
 /**
  * Interface defining the set of repositories available in the application.
  */
 export interface IRepositoryContainer {
   dailyRecord: DailyRecordRepositoryPort;
-  catalog: ICatalogRepository;
 }
 
 const defaultRepositoryImplementations: IRepositoryContainer = {
   dailyRecord: defaultDailyRecordRepositoryPort,
-  catalog: CatalogRepository,
 };
 
 export const createRepositoryContainer = (

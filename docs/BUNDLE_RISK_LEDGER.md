@@ -10,15 +10,15 @@ Este ledger gobierna los chunks que hoy explican el warning de tamaño de Vite o
 
 ## Current surfaces
 
-| Surface                     | Owner                             | Threshold                           | Current signal                                                                                                        | Release posture                                                          | Guardrail                                                                                    |
-| --------------------------- | --------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `vendor-firebase-functions` | firebase-runtime/functions        | 30,000 bytes precached chunk budget | ~12 KB, precargado desde 2026-10-25 para evitar imports dinámicos fallidos retenidos; rechaza offline antes de llamar | Keep isolated and precached under its dedicated ceiling                  | `check:bundle-budget`, `check:chunk-graph`, `chunkingPolicy.test`, `pwaPrecachePolicy.test`  |
-| `vendor-heic2any`           | prescriptions/runtime             | 1,450,000 bytes chunk budget        | ~1,320 KB, async only for HEIC/HEIF prescription photos                                                               | Not a release blocker while it stays out of precache and below threshold | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`                       |
-| `vendor-pdfjs`              | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime                                                                             | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`                       |
-| `pdfjs-worker`              | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                                                                                        | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                                       |
-| `vendor-pdf-lib`            | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling                                                                    | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin`               |
-| `app-bootstrap`             | app-shell/bootstrap               | 230,000 bytes startup chunk budget  | Agregado 2026-11-26 (205 KB tras aislar núcleo de `AuthContext` y limpiar exports internos del censo)                 | Not a release blocker while pre-login imports stay clean                 | `chunkingPolicy.test`, `bundleBudgetConfig.test`, `check:bundle-budget`, `check:chunk-graph` |
-| `app-authenticated-shell`   | app-shell/census runtime          | 328,000 bytes startup chunk budget  | Bajado 2026-11-26 (310 KB + ~5,8 % tras diferir correo del censo); repetir al superar ~97 %                           | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`                   |
+| Surface                     | Owner                             | Threshold                           | Current signal                                                                                                                                  | Release posture                                                          | Guardrail                                                                                    |
+| --------------------------- | --------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `vendor-firebase-functions` | firebase-runtime/functions        | 30,000 bytes precached chunk budget | ~12 KB, precargado desde 2026-10-25 para evitar imports dinámicos fallidos retenidos; rechaza offline antes de llamar                           | Keep isolated and precached under its dedicated ceiling                  | `check:bundle-budget`, `check:chunk-graph`, `chunkingPolicy.test`, `pwaPrecachePolicy.test`  |
+| `vendor-heic2any`           | prescriptions/runtime             | 1,450,000 bytes chunk budget        | ~1,320 KB, async only for HEIC/HEIF prescription photos                                                                                         | Not a release blocker while it stays out of precache and below threshold | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`                       |
+| `vendor-pdfjs`              | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime                                                                                                       | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`                       |
+| `pdfjs-worker`              | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                                                                                                                  | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                                       |
+| `vendor-pdf-lib`            | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling                                                                                              | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin`               |
+| `app-bootstrap`             | app-shell/bootstrap               | 230,000 bytes startup chunk budget  | Agregado 2026-11-26 (205 KB tras aislar núcleo de `AuthContext` y limpiar exports internos del censo)                                           | Not a release blocker while pre-login imports stay clean                 | `chunkingPolicy.test`, `bundleBudgetConfig.test`, `check:bundle-budget`, `check:chunk-graph` |
+| `app-authenticated-shell`   | app-shell/census runtime          | 305,000 bytes startup chunk budget  | Bajado 2026-11-27 (282 KB + ~7,6 % tras diferir `StaffProvider` y retirar `CatalogRepository` de `RepositoryContext`); repetir al superar ~97 % | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`                   |
 
 ## Trigger policy
 
@@ -586,6 +586,30 @@ y retirar esos dos reexports internos:
 Reversión: restaurar imports a `AuthContext.tsx`, reexportar ambos controladores en
 `features/census/public.ts` y retirar la entrada `app-bootstrap` de `bundle-budget.json` y
 `bundle-risk-ledger.json`.
+
+## Catálogos de personal fuera de `app-authenticated-shell` (2026-11-27)
+
+Owner: app-shell/census runtime. El proveedor `StaffProvider` (`useStaffQuery`, `useEloisaStaff`,
+`useStaffUsage`, `CatalogRepository`, `firestoreCatalogService`, `eloisaStaffIdentity`,
+`nurseIdentity`) se cargaba de forma síncrona dentro de `app-authenticated-shell` aunque ningún
+componente del shell consume `useStaffContext()` en el primer pintado, y `RepositoryContext`
+retenía `CatalogRepository` sin ningún consumidor en producción.
+
+Al separar `StaffProvider` (`src/context/StaffProvider.tsx`) de `StaffContext` (`src/context/StaffContext.tsx`),
+montarlo de forma diferida y sin remontar hijos mediante `DeferredStaffProvider` (precargado offline
+en `OFFLINE_BOOT_CHUNKS` y `firstPaintLazyCoverage.ts`), retirar `catalog` sin uso de
+`RepositoryContext` y reservar `firestoreDatabaseProvider` fuera del chunk online
+`clinical-documents-workspace`:
+
+- `app-authenticated-shell`: **307.019 → 281.867 B** (−25.152 B / −8,2 %; gzip 99,15 → 90,74 kB).
+- Techo de `app-authenticated-shell`: **328.000 → 305.000 B** (−23.000 B; uso medido 92,4 %).
+- `StaffProvider` (2.265 B) y `useStaffQuery` (11.185 B) permanecen precargados para uso sin conexión;
+  `check:bundle-budget`, `check:chunk-graph`, `check:runtime-asset-margin` y el guard de grafo de
+  precarga pasan en verde.
+
+Reversión: restaurar `StaffProvider` síncrono en `AppProviders.tsx`, restaurar `catalog` en
+`RepositoryContext.tsx`, retirar `StaffProvider` de `OFFLINE_BOOT_CHUNKS` y restablecer el techo
+anterior de 328.000 B.
 
 ## Historia del tope de precarga
 
