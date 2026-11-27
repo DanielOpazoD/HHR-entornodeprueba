@@ -49,13 +49,31 @@ describe('useFileOperations', () => {
     vi.clearAllMocks();
   });
 
-  it('should return all file operation functions', () => {
+  it('imports the selected JSON file from an input event and resets the input value', async () => {
     const { result } = renderHook(() => useFileOperations(mockRecord, mockOnRefresh));
+    const file = new File(['{}'], 'backup.json', { type: 'application/json' });
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    let inputValue = 'C:\\fakepath\\backup.json';
+    Object.defineProperty(input, 'value', {
+      get: () => inputValue,
+      set: (next: string) => {
+        inputValue = next;
+      },
+      configurable: true,
+    });
 
-    expect(typeof result.current.handleExportJSON).toBe('function');
-    expect(typeof result.current.handleExportCSV).toBe('function');
-    expect(typeof result.current.handleImportJSON).toBe('function');
-    expect(typeof result.current.handleImportFile).toBe('function');
+    await act(async () => {
+      await result.current.handleImportJSON({
+        target: input,
+        currentTarget: input,
+      } as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(backupExportMaintenanceUseCases.executeImportJsonBackup).toHaveBeenCalledWith(file);
+    expect(mockOnRefresh).toHaveBeenCalled();
+    expect(input.value).toBe('');
   });
 
   it('should export JSON', async () => {

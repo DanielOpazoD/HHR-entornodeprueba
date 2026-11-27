@@ -64,15 +64,6 @@ describe('usePatientDischarges', () => {
     });
   });
 
-  it('should return all discharge functions', () => {
-    const { result } = renderHook(() => usePatientDischarges(mockRecord, mockSaveAndUpdate));
-
-    expect(typeof result.current.addDischarge).toBe('function');
-    expect(typeof result.current.updateDischarge).toBe('function');
-    expect(typeof result.current.deleteDischarge).toBe('function');
-    expect(typeof result.current.undoDischarge).toBe('function');
-  });
-
   it('should not add discharge when record is null', () => {
     const { result } = renderHook(() => usePatientDischarges(null, mockSaveAndUpdate));
 
