@@ -11,6 +11,7 @@
 
 const crypto = require('crypto');
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { isAdminRole } = require('./auth/rolePredicates');
 const { redactError } = require('./logging/redaction');
@@ -60,13 +61,10 @@ const computeExpiresAt = (_prescriptionType, createdAtIso) =>
 const positiveInteger = (value, fieldName) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `${fieldName} must be a positive integer.`
-    );
+    throw new HttpsError('invalid-argument', `${fieldName} must be a positive integer.`);
   }
   if (parsed < MIN_DIMENSION || parsed > MAX_DIMENSION) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `${fieldName} must be between ${MIN_DIMENSION} and ${MAX_DIMENSION}.`
     );
@@ -76,19 +74,13 @@ const positiveInteger = (value, fieldName) => {
 
 const assertJpegMagicBytes = (buffer, fieldName) => {
   if (buffer.length < 3 || buffer[0] !== 0xff || buffer[1] !== 0xd8 || buffer[2] !== 0xff) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `${fieldName} must be a valid JPEG image.`
-    );
+    throw new HttpsError('invalid-argument', `${fieldName} must be a valid JPEG image.`);
   }
 };
 
 const decodeBase64 = (value, fieldName) => {
   if (typeof value !== 'string' || !value.trim()) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `Missing required field: ${fieldName}`
-    );
+    throw new HttpsError('invalid-argument', `Missing required field: ${fieldName}`);
   }
   const trimmed = value.trim();
   if (
@@ -96,14 +88,14 @@ const decodeBase64 = (value, fieldName) => {
     trimmed.length % 4 !== 0 ||
     !STRICT_BASE64_PATTERN.test(trimmed)
   ) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `${fieldName} must be valid base64 within the allowed size limit.`
     );
   }
   const buffer = Buffer.from(trimmed, 'base64');
   if (!buffer.length || buffer.length > MAX_BASE64_BYTES) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `${fieldName} size is invalid (must be 1–${MAX_BASE64_BYTES} bytes after decoding).`
     );
@@ -126,7 +118,7 @@ const reservePrescriptionUploadSlot = async (firestore, nowMs = Date.now()) => {
     );
 
     if (activeSlots.length >= MAX_PRESCRIPTION_UPLOADS_PER_HOUR) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'resource-exhausted',
         'Se alcanzó el límite temporal de carga de recetas. Reintenta en unos minutos.'
       );
@@ -245,7 +237,7 @@ const resolveAssignmentScope = payload => {
   const explicitScope = optionalString(payload.assignmentScope, 64);
   if (explicitScope) {
     if (!PRESCRIPTION_ASSIGNMENT_SCOPES.has(explicitScope)) {
-      throw new functions.https.HttpsError('invalid-argument', 'Categoría de receta inválida.');
+      throw new HttpsError('invalid-argument', 'Categoría de receta inválida.');
     }
     return explicitScope;
   }
@@ -302,7 +294,7 @@ const createSubmitHandler =
   async (data, context) => {
     const payload = data || {};
     if (!PRESCRIPTION_TYPES.has(payload.prescriptionType)) {
-      throw new functions.https.HttpsError('invalid-argument', 'Tipo de receta inválido.');
+      throw new HttpsError('invalid-argument', 'Tipo de receta inválido.');
     }
     resolveAssignmentScope(payload);
 
@@ -363,10 +355,7 @@ const createSetPinHandler =
     requireAuthentication(context);
     const role = await resolveCallerRole(context, resolveRoleForEmail);
     if (!isAdminRole(role)) {
-      throw new functions.https.HttpsError(
-        'permission-denied',
-        'Solo administradores pueden cambiar el PIN.'
-      );
+      throw new HttpsError('permission-denied', 'Solo administradores pueden cambiar el PIN.');
     }
     const newPin = requirePinString(data?.newPin);
     const salt = generatePinSalt();

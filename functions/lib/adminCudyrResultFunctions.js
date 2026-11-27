@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_CAPACITY, HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { isAdminRole } = require('./auth/rolePredicates');
@@ -25,17 +26,11 @@ const MAX_ADMIN_CUDYR_ADJUSTMENTS = HOSPITAL_CAPACITY * 2;
 
 const assertString = (value, fieldName, maxLength = 120) => {
   if (typeof value !== 'string' || !value.trim()) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `Missing required field: ${fieldName}`
-    );
+    throw new HttpsError('invalid-argument', `Missing required field: ${fieldName}`);
   }
   const normalized = value.trim();
   if (normalized.length > maxLength) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `${fieldName} exceeds the maximum supported length.`
-    );
+    throw new HttpsError('invalid-argument', `${fieldName} exceeds the maximum supported length.`);
   }
   return normalized;
 };
@@ -55,7 +50,7 @@ const parseAdjustment = data => {
   const category =
     rawCategory === null ? null : assertString(rawCategory, 'category', 2).toUpperCase();
   if (category !== null && !VALID_CUDYR_CATEGORIES.has(category)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'category must be one of the supported CUDYR results or null for removal.'
     );
@@ -72,7 +67,7 @@ const parseAdjustment = data => {
     expectedCurrentCategory !== null &&
     !VALID_CUDYR_CATEGORIES.has(expectedCurrentCategory)
   ) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'expectedCurrentCategory must be a supported CUDYR result, null or omitted.'
     );
@@ -118,12 +113,12 @@ const parseAdjustment = data => {
 const parsePayload = data => {
   const date = assertString(data?.date, 'date', 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new functions.https.HttpsError('invalid-argument', 'date must use YYYY-MM-DD.');
+    throw new HttpsError('invalid-argument', 'date must use YYYY-MM-DD.');
   }
 
   const rawAdjustments = Array.isArray(data?.adjustments) ? data.adjustments : [data];
   if (rawAdjustments.length === 0 || rawAdjustments.length > MAX_ADMIN_CUDYR_ADJUSTMENTS) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `adjustments must contain between 1 and ${MAX_ADMIN_CUDYR_ADJUSTMENTS} entries.`
     );
@@ -133,7 +128,7 @@ const parsePayload = data => {
     adjustment => `${adjustment.bedId}:${adjustment.clinicalCrib ? 'crib' : 'bed'}`
   );
   if (new Set(targetKeys).size !== targetKeys.length) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'adjustments cannot contain the same patient target more than once.'
     );
@@ -141,7 +136,7 @@ const parsePayload = data => {
 
   const expectedLastUpdated = assertString(data?.expectedLastUpdated, 'expectedLastUpdated', 80);
   if (!Number.isFinite(Date.parse(expectedLastUpdated))) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'expectedLastUpdated must be a valid date-time value.'
     );
@@ -202,7 +197,7 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
     const email = requireAuthenticatedEmail(context);
     const role = await resolveRoleForEmail(email, context);
     if (!isAdminRole(role)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'permission-denied',
         'Only an administrator can adjust an imported CUDYR result.'
       );
@@ -223,19 +218,19 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
           transaction.get(hospitalRef.collection('settings').doc('rayenImportPolicy')),
         ]);
         if (!snapshot.exists) {
-          throw new functions.https.HttpsError('not-found', 'Daily record not found.');
+          throw new HttpsError('not-found', 'Daily record not found.');
         }
 
         const remoteRecord = snapshot.data() || {};
         const remoteVersion = toMillis(remoteRecord.lastUpdated);
         if (remoteVersion === null) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             'failed-precondition',
             'Daily record has no verifiable version for an administrative CUDYR adjustment.'
           );
         }
         if (remoteVersion !== toMillis(payload.expectedLastUpdated)) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             'aborted',
             'Daily record changed before the administrative CUDYR adjustment.'
           );
@@ -249,13 +244,13 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
           const bed = remoteRecord.beds?.[adjustment.bedId];
           const patient = adjustment.clinicalCrib ? bed?.clinicalCrib : bed;
           if (!patient || typeof patient !== 'object') {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
               'failed-precondition',
               'A selected patient is no longer present in the expected bed.'
             );
           }
           if (patient.clinicalEpisodeId !== adjustment.clinicalEpisodeId) {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
               'aborted',
               'A clinical episode changed before the administrative CUDYR adjustment.'
             );
@@ -277,7 +272,7 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
             (adjustment.expectedSource !== undefined &&
               (currentImportedCudyr?.source ?? null) !== adjustment.expectedSource)
           ) {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
               'aborted',
               'A selected CUDYR result changed before the administrative adjustment.'
             );
@@ -378,7 +373,7 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
         changes,
       };
     } catch (error) {
-      if (error instanceof functions.https.HttpsError) throw error;
+      if (error instanceof HttpsError) throw error;
       console.error(
         'Error adjusting CUDYR result as administrator',
         sanitizeLogValue({
@@ -388,7 +383,7 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
           error,
         })
       );
-      throw new functions.https.HttpsError('internal', 'Failed to adjust the CUDYR result.');
+      throw new HttpsError('internal', 'Failed to adjust the CUDYR result.');
     }
   }),
 });

@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 // Retain the original endpoint for already-loaded clients during the regional rollout.
 const clinicalFunctions = functions
   .region('us-central1', 'southamerica-east1')
@@ -122,7 +123,7 @@ const createRayenClinicalEnrichmentFunctions = ({
             );
           }
           if (!snapshot.exists) {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
               'failed-precondition',
               'Clinical enrichment requires an existing daily record.'
             );
@@ -141,7 +142,7 @@ const createRayenClinicalEnrichmentFunctions = ({
               ? PARITY_CONTRACT_VERSION
               : UNSPLIT_PARITY_CONTRACT_VERSION;
           if (!authoritySnapshot.exists) {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
               'failed-precondition',
               'Clinical enrichment requires the synchronization run record.'
             );
@@ -152,7 +153,7 @@ const createRayenClinicalEnrichmentFunctions = ({
               payload,
             });
             if (payload.date !== sourceDate && !isAdminOrHospitalNurseRole(writerRole)) {
-              throw new functions.https.HttpsError(
+              throw new HttpsError(
                 'permission-denied',
                 'Historical CUDYR synchronization requires an administrator or hospital nurse.'
               );
@@ -191,7 +192,7 @@ const createRayenClinicalEnrichmentFunctions = ({
             payload.date !== batchAuthority.sourceDate &&
             !isAdminOrHospitalNurseRole(writerRole)
           ) {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
               'permission-denied',
               'Historical CUDYR synchronization requires an administrator or hospital nurse.'
             );
@@ -272,14 +273,14 @@ const createRayenClinicalEnrichmentFunctions = ({
           );
           resultParity = parityDiagnostics.mismatchFieldCount === 0 ? 'matched' : 'mismatch';
           if (resultParity !== 'matched') {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
               'failed-precondition',
               'Clinical enrichment result did not match the requested batch.'
             );
           }
           const authority = evaluateDailyRecordClinicalAuthority(nextRecord);
           if (authority.status !== 'ok') {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
               'failed-precondition',
               'Clinical enrichment would violate daily-record authority.'
             );
@@ -385,7 +386,7 @@ const createRayenClinicalEnrichmentFunctions = ({
       const transactionTimingsMs = timing.getTransactionTimings();
       const handledError =
         error instanceof SpecialtyDecisionError
-          ? new functions.https.HttpsError(error.code, error.message, error.details)
+          ? new HttpsError(error.code, error.message, error.details)
           : error;
       if (context.auth) {
         timing.beginPhase('telemetryMs');
@@ -413,8 +414,8 @@ const createRayenClinicalEnrichmentFunctions = ({
         serverTimingsMs: timing.serverTimingsMs,
         ...(transactionTimingsMs ? { transactionTimingsMs } : {}),
       };
-      if (handledError instanceof functions.https.HttpsError) {
-        throw new functions.https.HttpsError(handledError.code, handledError.message, {
+      if (handledError instanceof HttpsError) {
+        throw new HttpsError(handledError.code, handledError.message, {
           ...(error instanceof SpecialtyDecisionError ? error.details : {}),
           ...failureDetails,
         });
@@ -424,7 +425,7 @@ const createRayenClinicalEnrichmentFunctions = ({
         'Error applying Rayen clinical enrichment batch',
         sanitizeLogValue({ date: requestSummary.date, error: handledError })
       );
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'internal',
         'Failed to apply Rayen clinical enrichment batch.',
         failureDetails

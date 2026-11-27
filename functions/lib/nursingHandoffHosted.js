@@ -1,5 +1,6 @@
 const { timingSafeEqual } = require('node:crypto');
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { digest, SESSION_SECONDS } = require('./accounts/accountPolicy');
 const { isAdminOrHospitalNurseRole } = require('./auth/rolePredicates');
 const { createHandler } = require('./nursingHandoffExtension');
@@ -7,8 +8,7 @@ const { createHandler } = require('./nursingHandoffExtension');
 const lifetime = 4 * 60 * 60 * 1000;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const proofFormat = /^[a-f0-9]{64}$/;
-const disconnected = () =>
-  new functions.https.HttpsError('unauthenticated', 'Conecta tu sesión de HHR.');
+const disconnected = () => new HttpsError('unauthenticated', 'Conecta tu sesión de HHR.');
 
 function createHostedHandler({
   firestore,
@@ -22,7 +22,7 @@ function createHostedHandler({
   const resolveRole = async (email, context) => {
     const role = await resolveRoleForEmail(email, context);
     if (!isAdminOrHospitalNurseRole(role)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'permission-denied',
         'Tu cuenta HHR no tiene acceso a Entrega de turno.'
       );
@@ -40,7 +40,7 @@ function createHostedHandler({
     const expiresAt = Math.min(issuedAt + lifetime, (authTime + SESSION_SECONDS) * 1000);
     if (issuedAt >= expiresAt) throw disconnected();
     if (typeof challenge !== 'string' || !proofFormat.test(challenge))
-      throw new functions.https.HttpsError('invalid-argument', 'Solicitud de conexión no válida.');
+      throw new HttpsError('invalid-argument', 'Solicitud de conexión no válida.');
     const actor = {
       uid,
       token: {
@@ -99,7 +99,7 @@ function createHostedHandler({
   return async (data, context) => {
     const { action, deviceId, proof } = data ?? {};
     if (typeof deviceId !== 'string' || !uuid.test(deviceId)) {
-      throw new functions.https.HttpsError('invalid-argument', 'Conexión de HHR no válida.');
+      throw new HttpsError('invalid-argument', 'Conexión de HHR no válida.');
     }
     if (action === 'connect') return connect(deviceId, data.challenge, context);
     if (typeof proof !== 'string' || !proofFormat.test(proof)) throw disconnected();

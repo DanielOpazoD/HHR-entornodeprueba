@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { calculateMinsalStatistics } = require('./minsal/minsalStatsCalculator');
 const {
   assertAuthenticatedClinicalRequest,
@@ -39,10 +40,7 @@ const createMinsalFunctions = ({
       });
     } catch (error) {
       console.error('Error calculating statistics:', error);
-      throw new functions.https.HttpsError(
-        'internal',
-        `Error calculating statistics: ${getErrorMessage(error)}`
-      );
+      throw new HttpsError('internal', `Error calculating statistics: ${getErrorMessage(error)}`);
     }
   }),
 
@@ -56,11 +54,11 @@ const createMinsalFunctions = ({
         resolveRoleForEmail,
       });
     } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       console.error('Error saving statistical specialty reclassification:', error);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'internal',
         `Error saving statistical specialty reclassification: ${getErrorMessage(error)}`
       );

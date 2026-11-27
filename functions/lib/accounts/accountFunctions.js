@@ -1,5 +1,6 @@
 const { createAccountRecovery } = require('./accountRecovery');
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { createAccountAdministration } = require('./accountAdministration');
 const { createAccountCredentials } = require('./accountCredentials');
 const { createSantiagoAccountFunction } = require('./accountSantiagoFunction');
@@ -23,12 +24,9 @@ const createAccountFunctions = dependencies => {
         try {
           return await handler(data, context);
         } catch (error) {
-          if (error instanceof functions.https.HttpsError) throw error;
+          if (error instanceof HttpsError) throw error;
           // Credentials, invitation tokens and provider bodies never reach logs or clients.
-          throw new functions.https.HttpsError(
-            'internal',
-            'No se pudo completar la operación de acceso.'
-          );
+          throw new HttpsError('internal', 'No se pudo completar la operación de acceso.');
         }
       });
   const signInWithRut = callable(

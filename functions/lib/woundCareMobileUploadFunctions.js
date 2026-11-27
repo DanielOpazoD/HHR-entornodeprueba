@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { hospitalCalendarDay } = require('./hospitalCalendarDay');
 
@@ -23,19 +24,13 @@ const isAppCheckEnforced = () => process.env.ENFORCE_WOUND_CARE_APP_CHECK === '1
 const requireAppCheckToken = (context, operation) => {
   if (!isAppCheckEnforced()) return;
   if (!context || !context.app) {
-    throw new functions.https.HttpsError(
-      'failed-precondition',
-      `App Check token required for ${operation}.`
-    );
+    throw new HttpsError('failed-precondition', `App Check token required for ${operation}.`);
   }
 };
 
 const assertStringField = (value, fieldName) => {
   if (typeof value !== 'string' || !value.trim()) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `Missing required field: ${fieldName}`
-    );
+    throw new HttpsError('invalid-argument', `Missing required field: ${fieldName}`);
   }
   return value.trim();
 };
@@ -47,7 +42,7 @@ const decodeBase64 = (value, fieldName) => {
   const base64 = assertStringField(value, fieldName);
   const buffer = Buffer.from(base64, 'base64');
   if (!buffer.length || buffer.length > MAX_BASE64_BYTES) {
-    throw new functions.https.HttpsError('invalid-argument', `${fieldName} size is invalid.`);
+    throw new HttpsError('invalid-argument', `${fieldName} size is invalid.`);
   }
   return buffer;
 };
@@ -90,7 +85,7 @@ const detectImageFormat = (buffer, fieldName) => {
     return { mimeType: 'image/png', extension: 'png' };
   }
 
-  throw new functions.https.HttpsError(
+  throw new HttpsError(
     'invalid-argument',
     `${fieldName} must be a valid WebP, JPEG, or PNG image.`
   );
@@ -120,16 +115,16 @@ const buildStoragePath = ({
 
 const normalizeSession = snapshot => {
   if (!snapshot.exists) {
-    throw new functions.https.HttpsError('permission-denied', 'Invalid or expired upload link.');
+    throw new HttpsError('permission-denied', 'Invalid or expired upload link.');
   }
 
   const session = snapshot.data();
   if (!session || session.scope !== SESSION_SCOPE || session.revokedAt) {
-    throw new functions.https.HttpsError('permission-denied', 'Invalid or expired upload link.');
+    throw new HttpsError('permission-denied', 'Invalid or expired upload link.');
   }
 
   if (!session.expiresAt || Date.parse(session.expiresAt) <= Date.now()) {
-    throw new functions.https.HttpsError('permission-denied', 'Invalid or expired upload link.');
+    throw new HttpsError('permission-denied', 'Invalid or expired upload link.');
   }
 
   return session;
@@ -223,7 +218,7 @@ const assertUploadCapacity = session => {
       : FALLBACK_MAX_UPLOADS_PER_SESSION;
   const used = typeof session.uploadCount === 'number' ? session.uploadCount : 0;
   if (used >= max) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'resource-exhausted',
       `Upload session has reached its limit (${used}/${max}).`
     );

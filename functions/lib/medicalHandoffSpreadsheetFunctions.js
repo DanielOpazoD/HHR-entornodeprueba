@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { canWriteDailyRecordRole } = require('./auth/rolePredicates');
 
@@ -49,25 +50,16 @@ const isPlainObject = value => value !== null && typeof value === 'object' && !A
 
 const parseTextField = (value, fieldName, { required = false } = {}) => {
   if (typeof value !== 'string') {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `El campo ${fieldName} debe ser texto.`
-    );
+    throw new HttpsError('invalid-argument', `El campo ${fieldName} debe ser texto.`);
   }
 
   const normalized = value.trim();
   if (required && !normalized) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `El campo ${fieldName} es obligatorio.`
-    );
+    throw new HttpsError('invalid-argument', `El campo ${fieldName} es obligatorio.`);
   }
 
   if (normalized.length > FIELD_LIMITS[fieldName]) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `El campo ${fieldName} supera el largo permitido.`
-    );
+    throw new HttpsError('invalid-argument', `El campo ${fieldName} supera el largo permitido.`);
   }
 
   return normalized;
@@ -75,7 +67,7 @@ const parseTextField = (value, fieldName, { required = false } = {}) => {
 
 const parseRows = rawRows => {
   if (!Array.isArray(rawRows) || rawRows.length === 0 || rawRows.length > MAX_ROWS) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `La planilla debe contener entre 1 y ${MAX_ROWS} pacientes.`
     );
@@ -84,10 +76,7 @@ const parseRows = rawRows => {
   const stableKeys = new Set();
   return rawRows.map((rawRow, index) => {
     if (!isPlainObject(rawRow)) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        `La fila ${index + 1} no es válida.`
-      );
+      throw new HttpsError('invalid-argument', `La fila ${index + 1} no es válida.`);
     }
 
     const row = {
@@ -102,14 +91,14 @@ const parseRows = rawRows => {
     };
 
     if (!STABLE_KEY_PATTERN.test(row.stableKey)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         `La fila ${index + 1} contiene un identificador no válido.`
       );
     }
 
     if (stableKeys.has(row.stableKey)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         `La fila ${index + 1} repite un identificador de paciente.`
       );
@@ -122,12 +111,12 @@ const parseRows = rawRows => {
 const parseDate = value => {
   const date = typeof value === 'string' ? value.trim() : '';
   if (!DATE_PATTERN.test(date)) {
-    throw new functions.https.HttpsError('invalid-argument', 'La fecha del censo no es válida.');
+    throw new HttpsError('invalid-argument', 'La fecha del censo no es válida.');
   }
 
   const [year, month, day] = date.split('-').map(Number);
   if (year === undefined || month === undefined || day === undefined) {
-    throw new functions.https.HttpsError('invalid-argument', 'La fecha del censo no es válida.');
+    throw new HttpsError('invalid-argument', 'La fecha del censo no es válida.');
   }
   const parsed = new Date(Date.UTC(year, month - 1, day));
   if (
@@ -135,7 +124,7 @@ const parseDate = value => {
     parsed.getUTCMonth() !== month - 1 ||
     parsed.getUTCDate() !== day
   ) {
-    throw new functions.https.HttpsError('invalid-argument', 'La fecha del censo no es válida.');
+    throw new HttpsError('invalid-argument', 'La fecha del censo no es válida.');
   }
   return date;
 };
@@ -145,7 +134,7 @@ const parseAppsScriptUrl = value => {
   try {
     url = new URL(String(value || '').trim());
   } catch (_error) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'La integración institucional de Google Sheets no está configurada.'
     );
@@ -157,7 +146,7 @@ const parseAppsScriptUrl = value => {
     /^\/macros\/s\/[\w-]+\/exec$/.test(url.pathname);
 
   if (!isAppsScriptDeployment) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'La URL configurada para Google Sheets no corresponde a un despliegue de Apps Script.'
     );
@@ -175,14 +164,14 @@ const parseGatewayResponse = rawResponse => {
     const failure = isKnownReason
       ? APPS_SCRIPT_FAILURES[reason]
       : APPS_SCRIPT_FAILURES.invalid_response;
-    throw new functions.https.HttpsError(failure.code, failure.message, {
+    throw new HttpsError(failure.code, failure.message, {
       reason: isKnownReason ? reason : 'invalid_response',
     });
   }
 
   const spreadsheetUrl = String(rawResponse.spreadsheetUrl || '').trim();
   if (!SPREADSHEET_URL_PATTERN.test(spreadsheetUrl)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'unavailable',
       'Google Sheets devolvió una dirección de planilla no válida.'
     );
@@ -219,7 +208,7 @@ const createMedicalHandoffSpreadsheetFunctions = ({
       const email = requireAuthenticatedEmail(context);
       const role = await resolveRoleForEmail(email, context);
       if (!canWriteDailyRecordRole(role)) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'permission-denied',
           'Tu perfil no puede crear planillas de entrega médica.'
         );
@@ -231,13 +220,13 @@ const createMedicalHandoffSpreadsheetFunctions = ({
       const appsScriptUrl = parseAppsScriptUrl(config?.appsScriptUrl);
       const sharedSecret = String(config?.sharedSecret || '').trim();
       if (sharedSecret.length < 24) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'failed-precondition',
           'La integración institucional de Google Sheets no está configurada.'
         );
       }
       if (typeof fetchImpl !== 'function') {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'failed-precondition',
           'El entorno no permite conectar con Google Sheets.'
         );
@@ -269,7 +258,7 @@ const createMedicalHandoffSpreadsheetFunctions = ({
         });
       } catch (_error) {
         auditFailure('gateway_unavailable');
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'unavailable',
           'No fue posible conectar con Google Sheets. Reintenta en unos segundos.'
         );
@@ -277,7 +266,7 @@ const createMedicalHandoffSpreadsheetFunctions = ({
 
       if (!response?.ok) {
         auditFailure('gateway_http_error');
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'unavailable',
           'Google Sheets no respondió correctamente. Revisa el despliegue institucional.'
         );
@@ -288,10 +277,7 @@ const createMedicalHandoffSpreadsheetFunctions = ({
         gatewayResponse = JSON.parse(await response.text());
       } catch (_error) {
         auditFailure('invalid_response');
-        throw new functions.https.HttpsError(
-          'unavailable',
-          'Google Sheets devolvió una respuesta inesperada.'
-        );
+        throw new HttpsError('unavailable', 'Google Sheets devolvió una respuesta inesperada.');
       }
 
       let result;

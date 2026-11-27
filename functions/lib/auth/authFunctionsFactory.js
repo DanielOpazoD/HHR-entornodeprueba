@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const {
   assertAssignableRole,
   assertRoleMutationAccess,
@@ -26,7 +27,7 @@ const createAuthFunctions = ({ auth, helpers }) => ({
     await assertRoleMutationAccess({ context, resolveRoleForEmail: helpers.resolveRoleForEmail });
 
     if (await helpers.isIndividualAccessEnabled()) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'permission-denied',
         'Los accesos se gestionan en Usuarios de enfermería.'
       );
@@ -37,7 +38,7 @@ const createAuthFunctions = ({ auth, helpers }) => ({
     assertAssignableRole(email, role);
 
     if (email.endsWith('@accounts.hhr.invalid')) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'permission-denied',
         'Gestiona esta identidad desde Usuarios de enfermería.'
       );
@@ -49,14 +50,14 @@ const createAuthFunctions = ({ auth, helpers }) => ({
       return { success: true, message: `Role ${role} assigned to ${email}` };
     } catch (error) {
       console.error('Error setting role for user', sanitizeLogValue({ email, error }));
-      throw new functions.https.HttpsError('internal', 'Failed to update user role');
+      throw new HttpsError('internal', 'Failed to update user role');
     }
   }),
   syncCurrentUserRoleClaim: functions.https.onCall(async (_data, context) => {
     const email = requireAuthenticatedEmail(context);
     const authContext = context.auth;
     if (!authContext) {
-      throw new functions.https.HttpsError('unauthenticated', 'Authentication required.');
+      throw new HttpsError('unauthenticated', 'Authentication required.');
     }
 
     try {
@@ -75,7 +76,7 @@ const createAuthFunctions = ({ auth, helpers }) => ({
       };
     } catch (error) {
       console.error('Error syncing role claim for user', sanitizeLogValue({ email, error }));
-      throw new functions.https.HttpsError('internal', 'Failed to sync current user role claim');
+      throw new HttpsError('internal', 'Failed to sync current user role claim');
     }
   }),
   checkUserRole: functions.runWith({ memory: '1GB' }).https.onCall(async (_data, context) => {
@@ -89,7 +90,7 @@ const createAuthFunctions = ({ auth, helpers }) => ({
         'Discovery error while resolving user role',
         sanitizeLogValue({ email, error })
       );
-      throw new functions.https.HttpsError('internal', 'Error retrieving account permissions.');
+      throw new HttpsError('internal', 'Error retrieving account permissions.');
     }
   }),
 });

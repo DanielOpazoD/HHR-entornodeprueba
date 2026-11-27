@@ -7,6 +7,7 @@
  */
 
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { isClinicalStaffRole } = require('./auth/rolePredicates');
 const { redactError } = require('./logging/redaction');
@@ -33,14 +34,14 @@ const {
 
 const requireAllowedClinician = async (context, resolveRoleForEmail) => {
   if (!context?.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Debes iniciar sesión en HHR.');
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión en HHR.');
   }
   const email = String(context.auth.token?.email || '')
     .toLowerCase()
     .trim();
   const role = email ? await resolveRoleForEmail(email, context) : 'unauthorized';
   if (!isClinicalStaffRole(role)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       'No tienes permiso para gestionar documentos escaneados.'
     );
@@ -69,10 +70,7 @@ const createSubmitScannedDocumentHandler =
     );
     const pageCount = Number(payload.pageCount);
     if (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 12) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'La cantidad de páginas es inválida.'
-      );
+      throw new HttpsError('invalid-argument', 'La cantidad de páginas es inválida.');
     }
     const pageBuffers = decodeJpegPages(payload.pageImagesBase64, pageCount);
     const submissionPayloadHash = createSubmissionPayloadHash({
@@ -157,14 +155,14 @@ const createSubmitScannedDocumentHandler =
             continue;
           }
         }
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'unavailable',
           'Hay una carga anterior pendiente de limpieza. Reintenta más tarde.'
         );
       }
     }
     if (!reservation || reservation.cleanupRequired || reservation.deduplicated) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'unavailable',
         'No se pudo reservar la carga del documento. Reintenta más tarde.'
       );
@@ -311,7 +309,7 @@ const createConfirmScannedDocumentUploadedHandler =
     const actor = await requireAllowedClinician(context, resolveRoleForEmail);
     const id = requireString(data?.id, 'El identificador', 96);
     if (data?.confirmedInEloisa !== true) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'failed-precondition',
         'Debes confirmar que el documento aparece correctamente en Eloísa.'
       );
@@ -326,7 +324,7 @@ const createConfirmScannedDocumentUploadedHandler =
       record: marked.record,
     });
     if (!completed) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'unavailable',
         'La eliminación quedó pendiente y se reintentará de forma segura.'
       );

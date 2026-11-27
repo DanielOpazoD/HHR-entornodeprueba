@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { canRenderClinicalDocumentPdfRole } = require('./auth/rolePredicates');
 
 const MAX_HTML_LENGTH = 650_000;
@@ -15,10 +16,7 @@ const PDF_BROWSER_VIEWPORT = {
 
 const assertString = (value, fieldName) => {
   if (typeof value !== 'string' || !value.trim()) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      `Missing required field: ${fieldName}`
-    );
+    throw new HttpsError('invalid-argument', `Missing required field: ${fieldName}`);
   }
   return value;
 };
@@ -33,12 +31,12 @@ const resolveCallerRole = async (context, resolveRoleForEmail) => {
 
 const assertRenderAccess = async (context, resolveRoleForEmail) => {
   if (!context?.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated.');
+    throw new HttpsError('unauthenticated', 'User must be authenticated.');
   }
 
   const role = await resolveCallerRole(context, resolveRoleForEmail);
   if (!canRenderClinicalDocumentPdfRole(role)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'permission-denied',
       'Insufficient permissions to render clinical documents.'
     );
@@ -47,10 +45,10 @@ const assertRenderAccess = async (context, resolveRoleForEmail) => {
 
 const sanitizeHtmlPayload = html => {
   if (html.length > MAX_HTML_LENGTH) {
-    throw new functions.https.HttpsError('invalid-argument', 'HTML payload exceeds max size.');
+    throw new HttpsError('invalid-argument', 'HTML payload exceeds max size.');
   }
   if (/<script[\s>]/i.test(html) || /javascript:/i.test(html)) {
-    throw new functions.https.HttpsError('invalid-argument', 'Unsupported HTML payload.');
+    throw new HttpsError('invalid-argument', 'Unsupported HTML payload.');
   }
   return html;
 };
@@ -129,7 +127,7 @@ const loadPuppeteerDependencies = () => {
     const puppeteer = require('puppeteer-core');
     return { chromium, puppeteer };
   } catch {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'PDF render dependencies are not installed in functions runtime.'
     );
