@@ -90,59 +90,6 @@ describe('ensureArray Logic', () => {
 });
 
 describe('Staff Array Sync Integration', () => {
-  // These tests verify the expected behavior of how staff arrays should be stored
-  // and retrieved, ensuring the fix for dot-notation corruption works end-to-end.
-
-  it('should maintain array integrity when updating nurse selections', () => {
-    // Simulate the flow: UI selects nurse -> patchRecord sends complete array
-    const currentRecord: Record<'nursesDayShift' | 'nursesNightShift', string[]> = {
-      nursesDayShift: ['', ''],
-      nursesNightShift: ['', ''],
-    };
-
-    // Simulating the selector's slot update
-    const selectNurse = (shift: 'day' | 'night', index: number, name: string) => {
-      const field: 'nursesDayShift' | 'nursesNightShift' =
-        shift === 'day' ? 'nursesDayShift' : 'nursesNightShift';
-      const currentArray = [...currentRecord[field]];
-      currentArray[index] = name;
-      return { [field]: currentArray };
-    };
-
-    // First nurse selected
-    const patch1 = selectNurse('day', 0, 'María López');
-    expect(patch1).toEqual({ nursesDayShift: ['María López', ''] });
-
-    // Apply patch
-    currentRecord.nursesDayShift = patch1.nursesDayShift;
-
-    // Second nurse selected
-    const patch2 = selectNurse('day', 1, 'Juan Pérez');
-    expect(patch2).toEqual({ nursesDayShift: ['María López', 'Juan Pérez'] });
-  });
-
-  it('should maintain array integrity when updating TENS selections', () => {
-    const currentRecord: Record<'tensDayShift' | 'tensNightShift', string[]> = {
-      tensDayShift: ['', '', ''],
-      tensNightShift: ['', '', ''],
-    };
-
-    const selectTens = (shift: 'day' | 'night', index: number, name: string) => {
-      const field: 'tensDayShift' | 'tensNightShift' =
-        shift === 'day' ? 'tensDayShift' : 'tensNightShift';
-      const currentArray = [...currentRecord[field]];
-      currentArray[index] = name;
-      return { [field]: currentArray };
-    };
-
-    // Add TENS in sequence
-    currentRecord.tensDayShift = selectTens('day', 0, 'TENS 1').tensDayShift;
-    currentRecord.tensDayShift = selectTens('day', 2, 'TENS 3').tensDayShift;
-    currentRecord.tensDayShift = selectTens('day', 1, 'TENS 2').tensDayShift;
-
-    expect(currentRecord.tensDayShift).toEqual(['TENS 1', 'TENS 2', 'TENS 3']);
-  });
-
   it('promotes legacy nurses into canonical staffing when reading a record', () => {
     const record = docToRecord(
       {

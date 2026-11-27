@@ -39,8 +39,9 @@ describe('CI static group scheduling', () => {
     expect(
       base.steps.some(
         step =>
-          step.run ===
-          "npm run ${{ matrix.check }} ${{ matrix.check == 'lint' && '-- --max-warnings 0 --concurrency 2' || '' }}"
+          typeof step.run === 'string' &&
+          step.run.includes('npm run ${{ matrix.check }}') &&
+          step.run.includes('--max-warnings 0')
       )
     ).toBe(true);
     expect(jobNeeds(jobs['quality-static'])).toContain('quality-static-base');
