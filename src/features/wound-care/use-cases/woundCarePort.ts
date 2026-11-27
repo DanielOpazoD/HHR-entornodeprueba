@@ -142,10 +142,4 @@ export interface WoundCareStoragePort {
   deleteFile: (storagePath: string) => Promise<BackupStorageMutationResult>;
 }
 
-export const defaultWoundCareStoragePort: WoundCareStoragePort = {
-  uploadPhoto: (blob, path, metadata) => woundCareStorageService.uploadPhoto(blob, path, metadata),
-  uploadConsent: (blob, path, metadata) =>
-    woundCareStorageService.uploadConsent(blob, path, metadata),
-  uploadThumbnail: (blob, path) => woundCareStorageService.uploadThumbnail(blob, path),
-  deleteFile: storagePath => woundCareStorageService.deleteFile(storagePath),
-};
+export const defaultWoundCareStoragePort: WoundCareStoragePort = woundCareStorageService;
