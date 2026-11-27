@@ -7,6 +7,7 @@ import {
   resolveAllowedOrigins,
   isOriginAllowed,
   buildCorsHeaders,
+  buildCorsPreflightResponse,
   buildJsonResponse,
   buildTextResponse,
   getClientIp,
@@ -214,6 +215,20 @@ describe('http utilities', () => {
     it('includes CORS headers when requestOrigin is provided', () => {
       const res = buildJsonResponse(200, {}, { requestOrigin: 'https://app.example.com' });
       const headers = res.headers as Record<string, string>;
+      expect(headers['Access-Control-Allow-Origin']).toBe('https://app.example.com');
+      expect(headers.Vary).toBe('Origin');
+    });
+  });
+
+  /* ── buildCorsPreflightResponse ──────────────────────────────────────── */
+
+  describe('buildCorsPreflightResponse', () => {
+    it('returns an empty 200 response with Content-Length 0 and CORS headers', () => {
+      const res = buildCorsPreflightResponse('https://app.example.com');
+      const headers = res.headers as Record<string, string>;
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toBe('');
+      expect(headers['Content-Length']).toBe('0');
       expect(headers['Access-Control-Allow-Origin']).toBe('https://app.example.com');
       expect(headers.Vary).toBe('Origin');
     });

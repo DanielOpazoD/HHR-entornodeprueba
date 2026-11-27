@@ -126,6 +126,15 @@ export const buildJsonResponse = (
   body: JSON.stringify(payload),
 });
 
+export const buildCorsPreflightResponse = (requestOrigin?: string) => ({
+  statusCode: 200,
+  headers: {
+    ...buildJsonResponse(200, {}, { requestOrigin }).headers,
+    'Content-Length': '0',
+  },
+  body: '',
+});
+
 export const buildTextResponse = (
   statusCode: number,
   body: string,
