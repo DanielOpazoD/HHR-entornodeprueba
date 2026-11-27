@@ -207,54 +207,48 @@ const walkTestFiles = root => {
   return files;
 };
 
-const collectFixtureDuplicationSignals = root => {
-  const inlineDailyRecordFiles = [];
-  const runtimeMockFiles = [];
-  const customSyncScenarioFiles = [];
+const FIXTURE_DUPLICATION_DETECTORS = {
+  'large-inline-daily-record': (_file, content) =>
+    content.includes("from '@/types/domain/dailyRecord'") &&
+    (content.includes('beds: {') || content.includes('beds: [')) &&
+    !content.includes('DataFactory.createMockDailyRecord'),
+  'browser-runtime-mock': (_file, content) =>
+    content.includes("vi.mock('@/shared/runtime/browserWindowRuntimeCore'") ||
+    content.includes('vi.mock("@/shared/runtime/browserWindowRuntimeCore"'),
+  'sync-client-scenario': (file, content) =>
+    content.includes('expectedVersion') &&
+    content.includes('changedPaths') &&
+    !file.startsWith('src/tests/support/clinicalSyncSimulator/'),
+};
+
+const KNOWN_FIXTURE_WATCHLIST_PATTERNS = Object.keys(FIXTURE_DUPLICATION_DETECTORS);
+
+const collectFixtureDuplicationSignals = (root, duplicationWatchlist = []) => {
+  const matchedByPattern = Object.fromEntries(
+    KNOWN_FIXTURE_WATCHLIST_PATTERNS.map(pattern => [pattern, []])
+  );
   for (const file of walkTestFiles(root)) {
     const content = readText(root, file);
-    if (
-      content.includes("from '@/types/domain/dailyRecord'") &&
-      (content.includes('beds: {') || content.includes('beds: [')) &&
-      !content.includes('DataFactory.createMockDailyRecord')
-    ) {
-      inlineDailyRecordFiles.push(file);
-    }
-    if (
-      content.includes("vi.mock('@/shared/runtime/browserWindowRuntimeCore'") ||
-      content.includes('vi.mock("@/shared/runtime/browserWindowRuntimeCore"')
-    ) {
-      runtimeMockFiles.push(file);
-    }
-    if (
-      content.includes('expectedVersion') &&
-      content.includes('changedPaths') &&
-      !file.startsWith('src/tests/support/clinicalSyncSimulator/')
-    ) {
-      customSyncScenarioFiles.push(file);
+    for (const pattern of KNOWN_FIXTURE_WATCHLIST_PATTERNS) {
+      if (FIXTURE_DUPLICATION_DETECTORS[pattern](file, content)) {
+        matchedByPattern[pattern].push(file);
+      }
     }
   }
 
-  return [
-    {
-      id: 'large-inline-daily-record',
-      files: inlineDailyRecordFiles.length,
-      examples: inlineDailyRecordFiles.slice(0, 5),
-      preferred: 'shared DailyRecord builders under src/tests/support or src/tests/utils',
-    },
-    {
-      id: 'browser-runtime-mock',
-      files: runtimeMockFiles.length,
-      examples: runtimeMockFiles.slice(0, 5),
-      preferred: 'src/tests/utils/browserWindowRuntimeMock.ts',
-    },
-    {
-      id: 'sync-client-scenario',
-      files: customSyncScenarioFiles.length,
-      examples: customSyncScenarioFiles.slice(0, 5),
-      preferred: 'src/tests/support/clinicalSyncSimulator',
-    },
-  ];
+  const watchlist = Array.isArray(duplicationWatchlist) ? duplicationWatchlist : [];
+  return watchlist
+    .filter(item => item && Object.hasOwn(FIXTURE_DUPLICATION_DETECTORS, item.pattern))
+    .map(item => {
+      const files = matchedByPattern[item.pattern];
+      return {
+        id: item.pattern,
+        files: files.length,
+        examples: files.slice(0, 5),
+        preferred: item.preferred || '',
+        reason: item.reason || '',
+      };
+    });
 };
 
 export const loadTestRuntimeGovernanceConfig = root => readJson(root, CONFIG_PATH);
@@ -302,7 +296,10 @@ export const buildTestRuntimeGovernanceReport = root => {
     },
     fixtureGovernance: {
       ...config.fixtureGovernance,
-      signals: collectFixtureDuplicationSignals(root),
+      signals: collectFixtureDuplicationSignals(
+        root,
+        config.fixtureGovernance?.duplicationWatchlist
+      ),
     },
   };
 };
@@ -433,8 +430,32 @@ export const collectTestRuntimeGovernanceIssues = root => {
   const fixtureGovernance = config.fixtureGovernance;
   if (!Array.isArray(fixtureGovernance?.duplicationWatchlist)) {
     issues.push('fixtureGovernance.duplicationWatchlist must be configured.');
-  } else if (fixtureGovernance.duplicationWatchlist.length < 3) {
-    issues.push('fixtureGovernance.duplicationWatchlist must track at least three fixture risks.');
+  } else {
+    const seenPatterns = new Set();
+    for (const item of fixtureGovernance.duplicationWatchlist) {
+      const pattern = typeof item?.pattern === 'string' ? item.pattern.trim() : '';
+      if (!pattern) {
+        issues.push('fixtureGovernance.duplicationWatchlist entries must declare a pattern.');
+        continue;
+      }
+      if (seenPatterns.has(pattern)) {
+        issues.push(
+          `fixtureGovernance.duplicationWatchlist contains duplicate pattern: ${pattern}.`
+        );
+        continue;
+      }
+      seenPatterns.add(pattern);
+      if (!Object.hasOwn(FIXTURE_DUPLICATION_DETECTORS, pattern)) {
+        issues.push(`fixtureGovernance.duplicationWatchlist pattern has no detector: ${pattern}.`);
+      }
+    }
+    for (const pattern of KNOWN_FIXTURE_WATCHLIST_PATTERNS) {
+      if (!seenPatterns.has(pattern)) {
+        issues.push(
+          `fixtureGovernance.duplicationWatchlist is missing detector pattern: ${pattern}.`
+        );
+      }
+    }
   }
   for (const fixtureRoot of fixtureGovernance.preferredSharedFixtureRoots || []) {
     if (!fs.existsSync(path.join(root, fixtureRoot))) {
