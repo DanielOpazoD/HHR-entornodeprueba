@@ -31,7 +31,7 @@ de modificación.
 ## Flujo de CI
 
 1. `critical-coverage-report` produce cobertura crítica una sola vez y bloquea `quality-static`.
-2. `quality-static-groups` corre los cinco grupos (`boundaries`, `governance`, `security`, `size`, `tests`) en paralelo directo desde `ci-scope`.
+2. `quality-static-groups` ejecuta `npm run check:quality` (los cinco grupos: `boundaries`, `governance`, `security`, `size`, `tests`) en un único runner directo desde `ci-scope`.
 3. `build` arranca en paralelo desde `ci-scope` y produce el `dist` único consumido
    por `preview-smoke-lanes`, `lighthouse-ci`, `final-confidence-and-readiness` y `postmerge-evidence`.
 4. `final-confidence-and-readiness` fusiona preview y E2E críticos, arma `test-execution-manifest`,
