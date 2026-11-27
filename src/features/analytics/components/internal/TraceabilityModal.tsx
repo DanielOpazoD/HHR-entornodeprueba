@@ -9,6 +9,7 @@ import { PatientTraceability } from '@/features/analytics/types/minsalTypes';
 import { Users, Calendar, BedDouble } from 'lucide-react';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { calculateDischargeStayDays } from '@/utils/clinicalDayUtils';
+import { groupBedDaysTraceabilityRows } from '@/services/calculations/minsal/minsalEpisodeTraceability';
 import { TraceabilityCmaHeader, TraceabilityCmaRows } from './TraceabilityCmaContent';
 
 interface TraceabilityModalProps {
@@ -77,36 +78,7 @@ export const TraceabilityModal: React.FC<TraceabilityModalProps> = ({
   const uniquePatients = React.useMemo(() => {
     if (!isGroupedView) return [];
 
-    const map = new Map<
-      string,
-      {
-        patient: PatientTraceability;
-        daysCount: number;
-        dates: string[];
-      }
-    >();
-
-    patients.forEach(p => {
-      const key = p.rut;
-      const existing = map.get(key);
-      if (existing) {
-        existing.daysCount++;
-        existing.dates.push(p.date);
-        if (!existing.patient.admissionDate && p.admissionDate) {
-          existing.patient = p;
-        }
-      } else {
-        map.set(key, {
-          patient: p,
-          daysCount: 1,
-          dates: [p.date],
-        });
-      }
-    });
-
-    return Array.from(map.values()).sort(
-      (a, b) => b.daysCount - a.daysCount || a.patient.name.localeCompare(b.patient.name)
-    );
+    return groupBedDaysTraceabilityRows(patients);
   }, [patients, isGroupedView]);
 
   const stayStats = React.useMemo(() => {
@@ -199,11 +171,8 @@ export const TraceabilityModal: React.FC<TraceabilityModalProps> = ({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {isGroupedView ? (
-              uniquePatients.map((item, idx) => (
-                <tr
-                  key={`${item.patient.rut}-${idx}`}
-                  className="hover:bg-slate-50 transition-colors"
-                >
+              uniquePatients.map(item => (
+                <tr key={item.groupKey} className="hover:bg-slate-50 transition-colors">
                   <td className="pl-8 pr-4 py-2.5 font-medium text-slate-800 align-top">
                     {item.patient.name}
                   </td>

@@ -38,6 +38,7 @@ __export(sharedFunctionsContractsServerEntry_exports, {
   buildClinicalDerivedLayout: () => buildClinicalDerivedLayout,
   collectClinicalDerivedEpisodes: () => collectClinicalDerivedEpisodes,
   collectClinicalEpisodeCoverage: () => collectClinicalEpisodeCoverage,
+  createMinsalEpisodeExitTracker: () => createMinsalEpisodeExitTracker,
   evaluateDailyRecordClinicalAuthority: () => evaluateDailyRecordClinicalAuthorityCore,
   findPatientErasures: () => findPatientErasures,
   findPersistedEpisodeDowngrades: () => findPersistedEpisodeDowngrades,
@@ -53,6 +54,7 @@ __export(sharedFunctionsContractsServerEntry_exports, {
   movementAccountsForBed: () => movementAccountsForBed,
   overlayClinicalDerived: () => overlayClinicalDerived,
   readClinicalDerivedLayout: () => readClinicalDerivedLayout,
+  resolveBedDayAdmissionDate: () => resolveBedDayAdmissionDate,
   seedClinicalCarryover: () => seedClinicalCarryover,
   splitPatchPath: () => splitPatchPath
 });
@@ -717,6 +719,225 @@ var collectClinicalEpisodeCoverage = (record) => {
   });
   return snapshot;
 };
+
+// src/domain/clinical-episode/clinicalEpisodeIdPolicy.ts
+var LEGACY_EPISODE_ID_PREFIX = "legacy_ep_";
+var resolveAccreditedClinicalEpisodeId = (patient) => {
+  const id = normalizeClinicalEpisodeId(patient?.clinicalEpisodeId);
+  return id && !id.startsWith(LEGACY_EPISODE_ID_PREFIX) ? id : void 0;
+};
+
+// src/services/calculations/minsal/minsalEpisodeTraceability.ts
+var normalizeIsoDate = (value) => {
+  if (!value || typeof value !== "string") return void 0;
+  const datePart = (value.split("T")[0] || "").trim();
+  return isCalendarDate(datePart) ? datePart : void 0;
+};
+var normalizePatientName = (value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+var normalizeDocumentKey = (rut, documentType) => {
+  const trimmed = String(rut || "").trim();
+  if (!trimmed) return "";
+  if (documentType === "Pasaporte") {
+    return `passport:${trimmed.toUpperCase()}`;
+  }
+  return `rut:${trimmed.replace(/[.\-\s]/g, "").toUpperCase()}`;
+};
+var resolveMovementAccreditedEpisodeId = (movement) => resolveAccreditedClinicalEpisodeId(movement) ?? resolveAccreditedClinicalEpisodeId(movement?.originalData);
+var resolveExplicitMovementAdmissionDate = (movement) => normalizeIsoDate(movement?.admissionDate) ?? normalizeIsoDate(movement?.originalData?.admissionDate);
+var resolveExitDate = (movement, recordDate) => {
+  if (movement.movementDateSource === "official") {
+    const officialDate = normalizeIsoDate(movement.movementDate);
+    if (officialDate) return officialDate;
+  }
+  return recordDate;
+};
+var buildLegacyEpisodeKey = (documentKey3, admissionDate) => `${documentKey3}|${admissionDate}`;
+var resolveBedDayAdmissionDate = ({
+  patient,
+  trackedAdmissionDate,
+  recordDate,
+  sameDayExits
+}) => {
+  if (resolveAccreditedClinicalEpisodeId(patient)) {
+    return trackedAdmissionDate;
+  }
+  const explicitBedAdmission = normalizeIsoDate(patient.admissionDate);
+  const trackedDate = normalizeIsoDate(trackedAdmissionDate);
+  if (!explicitBedAdmission || !trackedDate || explicitBedAdmission <= trackedDate) {
+    return trackedAdmissionDate;
+  }
+  const documentKey3 = normalizeDocumentKey(patient.rut, patient.documentType);
+  if (!documentKey3) {
+    return explicitBedAdmission;
+  }
+  const hasClosingEarlierExit = sameDayExits.some((exit) => {
+    const exitDocKey = normalizeDocumentKey(
+      exit.rut,
+      exit.documentType || exit.originalData?.documentType
+    );
+    if (exitDocKey !== documentKey3) return false;
+    const explicitExitAdmission = resolveExplicitMovementAdmissionDate(exit);
+    return !explicitExitAdmission || explicitExitAdmission < explicitBedAdmission;
+  });
+  return hasClosingEarlierExit && explicitBedAdmission === recordDate ? explicitBedAdmission : trackedAdmissionDate;
+};
+var createMinsalEpisodeExitTracker = () => {
+  const openByEpisode = /* @__PURE__ */ new Map();
+  const openAccreditedByDocument = /* @__PURE__ */ new Map();
+  const openByLegacyKey = /* @__PURE__ */ new Map();
+  const openLegacyKeysByDocument = /* @__PURE__ */ new Map();
+  const ambiguousLegacyKeys = /* @__PURE__ */ new Set();
+  let currentDate = "";
+  let seenDocumentsOnCurrentDate = /* @__PURE__ */ new Set();
+  let pendingDayExits = [];
+  const markDocumentLegacyKeysAmbiguous = (documentKey3) => {
+    const keys = openLegacyKeysByDocument.get(documentKey3);
+    if (!keys) return;
+    keys.forEach((key) => ambiguousLegacyKeys.add(key));
+  };
+  const beginDay = (recordDate) => {
+    currentDate = recordDate;
+    seenDocumentsOnCurrentDate = /* @__PURE__ */ new Set();
+    pendingDayExits = [];
+  };
+  const observeOccupiedBedDay = (row, patient, recordDate) => {
+    if (recordDate !== currentDate) {
+      beginDay(recordDate);
+    }
+    if (patient.documentType) {
+      row.documentType = patient.documentType;
+    }
+    const accreditedEpisodeId = resolveAccreditedClinicalEpisodeId(patient);
+    const documentKey3 = normalizeDocumentKey(patient.rut, patient.documentType);
+    const hasSameDayDocumentCollision = Boolean(
+      documentKey3 && seenDocumentsOnCurrentDate.has(documentKey3)
+    );
+    if (documentKey3) {
+      if (hasSameDayDocumentCollision) {
+        markDocumentLegacyKeysAmbiguous(documentKey3);
+      }
+      seenDocumentsOnCurrentDate.add(documentKey3);
+    }
+    if (accreditedEpisodeId) {
+      row.clinicalEpisodeId = accreditedEpisodeId;
+      const existing2 = openByEpisode.get(accreditedEpisodeId);
+      if (existing2) {
+        existing2.rows.push(row);
+      } else {
+        openByEpisode.set(accreditedEpisodeId, { documentKey: documentKey3, rows: [row] });
+      }
+      if (documentKey3) {
+        const docEpisodes = openAccreditedByDocument.get(documentKey3) ?? /* @__PURE__ */ new Set();
+        docEpisodes.add(accreditedEpisodeId);
+        openAccreditedByDocument.set(documentKey3, docEpisodes);
+      }
+      return;
+    }
+    const explicitAdmissionDate = normalizeIsoDate(patient.admissionDate);
+    if (!documentKey3 || !explicitAdmissionDate) {
+      return;
+    }
+    const legacyKey = buildLegacyEpisodeKey(documentKey3, explicitAdmissionDate);
+    const name = normalizePatientName(patient.patientName);
+    const existing = openByLegacyKey.get(legacyKey) ?? [];
+    if (hasSameDayDocumentCollision || existing.some((entry) => entry.date === recordDate) || existing.some((entry) => entry.name && name && entry.name !== name)) {
+      ambiguousLegacyKeys.add(legacyKey);
+    }
+    existing.push({ row, name, date: recordDate });
+    openByLegacyKey.set(legacyKey, existing);
+    const docKeys = openLegacyKeysByDocument.get(documentKey3) ?? /* @__PURE__ */ new Set();
+    docKeys.add(legacyKey);
+    openLegacyKeysByDocument.set(documentKey3, docKeys);
+  };
+  const recordExit = (movement, recordDate) => {
+    if (recordDate !== currentDate) {
+      beginDay(recordDate);
+    }
+    const accreditedEpisodeId = resolveMovementAccreditedEpisodeId(movement);
+    const documentKey3 = normalizeDocumentKey(
+      movement.rut,
+      movement.documentType || movement.originalData?.documentType
+    );
+    pendingDayExits.push({
+      accreditedEpisodeId,
+      documentKey: documentKey3,
+      explicitAdmissionDate: resolveExplicitMovementAdmissionDate(movement),
+      name: normalizePatientName(movement.patientName),
+      exitDate: resolveExitDate(movement, recordDate)
+    });
+  };
+  const flushDayExits = () => {
+    const legacyExitCounts = /* @__PURE__ */ new Map();
+    pendingDayExits.forEach((exit) => {
+      if (exit.accreditedEpisodeId || !exit.documentKey || !exit.explicitAdmissionDate) return;
+      const legacyKey = buildLegacyEpisodeKey(exit.documentKey, exit.explicitAdmissionDate);
+      legacyExitCounts.set(legacyKey, (legacyExitCounts.get(legacyKey) ?? 0) + 1);
+    });
+    pendingDayExits.forEach((exit) => {
+      if (exit.accreditedEpisodeId) {
+        const openEpisode = openByEpisode.get(exit.accreditedEpisodeId);
+        if (openEpisode) {
+          openEpisode.rows.forEach((row) => {
+            if (!row.date || row.date <= exit.exitDate) {
+              row.dischargeDate = exit.exitDate;
+            }
+          });
+          openByEpisode.delete(exit.accreditedEpisodeId);
+          if (openEpisode.documentKey) {
+            const docEpisodes = openAccreditedByDocument.get(openEpisode.documentKey);
+            docEpisodes?.delete(exit.accreditedEpisodeId);
+            if (docEpisodes && docEpisodes.size === 0) {
+              openAccreditedByDocument.delete(openEpisode.documentKey);
+            }
+          }
+        }
+        return;
+      }
+      if (!exit.documentKey || !exit.explicitAdmissionDate) {
+        return;
+      }
+      const openAccredited = openAccreditedByDocument.get(exit.documentKey);
+      if (openAccredited && openAccredited.size > 0) {
+        markDocumentLegacyKeysAmbiguous(exit.documentKey);
+        return;
+      }
+      const legacyKey = buildLegacyEpisodeKey(exit.documentKey, exit.explicitAdmissionDate);
+      if ((legacyExitCounts.get(legacyKey) ?? 0) > 1) {
+        ambiguousLegacyKeys.add(legacyKey);
+        return;
+      }
+      if (ambiguousLegacyKeys.has(legacyKey)) {
+        return;
+      }
+      const openEntries = openByLegacyKey.get(legacyKey);
+      if (!openEntries || openEntries.length === 0) {
+        return;
+      }
+      if (exit.name && openEntries.some((entry) => entry.name && entry.name !== exit.name)) {
+        ambiguousLegacyKeys.add(legacyKey);
+        return;
+      }
+      openEntries.forEach((entry) => {
+        if (!entry.row.date || entry.row.date <= exit.exitDate) {
+          entry.row.dischargeDate = exit.exitDate;
+        }
+      });
+      openByLegacyKey.delete(legacyKey);
+      const openDocKeys = openLegacyKeysByDocument.get(exit.documentKey);
+      openDocKeys?.delete(legacyKey);
+      if (openDocKeys && openDocKeys.size === 0) {
+        openLegacyKeysByDocument.delete(exit.documentKey);
+      }
+    });
+    pendingDayExits = [];
+  };
+  return {
+    beginDay,
+    observeOccupiedBedDay,
+    recordExit,
+    flushDayExits
+  };
+};
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   CLIENT_RUNTIME_CONTRACT_VERSION_FIELD,
@@ -735,6 +956,7 @@ var collectClinicalEpisodeCoverage = (record) => {
   buildClinicalDerivedLayout,
   collectClinicalDerivedEpisodes,
   collectClinicalEpisodeCoverage,
+  createMinsalEpisodeExitTracker,
   evaluateDailyRecordClinicalAuthority,
   findPatientErasures,
   findPersistedEpisodeDowngrades,
@@ -750,6 +972,7 @@ var collectClinicalEpisodeCoverage = (record) => {
   movementAccountsForBed,
   overlayClinicalDerived,
   readClinicalDerivedLayout,
+  resolveBedDayAdmissionDate,
   seedClinicalCarryover,
   splitPatchPath
 });

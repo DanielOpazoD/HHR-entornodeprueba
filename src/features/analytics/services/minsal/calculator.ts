@@ -12,6 +12,10 @@ import { isFachEvacuationMethod } from './normalization';
 import { countOccupiedBeds, countBlockedBeds, calculateDailySnapshot } from './snapshot';
 import { calculateDischargeStayDays } from '@/utils/clinicalDayUtils';
 import { createEpisodeAdmissionTracker } from '@/services/calculations/minsal/episodeTracker';
+import {
+  createMinsalEpisodeExitTracker,
+  resolveBedDayAdmissionDate,
+} from '@/services/calculations/minsal/minsalEpisodeTraceability';
 import type { DailyRecordMovementState as MinsalDailyRecord } from '@/types/domain/dailyRecordSlices';
 import { normalizeMovementReportingSnapshot } from './movementCompatibility';
 import {
@@ -161,15 +165,10 @@ export function calculateMinsalStats(
 
   const specialtyData = new Map<string, SpecialtyBucket>();
   const cmaAccumulator = createCmaStatsAccumulator();
-
-  // Pre-calculate discharge/transfer dates
-  const dischargeDates = new Map<string, string>();
-  orderedRecords.forEach(r => {
-    getStatisticalDischarges(r.discharges).forEach(d => dischargeDates.set(d.rut, r.date));
-    getActiveTransfers(r.transfers).forEach(t => dischargeDates.set(t.rut, r.date));
-  });
+  const episodeExitTracker = createMinsalEpisodeExitTracker();
 
   orderedRecords.forEach(record => {
+    episodeExitTracker.beginDay(record.date);
     Object.values(record.beds || {}).forEach(bed => {
       episodeTracker.observeBed(bed, record.date);
     });
@@ -196,6 +195,7 @@ export function calculateMinsalStats(
 
     totalEgresosTraslados += activeTransfers.length;
 
+    const sameDayExits = [...activeDischarges, ...activeTransfers];
     const patientsBySpecialty = getPatientsBySpecialty(record.beds, options);
     patientsBySpecialty.forEach((patients, specialty) => {
       const existing = specialtyData.get(specialty) || createSpecialtyBucket();
@@ -206,16 +206,23 @@ export function calculateMinsalStats(
           specialty: p.specialty,
           options,
         });
-        existing.diasOcupadosList.push({
+        const bedDayRow: PatientTraceability = {
           name: p.patientName,
           rut: p.rut,
+          ...(p.documentType ? { documentType: p.documentType } : {}),
           diagnosis: resolveTraceabilityDiagnosis(p.pathology),
           date: record.date,
           bedName: p.bedName,
-          admissionDate: episodeTracker.resolveAdmissionDate(p, p.admissionDate),
-          dischargeDate: dischargeDates.get(p.rut),
+          admissionDate: resolveBedDayAdmissionDate({
+            patient: p,
+            trackedAdmissionDate: episodeTracker.resolveAdmissionDate(p, p.admissionDate),
+            recordDate: record.date,
+            sameDayExits,
+          }),
           ...buildReportingSpecialtyTraceFields(specialtyResolution),
-        });
+        };
+        episodeExitTracker.observeOccupiedBedDay(bedDayRow, p, record.date);
+        existing.diasOcupadosList.push(bedDayRow);
       });
       specialtyData.set(specialty, existing);
     });
@@ -259,6 +266,7 @@ export function calculateMinsalStats(
         existing.fallecidos++;
         existing.fallecidosList.push(traceData);
       }
+      episodeExitTracker.recordExit(d, record.date);
       if (d.rut) {
         closedEpisodes.push(d);
       }
@@ -309,6 +317,7 @@ export function calculateMinsalStats(
         existing.fach++;
         existing.fachList.push(traceData);
       }
+      episodeExitTracker.recordExit(t, record.date);
       if (t.rut) {
         closedEpisodes.push(t);
       }
@@ -317,6 +326,7 @@ export function calculateMinsalStats(
 
     collectCmaStats(record, options, cmaAccumulator);
 
+    episodeExitTracker.flushDayExits();
     closedEpisodes.forEach(episode => episodeTracker.closeEpisode(episode));
   });
 

@@ -24,10 +24,14 @@ export type DateRangePreset =
  * Traceability info for a specific patient in a statistic
  */
 export interface PatientTraceability {
+  /** Accredited clinical episode id (`ep_...`) when available */
+  clinicalEpisodeId?: string;
   /** Patient Name */
   name: string;
   /** Patient RUT */
   rut: string;
+  /** Document type when available (prevents passport/RUT collisions in traceability grouping) */
+  documentType?: 'RUT' | 'Pasaporte' | string;
   /** Main diagnosis/pathology at the time of the event */
   diagnosis?: string;
   /** Date when the event or status was recorded */
