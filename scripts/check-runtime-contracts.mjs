@@ -2,62 +2,175 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 
 const workspaceRoot = process.cwd();
-const constantsContent = fs.readFileSync(
-  path.join(workspaceRoot, 'src/constants/runtimeContracts.ts'),
-  'utf8'
-);
-const versionContent = fs.readFileSync(
-  path.join(workspaceRoot, 'src/constants/version.ts'),
-  'utf8'
-);
-const backendRuntimeContent = fs.readFileSync(
-  path.join(workspaceRoot, 'functions/lib/runtime/runtimeContract.js'),
-  'utf8'
-);
-const migrationLedgerContent = fs.readFileSync(
-  path.join(workspaceRoot, 'src/services/repositories/migrationLedger.ts'),
-  'utf8'
-);
-const parseConstant = (content, name) => {
-  const match = content.match(new RegExp(`${name}\\s*=\\s*(\\d+)`));
-  return match ? Number(match[1]) : null;
+const parseSourceFile = relativePath => {
+  const fullPath = path.join(workspaceRoot, relativePath);
+  return ts.createSourceFile(
+    relativePath,
+    fs.readFileSync(fullPath, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true
+  );
 };
 
-const clientVersion = parseConstant(constantsContent, 'CLIENT_RUNTIME_CONTRACT_VERSION');
-const backendVersion = parseConstant(constantsContent, 'BACKEND_RUNTIME_CONTRACT_VERSION');
+const unwrapExpression = node => {
+  let current = node;
+  while (
+    current &&
+    (ts.isParenthesizedExpression(current) ||
+      ts.isAsExpression(current) ||
+      ts.isSatisfiesExpression(current) ||
+      ts.isTypeAssertionExpression(current) ||
+      ts.isNonNullExpression(current))
+  ) {
+    current = current.expression;
+  }
+  return current;
+};
+
+const readIntegerLiteral = node => {
+  const expr = unwrapExpression(node);
+  if (!expr) return null;
+  if (ts.isNumericLiteral(expr)) {
+    const value = Number(expr.text);
+    return Number.isInteger(value) ? value : null;
+  }
+  if (
+    ts.isPrefixUnaryExpression(expr) &&
+    expr.operator === ts.SyntaxKind.MinusToken &&
+    ts.isNumericLiteral(expr.operand)
+  ) {
+    const value = -Number(expr.operand.text);
+    return Number.isInteger(value) ? value : null;
+  }
+  return null;
+};
+
+const readPropertyName = name => {
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return name.text;
+  }
+  return null;
+};
+
+const parseConstant = (sourceFile, name) => {
+  let found = null;
+  const visit = node => {
+    if (found !== null) return;
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.initializer
+    ) {
+      found = readIntegerLiteral(node.initializer);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
+};
+
+const parseMigrationLedgerSteps = sourceFile => {
+  const steps = [];
+  const visit = node => {
+    if (ts.isObjectLiteralExpression(node)) {
+      let fromVersion = null;
+      let toVersion = null;
+      for (const property of node.properties) {
+        if (!ts.isPropertyAssignment(property)) continue;
+        const key = readPropertyName(property.name);
+        if (key === 'fromVersion') fromVersion = readIntegerLiteral(property.initializer);
+        if (key === 'toVersion') toVersion = readIntegerLiteral(property.initializer);
+      }
+      if (Number.isInteger(fromVersion) && Number.isInteger(toVersion)) {
+        steps.push({ fromVersion, toVersion });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return steps;
+};
+
+const parseSchemaMigratorKeys = sourceFile => {
+  let registryObject = null;
+  const visit = node => {
+    if (registryObject !== null) return;
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === 'schemaMigrators' &&
+      node.initializer
+    ) {
+      const expr = unwrapExpression(node.initializer);
+      if (expr && ts.isObjectLiteralExpression(expr)) {
+        registryObject = expr;
+      }
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  if (!registryObject) return null;
+
+  const keys = [];
+  for (const property of registryObject.properties) {
+    if (
+      !ts.isPropertyAssignment(property) &&
+      !ts.isMethodDeclaration(property) &&
+      !ts.isShorthandPropertyAssignment(property)
+    ) {
+      continue;
+    }
+    const rawKey = readPropertyName(property.name);
+    if (rawKey !== null && /^\d+$/.test(rawKey)) {
+      keys.push(Number(rawKey));
+    }
+  }
+  return keys.sort((a, b) => a - b);
+};
+
+const constantsSource = parseSourceFile('src/constants/runtimeContracts.ts');
+const versionSource = parseSourceFile('src/constants/version.ts');
+const backendRuntimeSource = parseSourceFile('functions/lib/runtime/runtimeContract.js');
+const migrationLedgerSource = parseSourceFile('src/services/repositories/migrationLedger.ts');
+const schemaGovernanceSource = parseSourceFile('src/services/repositories/schemaGovernance.ts');
+
+const clientVersion = parseConstant(constantsSource, 'CLIENT_RUNTIME_CONTRACT_VERSION');
+const backendVersion = parseConstant(constantsSource, 'BACKEND_RUNTIME_CONTRACT_VERSION');
 const minBackendVersion = parseConstant(
-  constantsContent,
+  constantsSource,
   'MIN_SUPPORTED_BACKEND_RUNTIME_CONTRACT_VERSION'
 );
 const minClientVersion = parseConstant(
-  constantsContent,
+  constantsSource,
   'MIN_SUPPORTED_CLIENT_RUNTIME_CONTRACT_VERSION'
 );
-const currentSchemaVersion = parseConstant(versionContent, 'CURRENT_SCHEMA_VERSION');
-const legacySchemaVersion = parseConstant(versionContent, 'LEGACY_SCHEMA_VERSION');
+const currentSchemaVersion = parseConstant(versionSource, 'CURRENT_SCHEMA_VERSION');
+const legacySchemaVersion = parseConstant(versionSource, 'LEGACY_SCHEMA_VERSION');
 const backendRuntimeVersionFromFunctions = parseConstant(
-  backendRuntimeContent,
+  backendRuntimeSource,
   'BACKEND_RUNTIME_CONTRACT_VERSION'
 );
 const minClientVersionFromFunctions = parseConstant(
-  backendRuntimeContent,
+  backendRuntimeSource,
   'MIN_SUPPORTED_CLIENT_RUNTIME_CONTRACT_VERSION'
 );
 const backendSupportedSchemaVersion = parseConstant(
-  backendRuntimeContent,
+  backendRuntimeSource,
   'SUPPORTED_SCHEMA_VERSION'
 );
 const backendLegacyFloorVersion = parseConstant(
-  backendRuntimeContent,
+  backendRuntimeSource,
   'LEGACY_SCHEMA_FLOOR_VERSION'
 );
-const stepMatches = [
-  ...migrationLedgerContent.matchAll(/fromVersion:\s*(\d+),[\s\S]*?toVersion:\s*(\d+)/g),
-];
-const firstLedgerFromVersion = stepMatches[0] ? Number(stepMatches[0][1]) : null;
-const lastLedgerToVersion = stepMatches.at(-1) ? Number(stepMatches.at(-1)[2]) : null;
+const ledgerSteps = parseMigrationLedgerSteps(migrationLedgerSource);
+const firstLedgerFromVersion = ledgerSteps[0]?.fromVersion ?? null;
+const lastLedgerToVersion = ledgerSteps.at(-1)?.toVersion ?? null;
 
 if (
   ![
@@ -137,20 +250,13 @@ if (legacySchemaVersion > currentSchemaVersion) {
   process.exit(1);
 }
 
-const registryBlock = fs
-  .readFileSync(path.join(workspaceRoot, 'src/services/repositories/schemaGovernance.ts'), 'utf8')
-  .match(
-    /const schemaMigrators\s*:\s*Record<number,\s*SchemaMigrator>\s*=\s*\{([\s\S]*?)\n\};/
-  )?.[1];
-if (registryBlock === undefined) {
+const configuredKeys = parseSchemaMigratorKeys(schemaGovernanceSource);
+if (configuredKeys === null) {
   console.error(
     '[runtime-contracts] schemaMigrators registry not found in src/services/repositories/schemaGovernance.ts.'
   );
   process.exit(1);
 }
-const configuredKeys = [...registryBlock.matchAll(/^\s*(\d+)\s*:/gm)]
-  .map(match => Number(match[1]))
-  .sort((a, b) => a - b);
 const expectedKeys = Array.from(
   { length: currentSchemaVersion - legacySchemaVersion },
   (_, index) => legacySchemaVersion + index

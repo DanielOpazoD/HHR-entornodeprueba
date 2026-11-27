@@ -112,4 +112,24 @@ describe('check-runtime-contracts', () => {
     expect(status).toBe(1);
     expect(output).toContain('README.md must still name migrationLedger.ts');
   });
+
+  it('ignores commented values, handles reordered ledger fields, and supports single-line migrators', () => {
+    const { status, output } = runGuard({
+      'src/constants/runtimeContracts.ts': [
+        '// CLIENT_RUNTIME_CONTRACT_VERSION = 999',
+        'export const CLIENT_RUNTIME_CONTRACT_VERSION: number = 3 as const;',
+        'export const BACKEND_RUNTIME_CONTRACT_VERSION = 3;',
+        'export const MIN_SUPPORTED_BACKEND_RUNTIME_CONTRACT_VERSION = 3;',
+        'export const MIN_SUPPORTED_CLIENT_RUNTIME_CONTRACT_VERSION = 3;',
+      ].join('\n'),
+      'src/services/repositories/migrationLedger.ts':
+        '[{ toVersion: 1, fromVersion: 0 }, { toVersion: 2, fromVersion: 1 }] as const;\n',
+      'src/services/repositories/schemaGovernance.ts':
+        'const schemaMigrators = { 0: r => r, 1: r => r } satisfies Record<number, unknown>;\n',
+    });
+
+    expect(status).toBe(0);
+    expect(output).toContain('[runtime-contracts] OK');
+    expect(output).toContain('migrators=[0, 1]');
+  });
 });

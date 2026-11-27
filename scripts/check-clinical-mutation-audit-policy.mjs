@@ -16,18 +16,50 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
 const AUDIT_FN = 'executeWriteAuditEvent';
 
 /**
- * Parse the string-literal members out of the `export type AuditAction = ...` union. Matches any
- * single- or double-quoted literal (not just UPPER_SNAKE) so a future action with a different naming
- * convention can't be silently dropped — that would let it bypass classification by this gate.
+ * Parse the string-literal members out of the `export type AuditAction = ...` union using the
+ * TypeScript AST so comments, semicolons inside comments, quote style, or naming conventions
+ * cannot drop or forge union members.
  */
-export const parseAuditActions = (typesSource) => {
-  const unionMatch = typesSource.match(/export type AuditAction =([\s\S]*?);/);
-  if (!unionMatch) return null;
-  return [...unionMatch[1].matchAll(/(['"])(.*?)\1/g)].map((m) => m[2]);
+export const parseAuditActions = typesSource => {
+  const sourceFile = ts.createSourceFile(
+    'auditActionTypes.ts',
+    typesSource,
+    ts.ScriptTarget.Latest,
+    true
+  );
+  let declaration = null;
+  const findDeclaration = node => {
+    if (declaration) return;
+    if (
+      ts.isTypeAliasDeclaration(node) &&
+      node.name.text === 'AuditAction' &&
+      node.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)
+    ) {
+      declaration = node;
+      return;
+    }
+    ts.forEachChild(node, findDeclaration);
+  };
+  findDeclaration(sourceFile);
+  if (!declaration) return null;
+
+  const actions = [];
+  const collect = typeNode => {
+    if (ts.isParenthesizedTypeNode(typeNode)) {
+      collect(typeNode.type);
+    } else if (ts.isUnionTypeNode(typeNode)) {
+      typeNode.types.forEach(collect);
+    } else if (ts.isLiteralTypeNode(typeNode) && ts.isStringLiteral(typeNode.literal)) {
+      actions.push(typeNode.literal.text);
+    }
+  };
+  collect(declaration.type);
+  return actions;
 };
 
 /**
@@ -54,7 +86,7 @@ export const evaluateAuditPolicy = ({ actions, policy }) => {
     }
     seen.set(action, bucket);
   };
-  failClosed.forEach((entry) => {
+  failClosed.forEach(entry => {
     classify(entry?.action, 'failClosed');
     // Normalize first so a traversal path (src/tests/../fixtures/x.test.ts) can't satisfy the root.
     const test = typeof entry?.test === 'string' ? path.posix.normalize(entry.test) : entry?.test;
@@ -66,9 +98,9 @@ export const evaluateAuditPolicy = ({ actions, policy }) => {
       );
     }
   });
-  bestEffort.forEach((e) => classify(e?.action, 'bestEffortObservable'));
-  exempt.forEach((a) => classify(a, 'exemptNonMutation'));
-  serverSide.forEach((e) => {
+  bestEffort.forEach(e => classify(e?.action, 'bestEffortObservable'));
+  exempt.forEach(a => classify(a, 'exemptNonMutation'));
+  serverSide.forEach(e => {
     classify(e?.action, 'serverSideEnforced');
     const emitter = typeof e?.emitter === 'string' ? path.posix.normalize(e.emitter) : e?.emitter;
     if (typeof emitter !== 'string' || !emitter.startsWith('functions/')) {
@@ -79,7 +111,7 @@ export const evaluateAuditPolicy = ({ actions, policy }) => {
     }
   });
 
-  bestEffort.forEach((e) => {
+  bestEffort.forEach(e => {
     if (typeof e?.justification !== 'string' || e.justification.trim().length < 12) {
       errors.push(
         `bestEffortObservable "${e?.action ?? '(missing action)'}" needs a non-trivial ` +
@@ -88,18 +120,20 @@ export const evaluateAuditPolicy = ({ actions, policy }) => {
     }
   });
 
-  const unclassified = actions.filter((a) => !seen.has(a));
+  const unclassified = actions.filter(a => !seen.has(a));
   if (unclassified.length) {
     errors.push(
       'These AuditAction(s) are not declared in scripts/clinical-mutation-audit-policy.json:\n' +
-        unclassified.map((a) => `  - ${a}`).join('\n') +
+        unclassified.map(a => `  - ${a}`).join('\n') +
         '\nAdd each to failClosed, bestEffortObservable (with a justification), or exemptNonMutation.'
     );
   }
 
   for (const action of seen.keys()) {
     if (!actionSet.has(action)) {
-      errors.push(`Policy declares "${action}", which is not in the AuditAction union (stale entry).`);
+      errors.push(
+        `Policy declares "${action}", which is not in the AuditAction union (stale entry).`
+      );
     }
   }
 
@@ -112,7 +146,11 @@ export const evaluateAuditPolicy = ({ actions, policy }) => {
  * traversal (e.g. `src/tests/../fixtures/x.test.ts`) can't point outside the intended root. No IO,
  * so it is unit-testable.
  */
-export const findMissingLinkedFiles = ({ failClosed = [], serverSideEnforced = [], fileExists }) => {
+export const findMissingLinkedFiles = ({
+  failClosed = [],
+  serverSideEnforced = [],
+  fileExists,
+}) => {
   const errors = [];
   for (const entry of failClosed) {
     if (typeof entry?.test !== 'string') continue;
@@ -125,46 +163,68 @@ export const findMissingLinkedFiles = ({ failClosed = [], serverSideEnforced = [
     if (typeof entry?.emitter !== 'string') continue;
     const emitter = path.posix.normalize(entry.emitter);
     if (emitter.startsWith('functions/') && !fileExists(emitter)) {
-      errors.push(`serverSideEnforced "${entry.action}" links a missing emitter file: ${entry.emitter}`);
+      errors.push(
+        `serverSideEnforced "${entry.action}" links a missing emitter file: ${entry.emitter}`
+      );
     }
   }
   return errors;
 };
 
 /**
- * Pure detector: find calls to executeWriteAuditEvent whose outcome is discarded. A call is
- * "discarded" when its statement starts with the call itself (optionally `await`/`void`) — i.e.
- * nothing captures the return value. Assignments (`const o = await ...`), returns (`return ...`) and
- * expression positions (inside `(`, `[`, `=>`, …) all keep something before the call. Returns
- * `{ line }` for each violation. No IO, so it is unit-testable.
+ * Pure AST detector: find calls to executeWriteAuditEvent whose outcome is discarded. A call is
+ * "discarded" when wrapped in `void` or when it sits directly in an ExpressionStatement (with or
+ * without `await`, parentheses, or type assertions) — including ASI statements or single-line `if`
+ * bodies. Comments, strings, imports, assignments, returns, and expression positions are never
+ * misclassified. Returns `{ line }` for each violation. No IO, so it is unit-testable.
  */
-export const detectIgnoredAuditOutcomes = (source) => {
+export const detectIgnoredAuditOutcomes = source => {
+  const sourceFile = ts.createSourceFile('auditCall.tsx', source, ts.ScriptTarget.Latest, true);
   const violations = [];
-  const re = new RegExp(`${AUDIT_FN}\\s*\\(`, 'g');
-  let match;
-  while ((match = re.exec(source)) !== null) {
-    const callIdx = match.index;
-    const boundary = Math.max(
-      source.lastIndexOf(';', callIdx),
-      source.lastIndexOf('{', callIdx),
-      source.lastIndexOf('}', callIdx)
-    );
-    const prefix = source
-      .slice(boundary + 1, callIdx)
-      .replace(/\b(?:await|void)\b/g, '')
-      .trim();
-    if (prefix === '') {
-      violations.push({ line: source.slice(0, callIdx).split('\n').length });
+
+  const isDiscardedCall = callNode => {
+    let current = callNode;
+    while (current.parent) {
+      const parent = current.parent;
+      if (ts.isVoidExpression(parent)) return true;
+      if (
+        ts.isAwaitExpression(parent) ||
+        ts.isParenthesizedExpression(parent) ||
+        ts.isNonNullExpression(parent) ||
+        ts.isAsExpression(parent) ||
+        ts.isSatisfiesExpression(parent) ||
+        ts.isTypeAssertionExpression(parent)
+      ) {
+        current = parent;
+        continue;
+      }
+      if (ts.isExpressionStatement(parent)) return true;
+      return false;
     }
-  }
+    return false;
+  };
+
+  const visit = node => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === AUDIT_FN &&
+      isDiscardedCall(node)
+    ) {
+      const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      violations.push({ line: line + 1 });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
   return violations;
 };
 
-const listSourceFiles = (dir) =>
+const listSourceFiles = dir =>
   fs
     .readdirSync(dir, { recursive: true, encoding: 'utf8' })
-    .filter((rel) => /\.(ts|tsx)$/.test(rel))
-    .filter((rel) => !/(^|[/\\])tests[/\\]/.test(rel));
+    .filter(rel => /\.(ts|tsx)$/.test(rel))
+    .filter(rel => !/(^|[/\\])tests[/\\]/.test(rel));
 
 const runCli = () => {
   const root = process.cwd();
@@ -172,14 +232,18 @@ const runCli = () => {
   const policyFile = path.join(root, 'scripts', 'clinical-mutation-audit-policy.json');
   const srcDir = path.join(root, 'src');
 
-  const fail = (msg) => {
+  const fail = msg => {
     console.error(`\n[clinical-mutation-audit-policy] FAILED\n\n${msg}\n`);
     process.exit(1);
   };
 
   const actions = parseAuditActions(fs.readFileSync(typesFile, 'utf8'));
-  if (!actions) fail('Could not locate the `export type AuditAction = ...` union in src/types/auditActionTypes.ts');
-  if (actions.length === 0) fail('Parsed zero AuditAction members — the regex or the union changed.');
+  if (!actions)
+    fail(
+      'Could not locate the `export type AuditAction = ...` union in src/types/auditActionTypes.ts'
+    );
+  if (actions.length === 0)
+    fail('Parsed zero AuditAction members — the regex or the union changed.');
 
   let policy;
   try {
@@ -195,7 +259,7 @@ const runCli = () => {
     ...findMissingLinkedFiles({
       failClosed: policy.failClosed ?? [],
       serverSideEnforced: policy.serverSideEnforced ?? [],
-      fileExists: (rel) => fs.existsSync(path.join(root, rel)),
+      fileExists: rel => fs.existsSync(path.join(root, rel)),
     })
   );
 

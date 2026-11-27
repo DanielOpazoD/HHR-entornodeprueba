@@ -232,4 +232,22 @@ describe('check-empty-on-failure-reads', () => {
     const root = createRepository({ 'src/services/reminders/feed.ts': call });
     expect(runGuard(root).status).toBe(1);
   });
+
+  it('cannot be bypassed by braces inside strings or the word throw in comments', () => {
+    const root = createRepository({
+      'src/services/repositories/bracesInStrings.ts': `export const load = () => {
+  try {
+    return read();
+  } catch (error) {
+    // do not throw here; just log '}'
+    log('failed }');
+    return [];
+  }
+};`,
+    });
+    expect(runGuard(root)).toEqual({
+      status: 1,
+      output: expect.stringContaining('new: src/services/repositories/bracesInStrings.ts::load'),
+    });
+  });
 });
