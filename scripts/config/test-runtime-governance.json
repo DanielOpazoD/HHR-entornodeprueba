@@ -16,7 +16,7 @@
       "script": "test:ci:unit:shard",
       "shards": 4,
       "maxMinutes": 13,
-      "artifact": "coverage-report-${shard}",
+      "artifact": "test-execution-evidence-unit-${shard}",
       "reason": "Broad unit/integration coverage remains PR-blocking but horizontally sharded."
     },
     {
