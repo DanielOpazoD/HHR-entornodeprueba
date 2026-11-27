@@ -1,5 +1,6 @@
 import {
   executeCreateWoundCareMobileUploadSession,
+  executeListActiveWoundCareMobileUploadSessions,
   executeRevokeWoundCareMobileUploadSession,
   type EpisodeContext,
 } from '@/features/wound-care/use-cases/woundCareUseCases';
@@ -123,4 +124,114 @@ export const revokeWoundCareMobileUploadSessionsSequentially = async (params: {
   }
 
   return { status: 'revoked' };
+};
+
+export type MobileUploadLifecycleResult =
+  | { status: 'aborted' }
+  | { status: 'reused'; session: WoundCareMobileUploadSession | null }
+  | {
+      status: 'created';
+      outcome: ApplicationOutcome<WoundCareMobileUploadSession | null>;
+    }
+  | {
+      status: 'error';
+      preservedSession: WoundCareMobileUploadSession | null;
+      message: string;
+    };
+
+export const executeWoundCareMobileUploadLifecycle = async (params: {
+  mode: 'initialize' | 'regenerate';
+  inFlightKey: string;
+  episodeContext: EpisodeContext;
+  actor: WoundCareAuditActor;
+  hospitalId: string;
+  rememberedSessions: readonly WoundCareMobileUploadSession[];
+  isStillCurrent: () => boolean;
+  onActiveSessionsChange: (sessions: WoundCareMobileUploadSession[]) => void;
+  onPreviousRevoked: () => void;
+}): Promise<MobileUploadLifecycleResult> => {
+  const {
+    mode,
+    inFlightKey,
+    episodeContext,
+    actor,
+    hospitalId,
+    rememberedSessions,
+    isStillCurrent,
+    onActiveSessionsChange,
+    onPreviousRevoked,
+  } = params;
+  const { episodeKey, patientRut } = episodeContext;
+
+  const pendingCreate =
+    mode === 'initialize' ? getPendingWoundCareMobileUploadCreate(inFlightKey) : undefined;
+  if (pendingCreate) {
+    const joinedResult = await pendingCreate;
+    return isStillCurrent() ? { status: 'created', outcome: joinedResult } : { status: 'aborted' };
+  }
+
+  const listResult = await executeListActiveWoundCareMobileUploadSessions({
+    episodeKey,
+    hospitalId,
+  });
+  if (!isStillCurrent()) {
+    return { status: 'aborted' };
+  }
+
+  if (listResult.status !== 'success') {
+    const preserved = filterScopeSessions(rememberedSessions, episodeKey, patientRut)[0] ?? null;
+    return {
+      status: 'error',
+      preservedSession: preserved,
+      message: resolveMobileUploadOutcomeError(
+        listResult.issues,
+        'No fue posible verificar si existe un QR activo.'
+      ),
+    };
+  }
+
+  // Server read is authoritative: do not re-inject locally remembered sessions that
+  // another station already revoked.
+  const discoveredActive = filterScopeSessions(listResult.data, episodeKey, patientRut);
+  onActiveSessionsChange(discoveredActive);
+
+  if (mode === 'initialize' && discoveredActive.length > 0) {
+    return { status: 'reused', session: discoveredActive[0] ?? null };
+  }
+
+  // Regenerate revokes every active QR for this episode before issuing a replacement so
+  // no previous link remains live and unrevocable in Firestore.
+  if (discoveredActive.length > 0) {
+    const revokeOutcome = await revokeWoundCareMobileUploadSessionsSequentially({
+      sessions: discoveredActive,
+      actor,
+      hospitalId,
+      fallbackError: 'No fue posible revocar el QR anterior.',
+      isStillCurrent,
+      onRemainingSessionsChange: onActiveSessionsChange,
+    });
+    if (revokeOutcome.status === 'aborted') {
+      return { status: 'aborted' };
+    }
+    if (revokeOutcome.status === 'failed') {
+      return {
+        status: 'error',
+        preservedSession: revokeOutcome.remainingSessions[0] ?? null,
+        message: revokeOutcome.message,
+      };
+    }
+    onPreviousRevoked();
+  }
+
+  if (!isStillCurrent()) {
+    return { status: 'aborted' };
+  }
+
+  const outcome = await issueWoundCareMobileUploadSession({
+    inFlightKey,
+    episodeContext,
+    actor,
+    hospitalId,
+  });
+  return isStillCurrent() ? { status: 'created', outcome } : { status: 'aborted' };
 };

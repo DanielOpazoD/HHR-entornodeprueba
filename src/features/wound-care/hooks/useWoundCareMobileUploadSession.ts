@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getActiveHospitalId } from '@/constants/firestorePaths';
-import {
-  executeListActiveWoundCareMobileUploadSessions,
-  type EpisodeContext,
-} from '@/features/wound-care/use-cases/woundCareUseCases';
+import type { EpisodeContext } from '@/features/wound-care/use-cases/woundCareUseCases';
 import {
   buildInFlightCreateKey,
   buildWoundCareAuditActor,
+  executeWoundCareMobileUploadLifecycle,
   filterScopeSessions,
-  getPendingWoundCareMobileUploadCreate,
-  issueWoundCareMobileUploadSession,
   resolveMobileUploadOutcomeError,
   revokeWoundCareMobileUploadSessionsSequentially,
 } from '@/features/wound-care/controllers/woundCareMobileUploadSessionController';
@@ -41,16 +37,8 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
     session: WoundCareMobileUploadSession | null;
     status: MobileQrSessionStatus;
     error: string | null;
-  }>({
-    scopeKey,
-    session: null,
-    status: 'idle',
-    error: null,
-  });
-  const [busyState, setBusyState] = useState<{
-    scopeKey: string;
-    action: MobileQrBusyAction;
-  }>({
+  }>({ scopeKey, session: null, status: 'idle', error: null });
+  const [busyState, setBusyState] = useState<{ scopeKey: string; action: MobileQrBusyAction }>({
     scopeKey,
     action: 'idle',
   });
@@ -66,9 +54,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
     sessionState.scopeKey === scopeKey
       ? sessionState
       : { scopeKey, session: null, status: 'idle' as MobileQrSessionStatus, error: null };
-  const session = scopedState.session;
-  const status = scopedState.status;
-  const error = scopedState.error;
+  const { session, status, error } = scopedState;
   const busyAction: MobileQrBusyAction =
     busyState.scopeKey === scopeKey ? busyState.action : 'idle';
   const isBusy = busyAction !== 'idle';
@@ -159,6 +145,22 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
     [session]
   );
 
+  const publishPreservedError = useCallback(
+    (
+      targetScopeKey: string,
+      preservedSession: WoundCareMobileUploadSession | null,
+      message: string
+    ) => {
+      setSessionState({
+        scopeKey: targetScopeKey,
+        session: preservedSession,
+        status: preservedSession ? 'active' : 'error',
+        error: message,
+      });
+    },
+    []
+  );
+
   const publishCreatedOutcome = useCallback(
     (
       targetScopeKey: string,
@@ -170,12 +172,11 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
     ): WoundCareMobileUploadSession | null => {
       if (outcome.status !== 'success' || !outcome.data) {
         activeSessionsRef.current = [];
-        setSessionState({
-          scopeKey: targetScopeKey,
-          session: null,
-          status: 'error',
-          error: resolveMobileUploadOutcomeError(outcome.issues, 'No fue posible generar el QR.'),
-        });
+        publishPreservedError(
+          targetScopeKey,
+          null,
+          resolveMobileUploadOutcomeError(outcome.issues, 'No fue posible generar el QR.')
+        );
         return null;
       }
       activeSessionsRef.current = [outcome.data];
@@ -187,7 +188,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
       });
       return outcome.data;
     },
-    []
+    [publishPreservedError]
   );
 
   const releaseBusyState = useCallback((generation: number, targetScopeKey: string) => {
@@ -210,12 +211,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
         activeSessionsRef.current = [];
         if (isMountedRef.current) {
           setBusyState({ scopeKey, action: 'idle' });
-          setSessionState({
-            scopeKey,
-            session: null,
-            status: 'error',
-            error: 'Debe iniciar sesión para generar el QR.',
-          });
+          publishPreservedError(scopeKey, null, 'Debe iniciar sesión para generar el QR.');
         }
         return null;
       }
@@ -225,7 +221,6 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
         hideOnSessionLoss(scopeKey);
         return null;
       }
-
       if (inFlightActionRef.current !== 'idle' && inFlightScopeKeyRef.current === scopeKey) {
         return null;
       }
@@ -248,119 +243,51 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
       }));
 
       try {
-        const inFlightKey = buildInFlightCreateKey(
-          authoringSessionScope(authoringSession.session),
-          expectedActorUid,
-          hospitalId,
-          episodeKey
-        );
-        const pendingCreate =
-          mode === 'initialize' ? getPendingWoundCareMobileUploadCreate(inFlightKey) : undefined;
-        if (pendingCreate) {
-          const joinedResult = await pendingCreate;
-          return isStillCurrent() ? publishCreatedOutcome(scopeKey, joinedResult) : null;
-        }
-
-        const listResult = await executeListActiveWoundCareMobileUploadSessions({
-          episodeKey,
-          hospitalId,
-        });
-        if (!isStillCurrent()) {
-          return null;
-        }
-
-        const rememberedForScope = filterScopeSessions(
-          activeSessionsRef.current,
-          episodeKey,
-          patientRut
-        );
-
-        if (listResult.status !== 'success') {
-          const preserved = rememberedForScope[0] ?? null;
-          setSessionState({
-            scopeKey,
-            session: preserved,
-            status: preserved ? 'active' : 'error',
-            error: resolveMobileUploadOutcomeError(
-              listResult.issues,
-              'No fue posible verificar si existe un QR activo.'
-            ),
-          });
-          return null;
-        }
-
-        // Server read is authoritative: do not re-inject locally remembered sessions that
-        // another station already revoked.
-        const discoveredActive = filterScopeSessions(listResult.data, episodeKey, patientRut);
-        activeSessionsRef.current = discoveredActive;
-
-        if (mode === 'initialize' && discoveredActive.length > 0) {
-          const primarySession = discoveredActive[0] ?? null;
-          setSessionState({
-            scopeKey,
-            session: primarySession,
-            status: primarySession ? 'active' : 'idle',
-            error: null,
-          });
-          return primarySession;
-        }
-
-        // Regenerate revokes every active QR for this episode before issuing a replacement so
-        // no previous link remains live and unrevocable in Firestore.
-        if (discoveredActive.length > 0) {
-          const revokeOutcome = await revokeWoundCareMobileUploadSessionsSequentially({
-            sessions: discoveredActive,
-            actor,
+        const outcome = await executeWoundCareMobileUploadLifecycle({
+          mode,
+          inFlightKey: buildInFlightCreateKey(
+            authoringSessionScope(authoringSession.session),
+            expectedActorUid,
             hospitalId,
-            fallbackError: 'No fue posible revocar el QR anterior.',
-            isStillCurrent,
-            onRemainingSessionsChange: remaining => {
-              activeSessionsRef.current = remaining;
-            },
-          });
-          if (revokeOutcome.status === 'aborted') {
-            return null;
-          }
-          if (revokeOutcome.status === 'failed') {
-            setSessionState({
-              scopeKey,
-              session: revokeOutcome.remainingSessions[0] ?? null,
-              status: revokeOutcome.remainingSessions.length > 0 ? 'active' : 'error',
-              error: revokeOutcome.message,
-            });
-            return null;
-          }
-          setSessionState({ scopeKey, session: null, status: 'revoked', error: null });
-        }
-
-        if (!isStillCurrent()) {
-          return null;
-        }
-
-        const result = await issueWoundCareMobileUploadSession({
-          inFlightKey,
-          episodeContext: {
-            episodeKey,
-            patientRut,
-            patientName: latestRef.current.patientName,
-          },
+            episodeKey
+          ),
+          episodeContext: { episodeKey, patientRut, patientName: latestRef.current.patientName },
           actor,
           hospitalId,
+          rememberedSessions: activeSessionsRef.current,
+          isStillCurrent,
+          onActiveSessionsChange: sessions => {
+            activeSessionsRef.current = sessions;
+          },
+          onPreviousRevoked: () => {
+            setSessionState({ scopeKey, session: null, status: 'revoked', error: null });
+          },
         });
-        return isStillCurrent() ? publishCreatedOutcome(scopeKey, result) : null;
-      } catch (unknownError) {
-        if (!isStillCurrent()) {
+
+        if (outcome.status === 'aborted') return null;
+        if (outcome.status === 'reused') {
+          setSessionState({
+            scopeKey,
+            session: outcome.session,
+            status: outcome.session ? 'active' : 'idle',
+            error: null,
+          });
+          return outcome.session;
+        }
+        if (outcome.status === 'error') {
+          publishPreservedError(scopeKey, outcome.preservedSession, outcome.message);
           return null;
         }
+        return publishCreatedOutcome(scopeKey, outcome.outcome);
+      } catch (unknownError) {
+        if (!isStillCurrent()) return null;
         const preservedSession =
           filterScopeSessions(activeSessionsRef.current, episodeKey, patientRut)[0] ?? null;
-        setSessionState({
+        publishPreservedError(
           scopeKey,
-          session: preservedSession,
-          status: preservedSession ? 'active' : 'error',
-          error:
-            unknownError instanceof Error ? unknownError.message : 'No fue posible generar el QR.',
-        });
+          preservedSession,
+          unknownError instanceof Error ? unknownError.message : 'No fue posible generar el QR.'
+        );
         return null;
       } finally {
         releaseBusyState(generation, scopeKey);
@@ -373,6 +300,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
       hideOnSessionLoss,
       patientRut,
       publishCreatedOutcome,
+      publishPreservedError,
       releaseBusyState,
       scopeKey,
     ]
@@ -382,25 +310,17 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
     () => runSessionLifecycle('initialize'),
     [runSessionLifecycle]
   );
-
   const createSession = useCallback(() => runSessionLifecycle('regenerate'), [runSessionLifecycle]);
 
   const revokeSession = useCallback(async () => {
     const sessionsToRevoke = filterScopeSessions(activeSessionsRef.current, episodeKey, patientRut);
     const primarySession = sessionsToRevoke[0] ?? null;
-    if (!primarySession) {
-      return false;
-    }
+    if (!primarySession) return false;
 
     const activeUser = latestRef.current.currentUser;
     if (!activeUser) {
       if (isMountedRef.current) {
-        setSessionState({
-          scopeKey,
-          session: primarySession,
-          status: 'active',
-          error: 'Debe iniciar sesión para revocar el QR.',
-        });
+        publishPreservedError(scopeKey, primarySession, 'Debe iniciar sesión para revocar el QR.');
       }
       return false;
     }
@@ -410,7 +330,6 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
       hideOnSessionLoss(scopeKey);
       return false;
     }
-
     if (inFlightActionRef.current !== 'idle' && inFlightScopeKeyRef.current === scopeKey) {
       return false;
     }
@@ -438,33 +357,26 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
           activeSessionsRef.current = remaining;
         },
       });
-      if (revokeOutcome.status === 'aborted') {
-        return false;
-      }
+      if (revokeOutcome.status === 'aborted') return false;
       if (revokeOutcome.status === 'failed') {
-        setSessionState({
+        publishPreservedError(
           scopeKey,
-          session: revokeOutcome.remainingSessions[0] ?? null,
-          status: revokeOutcome.remainingSessions.length > 0 ? 'active' : 'error',
-          error: revokeOutcome.message,
-        });
+          revokeOutcome.remainingSessions[0] ?? null,
+          revokeOutcome.message
+        );
         return false;
       }
       setSessionState({ scopeKey, session: null, status: 'revoked', error: null });
       return true;
     } catch (unknownError) {
-      if (!isStillCurrent()) {
-        return false;
-      }
+      if (!isStillCurrent()) return false;
       const preservedSession =
         filterScopeSessions(activeSessionsRef.current, episodeKey, patientRut)[0] ?? null;
-      setSessionState({
+      publishPreservedError(
         scopeKey,
-        session: preservedSession,
-        status: preservedSession ? 'active' : 'error',
-        error:
-          unknownError instanceof Error ? unknownError.message : 'No fue posible revocar el QR.',
-      });
+        preservedSession,
+        unknownError instanceof Error ? unknownError.message : 'No fue posible revocar el QR.'
+      );
       return false;
     } finally {
       releaseBusyState(generation, scopeKey);
@@ -474,6 +386,7 @@ export const useWoundCareMobileUploadSession = (episodeContext: EpisodeContext) 
     episodeKey,
     hideOnSessionLoss,
     patientRut,
+    publishPreservedError,
     releaseBusyState,
     scopeKey,
   ]);
