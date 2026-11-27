@@ -37,36 +37,18 @@ Taxonomía operativa para el core del sistema. La idea es reducir carga cognitiv
 - Si administra estado local, timers, refs o wiring de UI.
 - Si no aporta valor moverlo fuera de React.
 
-## Mapa del core actual
+## Dónde encontrar los hooks vigentes
 
-| Hook                                          | Categoría                            | Notas                                                |
-| --------------------------------------------- | ------------------------------------ | ---------------------------------------------------- |
-| `useDailyRecord`                              | `facade`                             | Orquestador principal del censo.                     |
-| `useDailyRecordDomainModules`                 | `policy/controller-backed`           | Compone módulos de dominio del censo sin exponer UI. |
-| `useDailyRecordCopyActions`                   | `delivery`                           | Copia cross-date con feedback y refresh.             |
-| `useDailyRecordQuery`                         | `query`                              | Lectura/caché/optimistic updates.                    |
-| `useDailyRecordSyncQuery`                     | `query` + `policy/controller-backed` | Refresh, status y compatibilidad de API.             |
-| `usePersistence`                              | `persistence`                        | Crear, copiar y eliminar día.                        |
-| `useHandoffManagement`                        | `facade`                             | Composition root del subdominio handoff.             |
-| `useHandoffManagementPersistence`             | `persistence`                        | Guardado/patch/refresh de handoff.                   |
-| `useHandoffManagementDelivery`                | `delivery`                           | Envío médico, link y firma.                          |
-| `useCensusEmail`                              | `facade`                             | Configuración + estado del flujo de censo por email. |
-| `useCensusEmailRecipientLists`                | `bootstrap` + `persistence`          | Bootstrap y sync de listas.                          |
-| `useCensusEmailMessageState`                  | `state`                              | Mensaje editable.                                    |
-| `useCensusEmailSendState`                     | `state`                              | Estado transitorio de envío.                         |
-| `useCensusEmailDeliveryActions`               | `delivery`                           | Email/link/share.                                    |
-| `useAudit`                                    | `facade`                             | Registro de auditoría con ediciones agrupadas.       |
-| `useAuditTrail`                               | `facade`                             | Período, filtros, agrupación y vista de auditoría.   |
-| `useAuditConnectionTracker`                   | `bootstrap`                          | Conexión del equipo: inicio, latido y cortes de red. |
-| `useBackupFileBrowser`                        | `facade`                             | Navegación y acciones del browser de respaldos.      |
-| `useBackupFilesQuery`                         | `query`                              | Listing de Storage con outcome homogéneo.            |
-| `useBackupFileBrowserActions`                 | `delivery`                           | Delete/download/backfill.                            |
-| `useFileOperations`                           | `delivery`                           | Import/export manual de archivos.                    |
-| `useExportManager`                            | `delivery`                           | Exportación y respaldo PDF/Excel.                    |
-| `useClinicalDocumentWorkspaceBootstrap`       | `bootstrap`                          | Templates, episodio y listado.                       |
-| `useClinicalDocumentWorkspaceDraft`           | `state` + `persistence`              | Draft/autosave/validación derivada.                  |
-| `useClinicalDocumentWorkspaceDocumentActions` | `delivery`                           | Create/save/sign/unsign/delete.                      |
-| `useClinicalDocumentWorkspaceExportActions`   | `delivery`                           | Print/upload/export.                                 |
+En lugar de mantener un inventario manual que queda desactualizado cuando los hooks migran a su
+feature dueño, la fuente viva del código es:
+
+- [scripts/config/feature-map.json](../scripts/config/feature-map.json): mapa verificado por CI de
+  cada flujo clínico, su carpeta dueña, puerta de entrada y pruebas asociadas.
+- [src/hooks/README.md](../src/hooks/README.md): reglas y alcance de los hooks transversales
+  compartidos entre dos o más áreas (registro diario, autenticación, respaldos y exportación).
+- `src/features/<área>/hooks/`: hooks exclusivos de cada subdominio (por ejemplo,
+  `src/features/census/hooks/`, `src/features/handoff/hooks/`,
+  `src/features/clinical-documents/hooks/`).
 
 ## Naming rules
 
