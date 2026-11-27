@@ -157,4 +157,24 @@ describe('guardrail governance support', () => {
       'test:rules:ci'
     );
   });
+
+  it('expands npm scripts invoked inside shell entrypoints when root is provided', () => {
+    const root = createRoot();
+    const shellPath = path.join(root, 'scripts/run-critical.sh');
+    fs.mkdirSync(path.dirname(shellPath), { recursive: true });
+    fs.writeFileSync(
+      shellPath,
+      '#!/usr/bin/env bash\nnpm run check:flow-performance-budget\n',
+      'utf8'
+    );
+
+    const scripts = {
+      'test:e2e:critical:ci': 'bash scripts/run-critical.sh',
+      'check:flow-performance-budget': 'node scripts/check-flow-performance-budget.mjs',
+    };
+
+    expect([
+      ...collectReferencedScripts(scripts, ['test:e2e:critical:ci'], new Set(), root),
+    ]).toContain('check:flow-performance-budget');
+  });
 });
