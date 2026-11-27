@@ -1,4 +1,5 @@
 import type { CudyrReportRow, CudyrReportStatus } from '@/types/domain/cudyrReport';
+import { cudyrReferenceInstant } from '@/domain/cudyr/cudyrDailyPlacement';
 import { isCalendarDate } from '@/utils/clinicalDateUtils';
 import type { CudyrCaptureReceipt } from '@/types/domain/cudyrCapture';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
@@ -76,8 +77,12 @@ export const cudyrCaptureState = (
 
 /** Source egreso, its later entry timestamp, epicrisis and verified physical departure are distinct facts. */
 export const reconcileCudyrDischarge = (row: CudyrReportRow): CudyrReportRow => {
-  const reference =
-    row.referenceAt && Number.isFinite(Date.parse(row.referenceAt))
+  // CUD-04: discharge eligibility uses the fixed 01:00 D+1 cutoff, never a deferred morning entry
+  // time (08:00-11:59) or an early evening application time.
+  const cutoffInstant = cudyrReferenceInstant(row.date);
+  const cutoff = cutoffInstant
+    ? calendarStampInClinicalTimeZone(new Date(cutoffInstant))
+    : row.referenceAt && Number.isFinite(Date.parse(row.referenceAt))
       ? calendarStampInClinicalTimeZone(new Date(row.referenceAt))
       : null;
   const actual = row.correction?.actualDischarge;
@@ -124,17 +129,17 @@ export const reconcileCudyrDischarge = (row: CudyrReportRow): CudyrReportRow => 
       resolvedSystemDeparture,
       warnings,
     };
-  if (!reference) return row;
-  if (departure.date === reference.iso && !timeValid)
+  if (!cutoff) return row;
+  if (departure.date === cutoff.iso && !timeValid)
     return review(source + ': falta hora para resolver el día.');
   if (
-    departure.date < reference.iso ||
-    (departure.date === reference.iso && departure.time! <= reference.hhmm)
+    departure.date < cutoff.iso ||
+    (departure.date === cutoff.iso && departure.time! <= cutoff.hhmm)
   )
     return {
       ...row,
       eligibility: 'no_elegible',
-      eligibilityReason: source + ' anterior o igual al momento de referencia.',
+      eligibilityReason: source + ' anterior o igual al corte CUDYR (01:00).',
       resolvedSystemDeparture,
       warnings,
     };

@@ -240,4 +240,45 @@ describe('buildImportedCudyr', () => {
     expect(forward?.category).toBe('C2');
     expect(forward?.history?.map(entry => entry.category)).toEqual(['C2', 'C1']);
   });
+
+  it('attributes deferred morning midwife CUDYR (08:00-11:59 on day X) to census day X-1 and never to day X', () => {
+    const input = {
+      crdValue: 'D3',
+      crdDateTime: '2026-11-26T09:41:00-05:00',
+      source: 'gestion_camas' as const,
+      history: [
+        {
+          id: '1003',
+          category: 'D3',
+          recordedAt: '2026-11-26T09:41:00-05:00',
+          author: 'Matrona Sintética',
+          authorRole: 'Matrona',
+        },
+        {
+          id: '1002',
+          category: 'C2',
+          recordedAt: '2026-11-26T01:33:00-05:00',
+          author: 'Enfermera Sintética',
+          authorRole: 'Enfermería',
+        },
+        {
+          id: '1001',
+          category: 'C3',
+          recordedAt: '2026-11-25T16:07:00-05:00',
+          author: 'Matrona Sintética',
+          authorRole: 'Matrona',
+        },
+      ],
+    };
+
+    const owningDay = buildImportedCudyr(input, '2026-11-25');
+    expect(owningDay).toMatchObject({
+      category: 'D3',
+      recordedDate: '2026-11-25',
+      recordedAt: '2026-11-26T09:41:00-05:00',
+      author: 'Matrona Sintética',
+    });
+    expect(owningDay?.history?.map(entry => entry.category)).toEqual(['D3', 'C2', 'C3']);
+    expect(buildImportedCudyr(input, '2026-11-26')).toBeNull();
+  });
 });

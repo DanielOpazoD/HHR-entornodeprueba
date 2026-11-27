@@ -510,4 +510,131 @@ describe('CUDYR canonical report', () => {
       filterCudyrReportRows(data.rows, { ...EMPTY_CUDYR_REPORT_FILTERS, search: 'sintetico' })
     ).toHaveLength(2);
   });
+
+  it('keeps eligibility and resolves overnight bed when a deferred morning midwife CUDYR (09:41) follows a morning discharge (09:00)', () => {
+    const patient = reportPatient({
+      bedId: 'H3C1',
+      admissionDate: '2026-11-24',
+      admissionTime: '10:00',
+    });
+    const record = reportRecord('2026-11-25', { H3C1: patient });
+    const nextDay = reportRecord('2026-11-26', {});
+    nextDay.discharges = [
+      {
+        id: 'morning-discharge',
+        clinicalEpisodeId: 'synthetic-episode',
+        bedId: 'H3C1',
+        bedName: 'H3C1',
+        bedType: 'Media',
+        patientName: patient.patientName,
+        rut: patient.rut,
+        diagnosis: patient.pathology,
+        time: '09:00',
+        movementDate: '2026-11-26',
+        status: 'Vivo',
+        originalData: patient,
+      },
+    ];
+    const makeObs = (id: string, category: string, recordedAt: string, author: string) =>
+      reportObservation({
+        id,
+        eventKey: id,
+        censusDate: '2026-11-25',
+        captureCensusDate: '2026-11-26',
+        evaluation: {
+          ...reportObservation().evaluation,
+          sourceEvaluationId: id,
+          category,
+          recordedAt,
+          author,
+        },
+      });
+    const observations = [
+      makeObs('ev-1607', 'C3', '2026-11-25T16:07:00-05:00', 'Matrona Sintética'),
+      makeObs('ev-0133', 'C2', '2026-11-26T01:33:00-05:00', 'Enfermera Sintética'),
+      makeObs('ev-0941', 'D3', '2026-11-26T09:41:00-05:00', 'Matrona Sintética'),
+    ];
+    const capture = reportCapture({
+      censusDate: '2026-11-26',
+      observationIds: observations.map(item => item.id),
+      capture: {
+        ...reportCapture().capture,
+        observedAt: '2026-11-26T17:30:00Z',
+        totalEvaluations: observations.length,
+        sourcePlacements: [
+          reportPlacement({
+            bedId: 'H3C1',
+            sourceBedLabel: 'H3C1',
+            sourceStartAt: '2026-11-24T10:00:00-05:00',
+            sourceEndAt: '2026-11-26T09:00:00-05:00',
+            currentAssignment: false,
+          }),
+        ],
+      },
+      receivedAt: '2026-11-26T17:31:00Z',
+    });
+    const data = buildCudyrReport(
+      reportInput({
+        from: '2026-11-25',
+        to: '2026-11-26',
+        generatedAt: '2026-11-26T18:00:00Z',
+        records: [record, nextDay],
+        observations,
+        captures: [capture],
+      })
+    );
+    const row = data.rows.find(item => item.date === '2026-11-25')!;
+    expect(row).toMatchObject({
+      bedId: 'H3C1',
+      group: 'media',
+      contextSource: 'eloisa_interval',
+      eligibility: 'elegible',
+      cudyrStatus: 'registrado',
+      evaluationCount: 3,
+      evaluation: {
+        category: 'D3',
+        recordedAt: '2026-11-26T09:41:00-05:00',
+        author: 'Matrona Sintética',
+      },
+    });
+    expect(cudyrReportTotals([row])).toMatchObject({ eligible: 1, categorized: 1, excluded: 0 });
+  });
+
+  it('excludes a discharge before 01:00 on D+1 even when an early evening CUDYR existed on day D (CUD-04)', () => {
+    const patient = reportPatient();
+    const record = reportRecord('2026-10-02', { R1: patient });
+    record.discharges = [
+      {
+        id: 'pre-cutoff-discharge',
+        clinicalEpisodeId: 'synthetic-episode',
+        bedId: 'R1',
+        bedName: 'R1',
+        bedType: 'Intermedia',
+        patientName: patient.patientName,
+        rut: patient.rut,
+        diagnosis: patient.pathology,
+        time: '00:30',
+        movementDate: '2026-10-03',
+        status: 'Vivo',
+        originalData: patient,
+      },
+    ];
+    const earlyObservation = reportObservation({
+      evaluation: {
+        ...reportObservation().evaluation,
+        recordedAt: '2026-10-02T22:00:00-05:00',
+      },
+    });
+    const data = buildCudyrReport(
+      confirmedReportInput({ records: [record], observations: [earlyObservation] })
+    );
+    const row = data.rows[0];
+    expect(row).toMatchObject({
+      eligibility: 'no_elegible',
+      cudyrStatus: 'registrado',
+      evaluation: { category: 'C2' },
+    });
+    expect(row.eligibilityReason).toContain('01:00');
+    expect(cudyrReportTotals([row])).toMatchObject({ eligible: 0, categorized: 0, excluded: 1 });
+  });
 });
