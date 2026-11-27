@@ -9,7 +9,7 @@ import {
   patchBedManagerReason,
   resolveBedManagerBedClick,
   validateBedManagerReason,
-} from '@/application/census/controllers/bedManagerModalController';
+} from '@/features/census/controllers/bedManagerModalController';
 
 describe('bedManagerModalController', () => {
   it('opens edit mode when clicking a blocked bed', () => {

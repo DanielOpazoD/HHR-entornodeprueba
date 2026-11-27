@@ -27,8 +27,6 @@ export {
   resolveStaffSelectorsClassName,
   resolveStaffSelectorsState,
 } from './controllers/censusStaffHeaderController';
-export * from '@/application/census/controllers/bedManagerGridItemsController';
-export * from '@/application/census/controllers/bedManagerModalController';
 export * from '@/application/census/controllers/censusEmailRecipientsController';
 export * from '@/application/census/controllers/dischargeModalController';
 export * from '@/application/census/controllers/patientMovementCreationController';
