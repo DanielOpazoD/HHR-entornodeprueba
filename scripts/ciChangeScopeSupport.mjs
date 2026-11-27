@@ -65,6 +65,19 @@ export const classifyCiChangeScope = ({ eventName, files, config }) => {
     return { scope: 'functions-only', reason: 'functions_allowlist', usedFallback: false };
   }
 
+  const netlify = config.netlifyOnly || {};
+  const isNetlifyOnly =
+    Boolean(netlify.directories?.length || netlify.supportFiles?.length) &&
+    normalizedFiles.every(({ filename }) => {
+      if (matchesAny(filename, netlify.excluded)) return false;
+      return (
+        (netlify.supportFiles || []).includes(filename) || matchesAny(filename, netlify.directories)
+      );
+    });
+  if (isNetlifyOnly) {
+    return { scope: 'netlify-only', reason: 'netlify_allowlist', usedFallback: false };
+  }
+
   const tooling = config.toolingOnly || {};
   const isToolingOnly = normalizedFiles.every(
     ({ filename }) =>

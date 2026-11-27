@@ -69,6 +69,23 @@ describe('CI change scope governance', () => {
       'npm --prefix functions run check:clinical-pdf-runtime',
     ])
       expect(commandsOf('functions-scope-gate')).toContain(command);
+    expect(jobs['netlify-scope-gate'].name).toBe('netlify-scope-gate');
+    for (const command of [
+      'npx eslint --max-warnings 0 --no-warn-ignored',
+      'npx prettier --check',
+      'npm run typecheck',
+      'npx vitest run src/tests/netlify',
+      'src/tests/security/netlifySensitiveFunctionAuthGovernanceStatic.test.ts',
+      'src/tests/functions/mmradDicomTicketParity.test.ts',
+      'src/tests/build/gmailClientBundle.test.ts',
+      'src/tests/config/netlifyFunctionDevServer.test.ts',
+      'npm run check:netlify-functions-bundle',
+      'npm run check:serverless-sensitive-coverage',
+      'npm run check:serverless-runtime-governance',
+      'npm run check:folder-dependencies',
+      'npm run check:secret-leaks',
+    ])
+      expect(commandsOf('netlify-scope-gate')).toContain(command);
     expect(scopeConfig.docsOnly.excluded).toContain('docs/api/**');
     expect(scopeConfig.functionsOnly.excluded).toContain('functions/package-lock.json');
 
@@ -317,6 +334,19 @@ describe('CI change scope classification', () => {
         changed('src/services/firebase-runtime/README.md'),
       ]).scope
     ).toBe('docs-only');
+    expect(
+      classify([
+        changed('netlify/functions/syslab-proxy.ts'),
+        changed('src/tests/netlify/syslabProxy.test.ts'),
+        changed('src/tests/security/netlifySensitiveFunctionAuthGovernanceStatic.test.ts'),
+      ]).scope
+    ).toBe('netlify-only');
+    expect(
+      classify([
+        changed('netlify/functions/syslab-proxy.ts'),
+        changed('src/services/laboratory/syslabService.ts'),
+      ]).scope
+    ).toBe('full');
     expect(
       classify([changed('src/context/README.md'), changed('src/context/AuthContext.tsx')]).scope
     ).toBe('full');

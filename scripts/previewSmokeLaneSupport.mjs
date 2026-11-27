@@ -31,15 +31,16 @@ const buildExactTitlePattern = titles =>
 
 /**
  * Duration-balanced DICOM lane assignments based on observed CI runs (runs 45944646023,
- * 45954335192, and 45956171816). Non-stress DICOM tests (~482 s total) are partitioned
- * across three lanes (`dicom-1` and `dicom-2` by explicit title sets, and `dicom-3` as
- * their exact complement) so no two heavy 3D/annex tests share a lane, every lane stays
+ * 45954335192, 45956171816, and 46068024059). Non-stress DICOM tests (~629 s total in CI)
+ * are partitioned across three lanes (`dicom-1` and `dicom-2` by explicit title sets, and
+ * `dicom-3` as their exact complement) so all three converge near ~210 s, every lane stays
  * balanced within the wall-clock window of `app`, and `dicom-3` automatically absorbs
  * newly added tests without dropping coverage.
  */
 export const DICOM_BALANCED_LANE_TITLES = Object.freeze({
   'dicom-1': [
     'cancels a 3D MP4 and restores the camera',
+    'measures the dragged MPR distance even after a click left a pending line',
     'reconstructs heterogeneous physical matrices with calibrated intensities and preserves originals',
     'handles localizer sources without losing Original or hiding selection',
     'draws the measurements, but not the crosshairs, into the PNG capture',
@@ -55,6 +56,7 @@ export const DICOM_BALANCED_LANE_TITLES = Object.freeze({
   ],
   'dicom-2': [
     'turns the 3D view into a downloadable MP4 about a chosen axis and restores the camera',
+    'measures dragged millimetres in Original and keeps them across views',
     'lists measurements by slice, jumps to them and copies plain text',
     'labels radiograph distances by where they were calibrated',
     'Original reports HU on validated CT',

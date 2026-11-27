@@ -285,7 +285,13 @@ const workflow = () =>
   parseWorkflow(fs.readFileSync(path.join(process.cwd(), '.github/workflows/ci-cd.yml'), 'utf8'))
     .jobs;
 
-const SCOPE_JOBS = ['ci-scope', 'docs-scope-gate', 'functions-scope-gate', 'tooling-scope-gate'];
+const SCOPE_JOBS = [
+  'ci-scope',
+  'docs-scope-gate',
+  'functions-scope-gate',
+  'netlify-scope-gate',
+  'tooling-scope-gate',
+];
 // Run on a reused main push: the decision, its trivial scope records, the summary and
 // the work that exists only on main.
 const RUN_WHEN_REUSED = [

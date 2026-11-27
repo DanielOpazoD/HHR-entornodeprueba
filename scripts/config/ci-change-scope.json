@@ -22,6 +22,11 @@
     ],
     "excluded": ["functions/package.json", "functions/package-lock.json"]
   },
+  "netlifyOnly": {
+    "directories": ["netlify/functions/**", "src/tests/netlify/**"],
+    "supportFiles": ["src/tests/security/netlifySensitiveFunctionAuthGovernanceStatic.test.ts"],
+    "excluded": []
+  },
   "toolingOnly": {
     "controls": [
       "scripts/check-architecture.mjs",
