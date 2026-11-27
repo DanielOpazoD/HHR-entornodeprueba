@@ -16,9 +16,9 @@ import {
 } from '@/context/useDailyRecordScopedActions';
 import { useStaffContext } from '@/context/StaffContext';
 import { useNotification } from '@/context/UIContext';
-import { useHandoffManagement } from '@/hooks/useHandoffManagement';
+import { useHandoffManagement } from '@/features/handoff/hooks/useHandoffManagement';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
-import { getAttributedAuthors } from '@/services/admin/attributionService';
+import { getAttributedAuthors } from '@/features/handoff/services/attributionService';
 import { resolveHandoffShiftStaff } from '@/services/staff/dailyRecordStaffing';
 import { resolveHandoffDocumentTitleLabel } from '@/shared/handoff/handoffPresentation';
 import type { BedDefinition } from '@/types/domain/beds';

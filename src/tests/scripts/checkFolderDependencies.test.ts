@@ -171,7 +171,7 @@ const formerBoundaryCases: {
   {
     name: 'utils → servicios',
     from: 'src/utils/probe.ts',
-    to: 'src/services/admin/attributionService.ts',
+    to: 'src/services/admin/auditCore.ts',
     now: 'rejected',
   },
   {

@@ -17,11 +17,11 @@ vi.mock('@/context/AuditContext', () => ({
   }),
 }));
 
-vi.mock('@/services/admin/attributionService', () => ({
+vi.mock('@/features/handoff/services/attributionService', () => ({
   getAttributedAuthors: vi.fn().mockReturnValue(''),
 }));
 
-import { useHandoffManagement } from '@/hooks/useHandoffManagement';
+import { useHandoffManagement } from '@/features/handoff/hooks/useHandoffManagement';
 import { DailyRecordFreshnessGateError } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';

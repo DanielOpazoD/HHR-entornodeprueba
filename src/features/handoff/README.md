@@ -49,8 +49,9 @@ protegiendo CUDYR y las correcciones de dias anteriores.
 
 ## Entry points recomendados
 
-- `src/hooks/useHandoffManagement.ts`
-- `src/domain/handoff/management.ts`
+- `src/features/handoff/hooks/useHandoffManagement.ts`
+- `src/features/handoff/domain/management.ts`
+- `src/features/handoff/services/attributionService.ts`
 - `src/features/handoff/public.ts`
 
 ## Controllers activos recomendados

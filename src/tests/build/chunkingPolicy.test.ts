@@ -164,7 +164,7 @@ describe('chunkingPolicy', () => {
     const domainModulesSource = readSource('src/hooks/useDailyRecordDomainModules.ts');
 
     expect(domainModulesSource).not.toMatch(
-      /from ['"]@\/hooks\/(?:useHandoffManagement|usePatientDischarges|usePatientTransfers|useCMA|useShiftStaffManagement)['"]/
+      /from ['"]@\/(?:hooks\/(?:useHandoffManagement|usePatientDischarges|usePatientTransfers|useCMA|useShiftStaffManagement)|features\/handoff\/hooks\/useHandoffManagement)['"]/
     );
   });
 

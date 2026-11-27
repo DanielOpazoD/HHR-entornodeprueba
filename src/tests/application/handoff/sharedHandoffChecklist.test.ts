@@ -15,7 +15,7 @@ vi.mock('@/context/AuditContext', () => ({
   useAuditContext: () => ({ logHandoffNovedadesModified: vi.fn(), userId: 'synthetic-user' }),
 }));
 
-import { useHandoffManagement } from '@/hooks/useHandoffManagement';
+import { useHandoffManagement } from '@/features/handoff/hooks/useHandoffManagement';
 
 const createDailyRecordFixture = (overrides: Partial<DailyRecord> = {}) =>
   DataFactory.createMockDailyRecord(overrides.date ?? '2026-10-29', overrides);

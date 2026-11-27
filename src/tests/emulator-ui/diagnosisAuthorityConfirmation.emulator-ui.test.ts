@@ -34,7 +34,10 @@ import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCatalog';
 import { applyPatches } from '@/utils/patchUtils';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
-import { buildHandoffReceivesPatch, buildNovedadesPatch } from '@/domain/handoff/management';
+import {
+  buildHandoffReceivesPatch,
+  buildNovedadesPatch,
+} from '@/features/handoff/domain/management';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { resolveRecordBaseRevision } from '@/services/storage/sync/syncTaskContractPolicy';
 import { isLastWrittenBy, storedFieldWrites } from '@/services/storage/sync/fieldWriteAttribution';

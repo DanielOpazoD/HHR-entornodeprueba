@@ -845,7 +845,7 @@
           "decides": "Presenta la tabla de pacientes, novedades de día y noche, listas de chequeo y controles de firma de turno."
         },
         {
-          "at": "src/hooks/useHandoffManagement.ts › useHandoffManagement",
+          "at": "src/features/handoff/hooks/useHandoffManagement.ts › useHandoffManagement",
           "decides": "Aplica parches de novedades, checklist y firmas sobre el registro diario del día activo."
         },
         {

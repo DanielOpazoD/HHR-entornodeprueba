@@ -32,10 +32,6 @@ vi.mock('@/domain/patient/patientFactory', () => ({
   })),
 }));
 
-vi.mock('@/services/admin/attributionService', () => ({
-  getAttributedAuthors: vi.fn(() => 'Test Author'),
-}));
-
 describe('useBedManagement patient updates', () => {
   const mockPatchRecord = vi.fn().mockResolvedValue(undefined);
 
