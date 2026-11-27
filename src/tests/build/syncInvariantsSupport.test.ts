@@ -6,7 +6,7 @@ import {
   evaluateSyncConvergenceEvidence,
   formatSyncConvergenceEvidenceReport,
 } from '../../../scripts/syncConvergenceEvidenceSupport.mjs';
-import { evaluateSyncInvariants } from '../../../scripts/syncInvariantsSupport.mjs';
+import { evaluateSyncInvariants } from '../../../scripts/check-sync-invariants.mjs';
 
 describe('sync invariants support', () => {
   afterEach(() => vi.restoreAllMocks());

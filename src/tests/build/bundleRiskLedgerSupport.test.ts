@@ -7,7 +7,7 @@ import {
   buildBundleRiskLedgerReport,
   formatBundleRiskLedgerMarkdown,
   loadBundleRiskLedgerReport,
-} from '../../../scripts/bundleRiskLedgerSupport.mjs';
+} from '../../../scripts/check-bundle-risk-ledger.mjs';
 
 const ledgerConfig = {
   policyVersion: '2026-06-v1',
