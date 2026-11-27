@@ -6,7 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-const scriptPath = path.resolve('scripts/report-flow-performance-budget.mjs');
+const reportScriptPath = path.resolve('scripts/report-flow-performance-budget.mjs');
+const checkScriptPath = path.resolve('scripts/check-flow-performance-budget.mjs');
 const tmpRoots: string[] = [];
 const flowNames = [
   'loginVisibleMs',
@@ -24,8 +25,37 @@ const makeRoot = () => {
   return root;
 };
 
+const writeRawReport = (
+  root: string,
+  overrides: {
+    metrics?: Record<string, number>;
+    budgets?: Record<string, { targetMs: number; enforcedMaxMs: number }>;
+  } = {}
+) => {
+  const rawPath = path.join(root, 'reports/e2e/flow-performance-budget.json');
+  const raw = `${JSON.stringify({
+    generatedAt: '2026-01-01T12:00:00.000Z',
+    status: 'passed',
+    metrics: overrides.metrics ?? Object.fromEntries(flowNames.map(flow => [flow, 100])),
+    budgets:
+      overrides.budgets ??
+      Object.fromEntries(flowNames.map(flow => [flow, { targetMs: 200, enforcedMaxMs: 300 }])),
+    breakdown: { auth: { tokenMs: 25 } },
+  })}\n`;
+  fs.mkdirSync(path.dirname(rawPath), { recursive: true });
+  fs.writeFileSync(rawPath, raw, 'utf8');
+  return { rawPath, raw };
+};
+
 const runReport = (root: string) =>
-  spawnSync(process.execPath, [scriptPath], {
+  spawnSync(process.execPath, [reportScriptPath], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 10000,
+  });
+
+const runCheck = (root: string, args: string[] = []) =>
+  spawnSync(process.execPath, [checkScriptPath, ...args], {
     cwd: root,
     encoding: 'utf8',
     timeout: 10000,
@@ -126,5 +156,91 @@ describe('flow performance budget report script', () => {
       targetMs: 1500,
       enforcedMaxMs: 2000,
     });
+  });
+});
+
+describe('flow performance budget check script', () => {
+  it('validates and publishes summary artifacts in a single pass while preserving raw JSON', () => {
+    const root = makeRoot();
+    const { rawPath, raw } = writeRawReport(root);
+
+    const result = runCheck(root);
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain(
+      '[flow-performance-budget] Report generated at reports/e2e/flow-performance-budget-summary.json and reports/e2e/flow-performance-budget.md'
+    );
+    expect(result.stdout).toContain('[flow-performance-budget] OK');
+    expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget-summary.json'))).toBe(
+      true
+    );
+    expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget.md'))).toBe(true);
+    expect(fs.readFileSync(rawPath, 'utf8')).toBe(raw);
+  });
+
+  it('rejects a missing source report without writing summary artifacts', () => {
+    const root = makeRoot();
+
+    const result = runCheck(root);
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Missing reports/e2e/flow-performance-budget.json');
+    expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget-summary.json'))).toBe(
+      false
+    );
+    expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget.md'))).toBe(false);
+  });
+
+  it('rejects missing flow metrics without writing summary artifacts', () => {
+    const root = makeRoot();
+    const metrics = Object.fromEntries(flowNames.slice(1).map(flow => [flow, 100]));
+    writeRawReport(root, { metrics });
+
+    const result = runCheck(root);
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('missing metrics or budgets for: loginVisibleMs');
+    expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget-summary.json'))).toBe(
+      false
+    );
+    expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget.md'))).toBe(false);
+  });
+
+  it('rejects blocking violations without writing summary artifacts', () => {
+    const root = makeRoot();
+    const metrics = Object.fromEntries(flowNames.map(flow => [flow, 100]));
+    metrics.censoVisibleMs = 350;
+    writeRawReport(root, { metrics });
+
+    const result = runCheck(root);
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Blocking violations detected: censoVisibleMs');
+    expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget-summary.json'))).toBe(
+      false
+    );
+    expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget.md'))).toBe(false);
+  });
+
+  it('rejects target misses when --enforce-targets is passed without writing artifacts', () => {
+    const root = makeRoot();
+    const metrics = Object.fromEntries(flowNames.map(flow => [flow, 100]));
+    metrics.censoVisibleMs = 250;
+    writeRawReport(root, { metrics });
+
+    const result = runCheck(root, ['--enforce-targets']);
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Target violations detected with --enforce-targets.');
+    expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget-summary.json'))).toBe(
+      false
+    );
+    expect(fs.existsSync(path.join(root, 'reports/e2e/flow-performance-budget.md'))).toBe(false);
   });
 });
