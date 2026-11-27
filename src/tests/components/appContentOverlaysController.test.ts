@@ -8,8 +8,6 @@ describe('appContentOverlaysController', () => {
       isOpen: true,
       close: vi.fn(),
     },
-    isTestAgentRunning: true,
-    setIsTestAgentRunning: vi.fn(),
   };
 
   const runtime = {
@@ -53,7 +51,6 @@ describe('appContentOverlaysController', () => {
 
     expect(overlayState.shouldRenderCensusEmailConfigModal).toBe(true);
     expect(overlayState.shouldRenderPatientSearchModal).toBe(true);
-    expect(overlayState.shouldRenderTestAgent).toBe(true);
     expect(overlayState.censusEmailModalProps).toEqual(
       expect.objectContaining({
         recipients: ['a@hospital.cl'],
@@ -63,12 +60,6 @@ describe('appContentOverlaysController', () => {
         testRecipient: 'test@hospital.cl',
       })
     );
-    expect(overlayState.testAgentProps).toEqual(
-      expect.objectContaining({
-        isRunning: true,
-        currentRecord: { id: 'record-1' },
-      })
-    );
     expect(overlayState.patientSearchModalProps).toEqual({
       isOpen: true,
       onClose: ui.patientSearchModal.close,
@@ -76,16 +67,14 @@ describe('appContentOverlaysController', () => {
     });
   });
 
-  it('wires modal and test agent callbacks back to the source state', () => {
+  it('wires modal callbacks back to the source state', () => {
     const overlayState = buildAppContentOverlayState({
       ui: ui as never,
       runtime: runtime as never,
     });
 
     overlayState.censusEmailModalProps.onClose();
-    overlayState.testAgentProps.onComplete();
 
     expect(runtime.censusEmail.setShowEmailConfig).toHaveBeenCalledWith(false);
-    expect(ui.setIsTestAgentRunning).toHaveBeenCalledWith(false);
   });
 });

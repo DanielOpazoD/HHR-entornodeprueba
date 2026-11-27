@@ -38,10 +38,6 @@ vi.mock('@/components/layout/DateStrip', () => ({
   },
 }));
 
-vi.mock('@/components/debug/TestAgent', () => ({
-  TestAgent: () => <div data-testid="test-agent">TestAgent</div>,
-}));
-
 vi.mock('@/components/bookmarks/BookmarkBar', () => ({
   BookmarkBar: () => <div data-testid="bookmark-bar">BookmarkBar</div>,
 }));
@@ -247,16 +243,13 @@ describe('AppContent', () => {
   });
 
   it('shows and hides global modals/panels based on UI state', async () => {
-    const uiWithModals = { ...mockUI, isTestAgentRunning: true };
-
-    const { rerender } = render(<AppContent ui={uiWithModals} />);
+    const { rerender } = render(<AppContent ui={mockUI} />);
     await act(flushLazyBypassComponents);
-    rerender(<AppContent ui={uiWithModals} />);
+    rerender(<AppContent ui={mockUI} />);
     await act(flushLazyBypassComponents);
-    rerender(<AppContent ui={uiWithModals} />);
+    rerender(<AppContent ui={mockUI} />);
 
     expect(screen.queryByTestId('reminder-modal')).not.toBeInTheDocument();
-    expect(screen.getByTestId('test-agent')).toBeInTheDocument();
     expect(screen.getByTestId('storage-badge')).toBeInTheDocument();
     expect(screen.getByTestId('pin-lock')).toBeInTheDocument();
   });

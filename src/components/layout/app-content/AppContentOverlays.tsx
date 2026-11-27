@@ -14,9 +14,6 @@ export interface AppContentOverlayViews {
   GlobalPatientSearchModal: React.ComponentType<OverlayState['patientSearchModalProps']>;
 }
 
-const TestAgent = lazyWithRetry(() =>
-  import('@/components/debug/TestAgent').then(m => ({ default: m.TestAgent }))
-);
 const ReminderModal = lazyWithRetry(() =>
   import('@/components/reminders/ReminderModal').then(m => ({ default: m.ReminderModal }))
 );
@@ -69,12 +66,6 @@ export const AppContentOverlays: React.FC<AppContentOverlaysProps> = ({
       {overlayState.shouldRenderCensusEmailConfigModal && CensusEmailConfigModal && (
         <React.Suspense fallback={null}>
           <CensusEmailConfigModal {...overlayState.censusEmailModalProps} />
-        </React.Suspense>
-      )}
-
-      {overlayState.shouldRenderTestAgent && (
-        <React.Suspense fallback={null}>
-          <TestAgent {...overlayState.testAgentProps} />
         </React.Suspense>
       )}
 

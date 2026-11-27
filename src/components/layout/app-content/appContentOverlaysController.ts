@@ -10,7 +10,6 @@ interface BuildAppContentOverlayStateOptions {
 export interface AppContentOverlayState {
   shouldRenderCensusEmailConfigModal: boolean;
   shouldRenderPatientSearchModal: boolean;
-  shouldRenderTestAgent: boolean;
   censusEmailModalProps: {
     isOpen: true;
     onClose: () => void;
@@ -36,11 +35,6 @@ export interface AppContentOverlayState {
     testRecipient: AppContentRuntime['censusEmail']['testRecipient'];
     onTestRecipientChange: AppContentRuntime['censusEmail']['setTestRecipient'];
   };
-  testAgentProps: {
-    isRunning: boolean;
-    onComplete: () => void;
-    currentRecord: AppContentRuntime['record'];
-  };
   patientSearchModalProps: {
     isOpen: boolean;
     onClose: () => void;
@@ -57,13 +51,11 @@ export const buildAppContentOverlayState = ({
     censusEmail,
     dateNav: { currentDateString },
     nurseSignature,
-    record,
   } = runtime;
 
   return {
     shouldRenderCensusEmailConfigModal: censusEmail.showEmailConfig,
     shouldRenderPatientSearchModal: ui.patientSearchModal.isOpen,
-    shouldRenderTestAgent: ui.isTestAgentRunning,
     censusEmailModalProps: {
       isOpen: true,
       onClose: () => censusEmail.setShowEmailConfig(false),
@@ -88,11 +80,6 @@ export const buildAppContentOverlayState = ({
       onTestModeChange: censusEmail.setTestModeEnabled,
       testRecipient: censusEmail.testRecipient,
       onTestRecipientChange: censusEmail.setTestRecipient,
-    },
-    testAgentProps: {
-      isRunning: ui.isTestAgentRunning,
-      onComplete: () => ui.setIsTestAgentRunning(false),
-      currentRecord: record,
     },
     patientSearchModalProps: {
       isOpen: ui.patientSearchModal.isOpen,

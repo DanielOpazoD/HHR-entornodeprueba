@@ -66,8 +66,6 @@ export const createShellUiMock = (overrides: Partial<UseUIStateReturn> = {}): Us
   showPrintButton: true,
   showBookmarksBar: true,
   setShowBookmarksBar: vi.fn(),
-  isTestAgentRunning: false,
-  setIsTestAgentRunning: vi.fn(),
   selectedShift: 'day',
   setSelectedShift: vi.fn(),
   ...overrides,

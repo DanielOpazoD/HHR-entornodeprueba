@@ -40,7 +40,6 @@ const OPTIONAL_TARGETS: Record<string, string> = {
     'Document presence lookup has its own loading/error state.',
   'src/application/ports/clinicalDocumentPort':
     'Document history reads start on patient selection.',
-  'src/components/debug/TestAgent': 'Debug panel opens only on request.',
   'src/features/census/components/moa/MoaCompanion':
     'Moa has an isolated error boundary and explicit recovery action.',
   'src/components/layout/NursingPasswordDialog': 'Password dialog opens from the user menu.',
