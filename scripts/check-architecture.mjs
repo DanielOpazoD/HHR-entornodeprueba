@@ -2,72 +2,39 @@
 
 /**
  * Layer rules for `src/` imports: controllers and hooks never import a component implementation,
- * feature-restricted layers never cross features, and code outside the daily record context uses
- * its scoped actions. Import cycles have their own control (`check:import-cycles`).
+ * and feature-restricted layers never cross features. Import cycles have their own control
+ * (`check:import-cycles`). Module references are parsed with the TypeScript AST so comments,
+ * strings and dynamic `import()` calls are handled accurately.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { isDirectCliEntry } from './lib/cliEntry.mjs';
+import { readClassifiedReferences, resolveSpecifier, toPosix } from './lib/sourceModules.mjs';
 
-const ROOT = process.cwd();
-const SRC_ROOT = path.join(ROOT, 'src');
-const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
-const IMPORT_REGEX =
-  /(?:^|\n)\s*import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["']|(?:^|\n)\s*export\s+[^;\n]*\sfrom\s*["']([^"']+)["']/g;
+const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 const FEATURE_RESTRICTED_CROSS_IMPORT_LAYERS = new Set(['controllers', 'hooks', 'domain', 'types']);
 
-const toPosix = value => value.split(path.sep).join('/');
-
 const isSourceFile = filePath =>
-  SOURCE_EXTENSIONS.includes(path.extname(filePath)) && !filePath.endsWith('.d.ts');
+  SOURCE_EXTENSIONS.has(path.extname(filePath)) && !filePath.endsWith('.d.ts');
 
-const walkFiles = dirPath => {
-  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+const walkSourceFiles = (root, relativeDir = 'src') => {
+  const absoluteDir = path.join(root, relativeDir);
+  if (!fs.existsSync(absoluteDir)) return [];
   const result = [];
 
-  for (const entry of entries) {
-    const absolutePath = path.join(dirPath, entry.name);
+  for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
+    const relativePath = toPosix(path.join(relativeDir, entry.name));
     if (entry.isDirectory()) {
-      result.push(...walkFiles(absolutePath));
+      result.push(...walkSourceFiles(root, relativePath));
       continue;
     }
-    if (entry.isFile() && isSourceFile(absolutePath)) {
-      result.push(absolutePath);
+    if (entry.isFile() && isSourceFile(relativePath)) {
+      result.push(relativePath);
     }
   }
 
   return result;
-};
-
-const resolveImport = (importerFilePath, importPath) => {
-  if (!importPath.startsWith('@/') && !importPath.startsWith('.')) {
-    return null;
-  }
-
-  const basePath = importPath.startsWith('@/')
-    ? path.join(SRC_ROOT, importPath.slice(2))
-    : path.resolve(path.dirname(importerFilePath), importPath);
-
-  const candidates = [];
-
-  if (path.extname(basePath)) {
-    candidates.push(basePath);
-  } else {
-    for (const extension of SOURCE_EXTENSIONS) {
-      candidates.push(`${basePath}${extension}`);
-    }
-    for (const extension of SOURCE_EXTENSIONS) {
-      candidates.push(path.join(basePath, `index${extension}`));
-    }
-  }
-
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-      return path.normalize(candidate);
-    }
-  }
-
-  return null;
 };
 
 const resolveFeatureLayer = relativePath => {
@@ -84,46 +51,38 @@ const resolveFeatureName = relativePath => {
   return match ? match[1] : null;
 };
 
-const collectViolations = files => {
+export const collectArchitectureViolations = (root = process.cwd()) => {
+  const files = walkSourceFiles(root, 'src');
+  const fileSet = new Set(files);
   const layerViolations = [];
 
-  for (const filePath of files) {
-    const source = fs.readFileSync(filePath, 'utf8');
-    let match;
+  for (const importer of files) {
+    const source = fs.readFileSync(path.join(root, importer), 'utf8');
+    const seen = new Set();
 
-    while ((match = IMPORT_REGEX.exec(source)) !== null) {
-      const importPath = match[1] || match[2];
-      if (!importPath) {
-        continue;
-      }
-      const resolved = resolveImport(filePath, importPath);
-      if (!resolved) {
-        continue;
-      }
+    for (const ref of readClassifiedReferences(importer, source)) {
+      const imported = resolveSpecifier(importer, ref.specifier, fileSet);
+      if (!imported) continue;
 
-      const importer = toPosix(path.relative(ROOT, filePath));
-      const imported = toPosix(path.relative(ROOT, resolved));
       const importedExt = path.extname(imported);
-
       const importerIsController = importer.includes('/controllers/');
       const importerIsHook = importer.includes('/hooks/');
       const importedIsComponentImplementation =
         imported.includes('/components/') && (importedExt === '.tsx' || importedExt === '.jsx');
 
+      const pushUnique = rule => {
+        const key = `${rule}\0${importer}\0${imported}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        layerViolations.push({ rule, importer, imported });
+      };
+
       if (importerIsController && importedIsComponentImplementation) {
-        layerViolations.push({
-          rule: 'controllers-must-not-import-component-implementation',
-          importer,
-          imported,
-        });
+        pushUnique('controllers-must-not-import-component-implementation');
       }
 
       if (importerIsHook && importedIsComponentImplementation) {
-        layerViolations.push({
-          rule: 'hooks-must-not-import-component-implementation',
-          importer,
-          imported,
-        });
+        pushUnique('hooks-must-not-import-component-implementation');
       }
 
       const importerFeature = resolveFeatureName(importer);
@@ -136,11 +95,7 @@ const collectViolations = files => {
         importerLayer &&
         FEATURE_RESTRICTED_CROSS_IMPORT_LAYERS.has(importerLayer)
       ) {
-        layerViolations.push({
-          rule: 'feature-restricted-layers-must-not-cross-import',
-          importer,
-          imported,
-        });
+        pushUnique('feature-restricted-layers-must-not-cross-import');
       }
     }
   }
@@ -148,17 +103,18 @@ const collectViolations = files => {
   return layerViolations;
 };
 
-const files = walkFiles(SRC_ROOT);
-const layerViolations = collectViolations(files);
+if (isDirectCliEntry(import.meta.url)) {
+  const layerViolations = collectArchitectureViolations(process.cwd());
 
-if (layerViolations.length === 0) {
-  console.log('Architecture checks passed.');
-  process.exit(0);
+  if (layerViolations.length === 0) {
+    console.log('Architecture checks passed.');
+    process.exit(0);
+  }
+
+  console.error('\nLayer violations:');
+  for (const { rule, importer, imported } of layerViolations) {
+    console.error(`- [${rule}] ${importer} -> ${imported}`);
+  }
+
+  process.exit(1);
 }
-
-console.error('\nLayer violations:');
-for (const { rule, importer, imported } of layerViolations) {
-  console.error(`- [${rule}] ${importer} -> ${imported}`);
-}
-
-process.exit(1);
