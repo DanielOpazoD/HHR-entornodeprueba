@@ -6,6 +6,7 @@ import { renderPreviewSummary } from '../../../scripts/report-preview-summary.mj
 import {
   buildPreviewSmokeLanes,
   collectPreviewSmokeCompletenessIssues,
+  DICOM_BALANCED_LANE_TITLES,
   DICOM_PREVIEW_SPEC,
   GRAPHICS_STRESS_TAG,
   PREVIEW_SMOKE_LANE_NAMES,
@@ -119,15 +120,76 @@ it('splits the canonical preview pack into lanes that cover every spec', () => {
     '--grep',
     GRAPHICS_STRESS_TAG,
   ]);
-  for (const shard of ['1/5', '2/5', '3/5', '4/5', '5/5']) {
-    expect(lanes[`dicom-${shard[0]}`]).toEqual([
+  const explicitDicomLanes = ['dicom-1', 'dicom-2', 'dicom-3', 'dicom-4'] as const;
+  const allExplicitTitles = explicitDicomLanes.flatMap(lane => DICOM_BALANCED_LANE_TITLES[lane]);
+  expect(new Set(allExplicitTitles).size).toBe(allExplicitTitles.length);
+
+  for (const lane of explicitDicomLanes) {
+    const args = lanes[lane];
+    expect(args.slice(0, 5)).toEqual([
       DICOM_PREVIEW_SPEC,
       '--fully-parallel',
       '--grep-invert',
       GRAPHICS_STRESS_TAG,
-      `--shard=${shard}`,
+      '--grep',
     ]);
+    expect(args).toHaveLength(6);
+    expect(() => new RegExp(args[5])).not.toThrow();
   }
+
+  expect(lanes['dicom-5'].slice(0, 3)).toEqual([
+    DICOM_PREVIEW_SPEC,
+    '--fully-parallel',
+    '--grep-invert',
+  ]);
+  expect(lanes['dicom-5']).toHaveLength(4);
+  expect(() => new RegExp(lanes['dicom-5'][3])).not.toThrow();
+
+  // Prove exact 1x partitioning across all six DICOM lanes, including any future test
+  // not listed in DICOM_BALANCED_LANE_TITLES (which must fall cleanly into dicom-5).
+  const dicomLaneNames = [
+    'dicom-graphics-stress',
+    'dicom-1',
+    'dicom-2',
+    'dicom-3',
+    'dicom-4',
+    'dicom-5',
+  ] as const;
+  const matchesLane = (laneName: (typeof dicomLaneNames)[number], fullTitle: string) => {
+    const args = lanes[laneName];
+    const grepIdx = args.indexOf('--grep');
+    const invertIdx = args.indexOf('--grep-invert');
+    if (grepIdx !== -1 && !new RegExp(args[grepIdx + 1]).test(fullTitle)) return false;
+    if (invertIdx !== -1 && new RegExp(args[invertIdx + 1]).test(fullTitle)) return false;
+    return true;
+  };
+
+  for (const lane of explicitDicomLanes) {
+    for (const title of DICOM_BALANCED_LANE_TITLES[lane]) {
+      const fullTitle = `dicom-viewer.spec.ts DICOM viewer and Salvador annexes ${title}`;
+      const matched = dicomLaneNames.filter(name => matchesLane(name, fullTitle));
+      expect(matched, title).toEqual([lane]);
+    }
+  }
+
+  expect(
+    dicomLaneNames.filter(name =>
+      matchesLane(
+        name,
+        `dicom-viewer.spec.ts DICOM viewer and Salvador annexes stress case ${GRAPHICS_STRESS_TAG}`
+      )
+    )
+  ).toEqual(['dicom-graphics-stress']);
+
+  expect(
+    dicomLaneNames.filter(name =>
+      matchesLane(
+        name,
+        'dicom-viewer.spec.ts DICOM viewer and Salvador annexes newly added future dicom test'
+      )
+    )
+  ).toEqual(['dicom-5']);
+
   expect(fs.readFileSync(DICOM_PREVIEW_SPEC, 'utf8')).toContain(
     `{ tag: '${GRAPHICS_STRESS_TAG}' }`
   );
