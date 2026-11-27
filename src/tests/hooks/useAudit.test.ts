@@ -29,24 +29,72 @@ describe('useAudit', () => {
     sessionStorage.clear();
   });
 
-  it('should return all audit functions', () => {
+  it('logs generic audit events through the write use case', async () => {
     const { result } = renderHook(() => useAudit(testUserId));
 
-    expect(typeof result.current.logPatientAdmission).toBe('function');
-    expect(typeof result.current.logPatientDischarge).toBe('function');
-    expect(typeof result.current.logPatientTransfer).toBe('function');
-    expect(typeof result.current.logPatientCleared).toBe('function');
-    expect(typeof result.current.logDailyRecordDeleted).toBe('function');
-    expect(typeof result.current.logDailyRecordCreated).toBe('function');
-    expect(typeof result.current.logHandoffNovedadesModified).toBe('function');
-    expect(typeof result.current.logPatientView).toBe('function');
-    expect(typeof result.current.logClinicalDocumentCreated).toBe('function');
-    expect(typeof result.current.logClinicalDocumentEdited).toBe('function');
-    expect(typeof result.current.logClinicalDocumentDeleted).toBe('function');
-    expect(typeof result.current.logViewEvent).toBe('function');
-    expect(typeof result.current.logEvent).toBe('function');
-    expect(typeof result.current.logDebouncedEvent).toBe('function');
-    expect(typeof result.current.fetchLogs).toBe('function');
+    act(() => {
+      result.current.logEvent(
+        'PATIENT_MODIFIED',
+        'patient',
+        'R1',
+        { field: 'status', value: 'ESTABLE' },
+        '12345678-9',
+        '2024-12-28',
+        'Author 1'
+      );
+    });
+
+    await waitFor(() => {
+      expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: testUserId,
+          action: 'PATIENT_MODIFIED',
+          entityType: 'patient',
+          entityId: 'R1',
+          details: { field: 'status', value: 'ESTABLE' },
+          patientRut: '12345678-9',
+          recordDate: '2024-12-28',
+          authors: 'Author 1',
+        })
+      );
+    });
+  });
+
+  it('coalesces handoff novedades edits by shift before writing through the use case', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useAudit(testUserId));
+
+    act(() => {
+      result.current.logHandoffNovedadesModified(
+        'day',
+        'Sin incidentes',
+        'Texto previo',
+        '2024-12-28',
+        'Nurse A'
+      );
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    await vi.dynamicImportSettled();
+
+    expect(writeAuditUseCase.executeWriteAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: testUserId,
+        action: 'HANDOFF_NOVEDADES_MODIFIED',
+        entityType: 'dailyRecord',
+        entityId: '2024-12-28',
+        details: {
+          shift: 'day',
+          changes: {
+            handoffNovedadesDayShift: { old: 'Texto previo', new: 'Sin incidentes' },
+          },
+        },
+        recordDate: '2024-12-28',
+        authors: 'Nurse A',
+      })
+    );
   });
 
   it('should log patient admission via use case', async () => {

@@ -7,10 +7,7 @@ import {
   useDailyRecordOverrides,
   useDailyRecordStaff,
 } from '@/context/DailyRecordContext';
-import {
-  useDailyRecordBedActions,
-  useDailyRecordDayActions,
-} from '@/context/useDailyRecordScopedActions';
+import { useDailyRecordDayActions } from '@/context/useDailyRecordScopedActions';
 import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { useAuth } from '@/context/AuthContext';
@@ -23,7 +20,6 @@ vi.mock('@/context/DailyRecordContext', () => ({
 }));
 
 vi.mock('@/context/useDailyRecordScopedActions', () => ({
-  useDailyRecordBedActions: vi.fn(),
   useDailyRecordDayActions: vi.fn(),
 }));
 
@@ -47,6 +43,12 @@ vi.mock('@/context/TableConfigContext', () => ({
 const asHookValue = <T>(value: Partial<T>): T => value as T;
 
 describe('useCensusTableDependencies', () => {
+  const resetDay = vi.fn();
+  const handleRowAction = vi.fn();
+  const confirm = vi.fn();
+  const warning = vi.fn();
+  const updateColumnWidth = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -61,27 +63,22 @@ describe('useCensusTableDependencies', () => {
     );
     vi.mocked(useDailyRecordDayActions).mockReturnValue(
       asHookValue<ReturnType<typeof useDailyRecordDayActions>>({
-        resetDay: vi.fn(),
-      })
-    );
-    vi.mocked(useDailyRecordBedActions).mockReturnValue(
-      asHookValue<ReturnType<typeof useDailyRecordBedActions>>({
-        updatePatient: vi.fn(),
+        resetDay,
       })
     );
     vi.mocked(useCensusActionCommands).mockReturnValue(
       asHookValue<ReturnType<typeof useCensusActionCommands>>({
-        handleRowAction: vi.fn(),
+        handleRowAction,
       })
     );
     vi.mocked(useConfirmDialog).mockReturnValue(
       asHookValue<ReturnType<typeof useConfirmDialog>>({
-        confirm: vi.fn(),
+        confirm,
       })
     );
     vi.mocked(useNotification).mockReturnValue(
       asHookValue<ReturnType<typeof useNotification>>({
-        warning: vi.fn(),
+        warning,
       })
     );
     vi.mocked(useAuth).mockReturnValue(
@@ -115,7 +112,7 @@ describe('useCensusTableDependencies', () => {
         },
         isLoading: false,
         isEditMode: false,
-        updateColumnWidth: vi.fn(),
+        updateColumnWidth,
       })
     );
   });
@@ -127,7 +124,10 @@ describe('useCensusTableDependencies', () => {
     expect(result.current.staff?.activeExtraBeds).toEqual(['E1']);
     expect(result.current.config.columns.bed).toBe(80);
     expect(result.current.tableConfigLoading).toBe(false);
-    expect(typeof result.current.handleRowAction).toBe('function');
-    expect(typeof result.current.confirm).toBe('function');
+    expect(result.current.resetDay).toBe(resetDay);
+    expect(result.current.handleRowAction).toBe(handleRowAction);
+    expect(result.current.confirm).toBe(confirm);
+    expect(result.current.warning).toBe(warning);
+    expect(result.current.updateColumnWidth).toBe(updateColumnWidth);
   });
 });

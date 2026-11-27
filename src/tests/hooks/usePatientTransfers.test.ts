@@ -63,15 +63,6 @@ describe('usePatientTransfers', () => {
     });
   });
 
-  it('should return all transfer functions', () => {
-    const { result } = renderHook(() => usePatientTransfers(mockRecord, mockSaveAndUpdate));
-
-    expect(typeof result.current.addTransfer).toBe('function');
-    expect(typeof result.current.updateTransfer).toBe('function');
-    expect(typeof result.current.deleteTransfer).toBe('function');
-    expect(typeof result.current.undoTransfer).toBe('function');
-  });
-
   it('should not add transfer when record is null', () => {
     const { result } = renderHook(() => usePatientTransfers(null, mockSaveAndUpdate));
 
