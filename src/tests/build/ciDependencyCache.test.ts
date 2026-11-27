@@ -457,6 +457,8 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
     'clinical-sync-release-gate',
     'unit-risk-shards',
     'rules-emulator',
+    'emulator-ui',
+    'accounts-emulator',
     'e2e-critical-lanes',
     'census-startup-performance',
   ];
