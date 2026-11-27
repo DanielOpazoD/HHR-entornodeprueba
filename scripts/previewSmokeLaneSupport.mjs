@@ -30,61 +30,53 @@ const buildExactTitlePattern = titles =>
   `(?:${titles.map(title => `(?:^|\\s)${escapeRegex(title)}(?:\\s|$)`).join('|')})`;
 
 /**
- * Duration-balanced DICOM lane assignments based on observed CI runs (run 45918459117).
- * Each of the four heaviest 3D/WebGL tests (29–41 s) gets its own lane (`dicom-1`..`dicom-4`);
- * `dicom-5` is the complement of `@graphics-stress` and `dicom-1`..`dicom-4` so it stays
- * slightly lighter (~89 s vs ~95–99 s) and automatically absorbs any newly added test without
+ * Duration-balanced DICOM lane assignments based on observed CI runs (run 45944646023).
+ * Non-stress DICOM tests (~482 s total) are partitioned across three lanes (`dicom-1`,
+ * `dicom-2` by explicit title sets ~163–166 s each, and `dicom-3` as their exact complement
+ * at ~153 s) so no two 3D MP4 export tests share a lane, every lane stays within the wall-clock
+ * window of `app` (~243 s total), and `dicom-3` automatically absorbs newly added tests without
  * dropping coverage.
  */
 export const DICOM_BALANCED_LANE_TITLES = Object.freeze({
   'dicom-1': [
     'cancels a 3D MP4 and restores the camera',
-    'lists measurements by slice, jumps to them and copies plain text',
-    'rotates MPR about a shared physical point and projects full-width slabs safely',
-    'cine exports an ordered inclusive MP4 with direct download and cancellation',
+    'reconstructs heterogeneous physical matrices with calibrated intensities and preserves originals',
+    'handles localizer sources without losing Original or hiding selection',
+    'draws the measurements, but not the crosshairs, into the PNG capture',
+    'recovers only failed cuts and plays a bounded available interval while incomplete',
+    'sweeps an MPR plane with its MIP slab into a back-and-forth MP4 and restores the view',
     'draws an Original measurement into the MP4 frame of its own slice only',
-    'handles gap sources without losing Original or hiding selection',
-    'quantitative MPR blocks uncalibrated intensities',
-    'renews expired study access silently and completes the series',
+    'reuses originals across verified studies and releases them when the patient review closes',
+    'comparison cancels secondary requests when leaving the viewer',
+    'dismisses tool menus outside and previews the report inside the viewer at 390px',
+    'compacts controls, exposes keyboard navigation and reuses sequential prefetched series',
+    'comparison safely handles foreign patient',
+    'supports manual entry at mobile width without horizontal overflow',
   ],
   'dicom-2': [
     'turns the 3D view into a downloadable MP4 about a chosen axis and restores the camera',
-    'handles localizer sources without losing Original or hiding selection',
-    'recovers only failed cuts and plays a bounded available interval while incomplete',
-    'dismisses tool menus outside and previews the report inside the viewer at 1280px',
-    'measures cold DICOM startup with controlled metadata and module latency',
-    'comparison safely handles foreign frame',
-    'compacts controls, exposes keyboard navigation and reuses sequential prefetched series',
-    'blocks an original from another patient before rendering or allowing captures',
-  ],
-  'dicom-3': [
     'loads only on explicit open, renders original/MPR/3D, captures PNG and appends patient-bound Word annexes',
-    'compares verified series by physical position and reuses one series for independent windows',
-    'draws the measurements, but not the crosshairs, into the PNG capture',
-    'draws an MPR measurement into the sweep frame of its own slice only',
-    'reuses originals across verified studies and releases them when the patient review closes',
-    'comparison safely handles foreign patient',
-    'explains incompatible reference frames in MPR and 3D and preserves the original view',
-    'shows verified cuts progressively and prioritizes navigation before the volume is complete',
-  ],
-  'dicom-4': [
-    'links MPR coordinates and renders reversible 3D tissue controls',
-    'measures dragged millimetres in Original and keeps them across views',
+    'lists measurements by slice, jumps to them and copies plain text',
     'labels radiograph distances by where they were calibrated',
     'Original reports HU on validated CT',
-    'quantitative MPR measures calibrated HU and ROI',
-    'comparison safely handles perpendicular',
-    'rejects unsafe heterogeneous padding and recovers original',
-    'supports manual entry at mobile width without horizontal overflow',
+    'cine exports an ordered inclusive MP4 with direct download and cancellation',
+    'draws an MPR measurement into the sweep frame of its own slice only',
+    'handles unmarked sources without losing Original or hiding selection',
+    'handles gap sources without losing Original or hiding selection',
+    'explains incompatible reference frames in MPR and 3D and preserves the original view',
+    'comparison safely handles foreign frame',
+    'shows verified cuts progressively and prioritizes navigation before the volume is complete',
+    'renews expired study access silently and completes the series',
+    'blocks an original from another patient before rendering or allowing captures',
   ],
 });
 
 /**
  * Lanes are balanced by observed duration, not file-order test count. The stress lane
- * runs only the tagged software-WebGL stress loop (~120 s in CI); the remaining DICOM
- * tests are partitioned across five duration-balanced lanes (`dicom-1`..`dicom-4` by
- * explicit title sets and `dicom-5` as their exact complement) so no two heavy 3D MP4
- * tests share a lane and newly added tests automatically land in `dicom-5`.
+ * runs only the tagged software-WebGL stress loop (~96 s in CI); the remaining DICOM
+ * tests are partitioned across three duration-balanced lanes (`dicom-1` and `dicom-2` by
+ * explicit title sets and `dicom-3` as their exact complement) so no two heavy 3D MP4
+ * tests share a lane and newly added tests automatically land in `dicom-3`.
  * The merge job proves the union of all lanes is exactly the canonical pack, so
  * a lane change cannot drop or duplicate a test.
  *
@@ -109,9 +101,7 @@ export const buildPreviewSmokeLanes = specs => {
     'dicom-graphics-stress': [DICOM_PREVIEW_SPEC, '--grep', GRAPHICS_STRESS_TAG],
     'dicom-1': dicomExplicitLane(DICOM_BALANCED_LANE_TITLES['dicom-1']),
     'dicom-2': dicomExplicitLane(DICOM_BALANCED_LANE_TITLES['dicom-2']),
-    'dicom-3': dicomExplicitLane(DICOM_BALANCED_LANE_TITLES['dicom-3']),
-    'dicom-4': dicomExplicitLane(DICOM_BALANCED_LANE_TITLES['dicom-4']),
-    'dicom-5': [
+    'dicom-3': [
       DICOM_PREVIEW_SPEC,
       '--fully-parallel',
       '--grep-invert',

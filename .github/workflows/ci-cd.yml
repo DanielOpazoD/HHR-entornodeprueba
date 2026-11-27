@@ -807,7 +807,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lane: [app, dicom-graphics-stress, dicom-1, dicom-2, dicom-3, dicom-4, dicom-5]
+        lane: [app, dicom-graphics-stress, dicom-1, dicom-2, dicom-3]
 
     steps:
       - name: Require the shared production bundle
@@ -892,28 +892,6 @@ jobs:
           if-no-files-found: error
           overwrite: true
           retention-days: 7
-      - name: Upload dicom-4 lane report
-        if: always() && matrix.lane == 'dicom-4'
-        uses: actions/upload-artifact@v7
-        with:
-          # archive: false names the artifact after the file; keep both equal.
-          name: preview-smoke-blob-dicom-4.zip
-          path: reports/e2e/preview-blobs/dicom-4/preview-smoke-blob-dicom-4.zip
-          archive: false
-          if-no-files-found: error
-          overwrite: true
-          retention-days: 7
-      - name: Upload dicom-5 lane report
-        if: always() && matrix.lane == 'dicom-5'
-        uses: actions/upload-artifact@v7
-        with:
-          # archive: false names the artifact after the file; keep both equal.
-          name: preview-smoke-blob-dicom-5.zip
-          path: reports/e2e/preview-blobs/dicom-5/preview-smoke-blob-dicom-5.zip
-          archive: false
-          if-no-files-found: error
-          overwrite: true
-          retention-days: 7
 
   # The single job between the work jobs and ci-summary: it merges the preview and critical
   # E2E lanes, builds the test execution manifest and regenerates confidence. One job pays
@@ -972,18 +950,6 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: preview-smoke-blob-dicom-3.zip
-          path: reports/e2e/preview-blobs
-          skip-decompress: true
-      - name: Download same-run dicom-4 lane report
-        uses: actions/download-artifact@v8
-        with:
-          name: preview-smoke-blob-dicom-4.zip
-          path: reports/e2e/preview-blobs
-          skip-decompress: true
-      - name: Download same-run dicom-5 lane report
-        uses: actions/download-artifact@v8
-        with:
-          name: preview-smoke-blob-dicom-5.zip
           path: reports/e2e/preview-blobs
           skip-decompress: true
 
