@@ -7,12 +7,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as authBootstrapBudgets from '@/services/auth/authBootstrapBudgets';
 import * as indexedDbRecoveryBudgets from '@/services/storage/indexeddb/indexedDbRecoveryBudgets';
 import * as syncQueueBudgets from '@/services/storage/sync/syncQueueOperationalBudgets';
+import * as versionConstants from '@/constants/version';
 
 // The operational-health report is what a maintainer reads to understand a delay; its runtime
 // budgets must be the exported values the app executes, not a re-reading of their source text.
 let root = '';
 let report: Partial<
-  Record<'syncQueue' | 'systemHealth' | 'authBootstrap' | 'localPersistence', unknown>
+  Record<'schema' | 'syncQueue' | 'systemHealth' | 'authBootstrap' | 'localPersistence', unknown>
 > = {};
 let markdown = '';
 
@@ -54,6 +55,17 @@ afterAll(() => {
 });
 
 describe('operational health report runtime budgets', () => {
+  it('publishes the schema versions the app runs', () => {
+    expect(report.schema).toEqual({
+      current: versionConstants.CURRENT_SCHEMA_VERSION,
+      legacy: versionConstants.LEGACY_SCHEMA_VERSION,
+    });
+    expect(markdown).toContain(
+      `- Schema current: v${versionConstants.CURRENT_SCHEMA_VERSION}\n` +
+        `- Schema legacy: v${versionConstants.LEGACY_SCHEMA_VERSION}\n`
+    );
+  });
+
   it('publishes the sync queue budgets the app runs', () => {
     expect(report.syncQueue).toEqual({
       batchSize: syncQueueBudgets.SYNC_QUEUE_BATCH_SIZE,
