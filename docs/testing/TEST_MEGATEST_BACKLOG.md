@@ -1,9 +1,11 @@
 # Test Megatest Backlog
 
-Última actualización: 2026-04-10
+Estado: cerrado (registro histórico)
+Última actualización: 2026-11-27
 
 Este registro conserva las particiones históricas. El límite de 500 líneas y su backlog
-de excepciones se retiraron; las nuevas particiones requieren fricción de mantenimiento observada.
+de excepciones se retiraron; cualquier partición nueva requiere fricción de mantenimiento
+o costo de ejecución observados.
 
 ## Objetivo
 
@@ -62,30 +64,9 @@ Identificar tests grandes con mayor costo de mantenimiento para partirlos sin pe
 - cercanía a runtime crítico o lógica clínica;
 - probabilidad de ruido al cambiar código no relacionado.
 
-## Candidatos prioritarios
+## Reglas vigentes para futuras particiones
 
-| Prioridad | Archivo | Líneas | Riesgo dominante | Estrategia de partición |
-| --------- | ------- | -----: | ---------------- | ----------------------- |
-
-No hay particiones prioritarias pendientes en este registro histórico.
-
-## Segunda ola sugerida
-
-- `src/tests/integration/daily-record-sync.test.tsx`
-- `src/tests/integration/census-export.test.ts`
-- `src/tests/views/handoff/HandoffRow.test.tsx`
-- `src/tests/hooks/useHandoffManagement.test.ts`
-- `src/tests/services/repositories/dailyRecordRepositoryWriteService.test.ts`
-
-## Reglas de ejecución
-
-- No partir por tamaño solamente; empezar por los `P1`.
+- No partir por tamaño solamente; justificar con fricción de mantenimiento o costo real de ejecución.
 - Mantener tests de integración donde agreguen señal real.
 - Si una suite se parte, conservar nombres orientados a seams concretos y no a “part 1 / part 2”.
 - Cada partición debe dejar el archivo original más pequeño o retirarlo completamente.
-
-## Siguiente acción recomendada
-
-1. Medir el tiempo de diagnóstico y costo de cambio antes de proponer otra partición.
-2. Mantener futuras particiones orientadas a seams concretos y no a tamaño por sí solo.
-3. Revisar la segunda ola solo cuando reaparezca fricción real de edición o lectura.
