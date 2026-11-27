@@ -853,10 +853,23 @@ test.describe('Production Preview Bootstrap', () => {
     const layout = await page.evaluate(() => {
       const table = document.querySelector('[aria-label="Censo de pacientes, tabla desplazable"]');
       const toolbar = document.querySelector('[data-testid="census-staff-and-sync"]');
+      const rootStyle = getComputedStyle(document.documentElement);
       if (!table || !toolbar) return null;
       const surfaces = Array.from(
         toolbar.querySelectorAll('.census-toolbar-card, [data-testid="rayen-operations-bar"]')
       ).map(element => element.getBoundingClientRect());
+      const rootElement = document.getElementById('root');
+      const overflowingWidth = document.documentElement.clientWidth;
+      let nonOverflowingWidth = overflowingWidth;
+      if (rootElement) {
+        const previousDisplay = rootElement.style.display;
+        try {
+          rootElement.style.display = 'none';
+          nonOverflowingWidth = document.documentElement.clientWidth;
+        } finally {
+          rootElement.style.display = previousDisplay;
+        }
+      }
       return {
         tableWidth: table.clientWidth,
         tableScrollWidth: table.scrollWidth,
@@ -866,8 +879,11 @@ test.describe('Production Preview Bootstrap', () => {
         toolbarHeightSpread:
           Math.max(...surfaces.map(rect => rect.height)) -
           Math.min(...surfaces.map(rect => rect.height)),
-        pageWidth: document.documentElement.clientWidth,
+        pageWidth: overflowingWidth,
+        nonOverflowingPageWidth: nonOverflowingWidth,
         pageScrollWidth: document.documentElement.scrollWidth,
+        rootOverflowY: rootStyle.overflowY,
+        rootScrollbarGutter: rootStyle.scrollbarGutter,
       };
     });
 
@@ -875,6 +891,9 @@ test.describe('Production Preview Bootstrap', () => {
     if (layout) {
       expect(layout.tableScrollWidth).toBeLessThanOrEqual(layout.tableWidth);
       expect(layout.pageScrollWidth).toBeLessThanOrEqual(layout.pageWidth);
+      expect(layout.rootOverflowY).toBe('scroll');
+      expect(layout.rootScrollbarGutter).toBe('stable');
+      expect(layout.pageWidth).toBe(layout.nonOverflowingPageWidth);
       expect(layout.toolbarHeight).toBeLessThanOrEqual(92);
       expect(layout.toolbarTopSpread).toBeLessThanOrEqual(1);
       expect(layout.toolbarHeightSpread).toBeLessThanOrEqual(1);
