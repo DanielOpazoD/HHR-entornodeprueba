@@ -6,16 +6,39 @@ export const BUNDLE_RISK_LEDGER_GENERATED_AT = 'stable:bundle-risk-ledger';
 
 const asArray = value => (Array.isArray(value) ? value : []);
 
-const hasChunkBudget = ({ surface, bundleBudgetConfig }) => {
+const findChunkBudget = ({ surface, bundleBudgetConfig }) => {
   const pattern = surface.chunkBudgetPattern;
-  if (!pattern) return false;
-  return asArray(bundleBudgetConfig?.chunkPatternBudgets).some(entry => entry?.pattern === pattern);
+  if (!pattern) return null;
+  return (
+    asArray(bundleBudgetConfig?.chunkPatternBudgets).find(entry => entry?.pattern === pattern) ||
+    null
+  );
 };
 
-const hasStartupBudget = ({ surface, bundleBudgetConfig }) => {
+const findStartupBudget = ({ surface, bundleBudgetConfig }) => {
   const label = surface.startupBudgetLabel;
-  if (!label) return false;
-  return asArray(bundleBudgetConfig?.startupChunkBudgets).some(entry => entry?.label === label);
+  if (!label) return null;
+  return (
+    asArray(bundleBudgetConfig?.startupChunkBudgets).find(entry => entry?.label === label) || null
+  );
+};
+
+const formatDerivedThresholdLabel = ({ thresholdBytes, isStartupBudget, precacheExcluded }) => {
+  if (!thresholdBytes) {
+    return 'missing enforced budget';
+  }
+
+  const formattedBytes = thresholdBytes.toLocaleString('en-US');
+  if (isStartupBudget) {
+    return `${formattedBytes} bytes startup chunk budget`;
+  }
+  if (precacheExcluded === true) {
+    return `${formattedBytes} bytes async chunk budget`;
+  }
+  if (precacheExcluded === false) {
+    return `${formattedBytes} bytes chunk budget (precache exclusion missing)`;
+  }
+  return `${formattedBytes} bytes precached chunk budget`;
 };
 
 const hasPrecacheExclusion = ({ surface, bundleBudgetConfig }) => {
@@ -30,10 +53,18 @@ const hasPrecacheExclusion = ({ surface, bundleBudgetConfig }) => {
 };
 
 const buildSurface = ({ surface, bundleBudgetConfig }) => {
-  const budgetCovered =
-    hasChunkBudget({ surface, bundleBudgetConfig }) ||
-    hasStartupBudget({ surface, bundleBudgetConfig });
+  const startupBudget = findStartupBudget({ surface, bundleBudgetConfig });
+  const chunkBudget = findChunkBudget({ surface, bundleBudgetConfig });
+  const enforcedBudget = startupBudget || chunkBudget;
+  const maxBytes = Number(enforcedBudget?.maxBytes || 0);
+  const thresholdBytes = Number.isFinite(maxBytes) && maxBytes > 0 ? maxBytes : null;
+  const budgetCovered = thresholdBytes !== null;
   const precacheExcluded = hasPrecacheExclusion({ surface, bundleBudgetConfig });
+  const thresholdLabel = formatDerivedThresholdLabel({
+    thresholdBytes,
+    isStartupBudget: Boolean(startupBudget),
+    precacheExcluded,
+  });
   const issues = [];
 
   if (!budgetCovered) {
@@ -47,7 +78,8 @@ const buildSurface = ({ surface, bundleBudgetConfig }) => {
     id: surface.id,
     owner: surface.owner,
     workflow: surface.workflow,
-    thresholdLabel: surface.thresholdLabel,
+    thresholdBytes,
+    thresholdLabel,
     releasePosture: surface.releasePosture,
     guardrails: asArray(surface.guardrails),
     nextAction: surface.nextAction,
@@ -101,7 +133,11 @@ export const formatBundleRiskLedgerMarkdown = report => {
   for (const surface of report.surfaces) {
     lines.push(
       `| ${surface.id} | ${surface.owner} | ${surface.workflow} | ${surface.thresholdLabel || 'n/a'} | ${surface.status} | ${surface.budgetCovered ? 'covered' : 'missing'} | ${
-        surface.precacheExcluded === null ? 'n/a' : surface.precacheExcluded ? 'excluded' : 'missing'
+        surface.precacheExcluded === null
+          ? 'n/a'
+          : surface.precacheExcluded
+            ? 'excluded'
+            : 'missing'
       } | ${surface.releasePosture || 'n/a'} | ${surface.guardrails.join(', ') || 'n/a'} |`
     );
   }
