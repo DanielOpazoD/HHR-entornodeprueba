@@ -14,7 +14,10 @@ import { CensusMovementPatientIdentity } from './CensusMovementPatientIdentity';
 import { UNREPORTED_MOVEMENT_VALUE } from './CensusMovementPrimaryCells';
 import { CensusMovementEpicrisisButton } from './CensusMovementEpicrisisButton';
 import { DeferredHospitalizationReportsDialog } from './DeferredHospitalizationReportsDialog';
-import { resolveCmaHistoricalAdmissionDate } from '@/types/domain/movements';
+import {
+  resolveCmaHistoricalAdmissionDate,
+  resolveMovementDocumentType,
+} from '@/types/domain/movements';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 
 const LazyClinicalDocumentsModal = lazy(() =>
@@ -162,7 +165,7 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
             onClose={() => setShowHospitalizationReports(false)}
             patientName={item.patientName}
             patientRun={item.rut}
-            patientDocumentType={item.originalData?.documentType}
+            patientDocumentType={resolveMovementDocumentType(item)}
             currentEpisodeId={item.clinicalEpisodeId}
             admissionDate={resolveCmaHistoricalAdmissionDate(item)}
             censusDate={recordDate}

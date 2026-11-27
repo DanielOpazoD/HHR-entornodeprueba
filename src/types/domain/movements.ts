@@ -154,7 +154,10 @@ export const resolveCmaHistoricalAdmissionDate = (
 
 interface MovementHistoricalEpisodeSnapshot {
   admissionDate?: string;
-  originalData?: Pick<PatientData, 'admissionDate' | 'firstSeenDate' | 'admissionTime'>;
+  originalData?: Pick<
+    PatientData,
+    'admissionDate' | 'firstSeenDate' | 'admissionTime' | 'documentType'
+  >;
 }
 
 export const resolveMovementHistoricalAdmissionDate = (
@@ -167,3 +170,7 @@ export const resolveMovementHistoricalAdmissionDate = (
 export const resolveMovementHistoricalAdmissionTime = (
   movement: MovementHistoricalEpisodeSnapshot
 ): string | undefined => movement.originalData?.admissionTime;
+
+export const resolveMovementDocumentType = (
+  movement: MovementHistoricalEpisodeSnapshot
+): PatientData['documentType'] | undefined => movement.originalData?.documentType;
