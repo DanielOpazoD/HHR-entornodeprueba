@@ -7,18 +7,54 @@ describe('syslab-proxy', () => {
   const { fetchMock, authorizeRoleRequestMock, extractBearerTokenMock, loadHandler } =
     createSyslabProxyHarness();
 
-  it('keeps details under the extended telemetry timeout budget', async () => {
-    const { resolveSyslabTelemetryOptions } =
-      await import('../../../netlify/functions/syslab-proxy');
+  it('applies the common 55s single-attempt telemetry budget to search, details and pdf', async () => {
+    const observability = await import('../../../netlify/functions/lib/observability');
+    const spy = vi.spyOn(observability, 'invokeWithTelemetry');
+    try {
+      const handler = await loadHandler();
+      fetchMock.mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ exams: [] }), { status: 200 }))
+      );
 
-    expect(resolveSyslabTelemetryOptions('details')).toEqual({
-      timeoutMs: 55_000,
-      maxAttempts: 1,
-    });
-    expect(resolveSyslabTelemetryOptions('search')).toEqual({
-      timeoutMs: 55_000,
-      maxAttempts: 1,
-    });
+      await handler({
+        httpMethod: 'GET',
+        headers: { authorization: 'Bearer token-123', 'x-forwarded-for': '198.51.100.10' },
+        body: null,
+        rawQuery: 'action=search&rut=12345678-9',
+      });
+      await handler({
+        httpMethod: 'POST',
+        headers: { authorization: 'Bearer token-123', 'x-forwarded-for': '198.51.100.11' },
+        body: JSON.stringify({ links: ['https://lab.example.com/1'] }),
+        rawQuery: 'action=details',
+      });
+      fetchMock.mockResolvedValueOnce(
+        new Response('%PDF-1.4 synthetic', {
+          status: 200,
+          headers: { 'content-type': 'application/pdf' },
+        })
+      );
+      await handler({
+        httpMethod: 'GET',
+        headers: { authorization: 'Bearer token-123', 'x-forwarded-for': '198.51.100.12' },
+        body: null,
+        rawQuery: 'action=pdf&link=https%3A%2F%2Flab.example.com%2F1',
+      });
+
+      expect(
+        spy.mock.calls.map(([options]) => ({
+          operation: options.operation,
+          timeoutMs: options.timeoutMs,
+          maxAttempts: options.maxAttempts,
+        }))
+      ).toEqual([
+        { operation: 'search', timeoutMs: 55_000, maxAttempts: 1 },
+        { operation: 'details', timeoutMs: 55_000, maxAttempts: 1 },
+        { operation: 'pdf', timeoutMs: 55_000, maxAttempts: 1 },
+      ]);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('returns 200 with CORS headers on OPTIONS', async () => {
