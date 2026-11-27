@@ -14,20 +14,12 @@ const assertScheduling = (workflow: string) => {
   expect(jobs['quality-static-dependent-groups']).toBeUndefined();
   expect(jobNeeds(groups)).toEqual(['ci-scope']);
   expect(groups.if).toBe("needs.ci-scope.outputs.scope == 'full'");
-  expect(groups.strategy?.matrix.group).toEqual([
-    'boundaries',
-    'governance',
-    'security',
-    'size',
-    'tests',
-  ]);
+  expect(groups.strategy).toBeUndefined();
   expect(jobNeeds(jobs['quality-static']).sort()).toEqual(
     ['critical-coverage-report', 'quality-static-base', 'quality-static-groups'].sort()
   );
-  expect(groups.name).toBe('quality-static-${{ matrix.group }}');
-  expect(
-    groups.steps.some(step => step.run === 'npm run check:quality:group -- ${{ matrix.group }}')
-  ).toBe(true);
+  expect(groups.name).toBe('quality-static-groups');
+  expect(groups.steps.some(step => step.run === 'npm run check:quality')).toBe(true);
 };
 
 describe('CI static group scheduling', () => {
@@ -70,7 +62,7 @@ describe('CI static group scheduling', () => {
     const readJson = (file: string) =>
       JSON.parse(fs.readFileSync(path.join(process.cwd(), file), 'utf8'));
     const checks = readJson('scripts/config/guardrail-governance.json').qualityAggregate.checks;
-    const selected = selectQualitySteps(checks, { group: 'security' });
+    const selected = selectQualitySteps(checks);
     expect(selected.filter(step => step.id === 'check:extension-source')).toEqual([
       { id: 'check:extension-source', group: 'hygiene' },
     ]);
@@ -78,13 +70,10 @@ describe('CI static group scheduling', () => {
       'node scripts/check-extension-source.mjs'
     );
     const job = parseWorkflow(source).jobs['quality-static-groups'];
-    expect(job.strategy?.matrix.group).toContain('security');
     const setup = job.steps.findIndex(
       step => step.uses === './.github/actions/setup-ci-dependencies'
     );
-    const run = job.steps.findIndex(
-      step => step.run === 'npm run check:quality:group -- ${{ matrix.group }}'
-    );
+    const run = job.steps.findIndex(step => step.run === 'npm run check:quality');
     expect(setup).toBeGreaterThanOrEqual(0);
     expect(run).toBeGreaterThan(setup);
   });

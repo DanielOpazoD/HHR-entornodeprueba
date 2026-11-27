@@ -803,7 +803,7 @@ describe('one direction rule between the folders of src/', () => {
       const groups = workflow.jobs['quality-static-groups'].steps;
       const checkout = groups.find(step => step.uses === 'actions/checkout@v7');
       expect(Number(checkout?.with?.['fetch-depth'])).toBeGreaterThanOrEqual(2);
-      const run = groups.find(step => step.run?.includes('check:quality:group'));
+      const run = groups.find(step => step.run === 'npm run check:quality');
       expect(run?.env?.FOLDER_BOOK_BASE).toContain("'HEAD^1'");
       const tooling = workflow.jobs['tooling-scope-gate'].steps.find(
         step => step.run === 'npm run check:quality'
