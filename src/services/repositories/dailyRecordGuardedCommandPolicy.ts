@@ -142,6 +142,23 @@ const specialtyPatient = (record: DailyRecord, intent: SpecialtyManualIntent) =>
     ? record.beds[intent.bedId]?.clinicalCrib
     : record.beds[intent.bedId];
 
+/** Keep the server-confirmed reconciled movement lists when adopting a merged partial write. */
+const withConfirmedMovementLists = (
+  authoritativeRecord: DailyRecord,
+  patch: DailyRecordPatch
+): DailyRecordPatch => {
+  const hasDischarges = Object.prototype.hasOwnProperty.call(patch, 'discharges');
+  const hasTransfers = Object.prototype.hasOwnProperty.call(patch, 'transfers');
+  const hasCma = Object.prototype.hasOwnProperty.call(patch, 'cma');
+  if (!hasDischarges && !hasTransfers && !hasCma) return patch;
+  return {
+    ...patch,
+    ...(hasDischarges ? { discharges: authoritativeRecord.discharges } : {}),
+    ...(hasTransfers ? { transfers: authoritativeRecord.transfers } : {}),
+    ...(hasCma ? { cma: authoritativeRecord.cma } : {}),
+  };
+};
+
 /** Protect server-owned consequences locally without broadening the scalar remote command. */
 const buildSpecialtyAdoptionPatch = (
   record: DailyRecord,
@@ -287,7 +304,7 @@ export const buildGuardedDailyRecordPatchPolicy = ({
     buildLocalAdoptionPatch: authoritativeRecord =>
       buildSpecialtyAdoptionPatch(
         authoritativeRecord,
-        remoteAuthorityPatch,
+        withConfirmedMovementLists(authoritativeRecord, remoteAuthorityPatch),
         options.specialtyIntent
       ),
     resolveAlreadyAppliedRemoteRecord,

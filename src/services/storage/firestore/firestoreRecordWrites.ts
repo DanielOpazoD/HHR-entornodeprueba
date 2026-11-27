@@ -13,6 +13,8 @@ import {
   getValueAtPath,
   hasSameComparableValue,
 } from '@/services/repositories/conflictResolutionUtils';
+import { reconcileMovementListThreeWay } from '@/services/repositories/conflictResolutionMovementMergePolicy';
+import { findActiveMovementLineageConflicts } from '@/domain/movements/movementReclassificationConcurrencyPolicy';
 import {
   asFirestoreUpdatePayload,
   ConcurrencyError,
@@ -352,34 +354,76 @@ export const updateRecordPartial = async (
         });
 
       // Checked inside the transaction, so two writers can no longer both pass a read and then
-      // overwrite each other. A version newer than this writer's base refuses the write only when
-      // it changed a field of this patch to a value other than the one written now. Bed fields
-      // never get here: the authority callable above checks them (ID-01).
+      // overwrite each other. A version newer than this writer's base refuses the write when it
+      // changed a plain field of this patch to another value, or when a movement list (`discharges`,
+      // `transfers`, `cma`) has a conflicting edit to the same movement ID; disjoint movement IDs
+      // reconcile per item inside the transaction (SAVE-02). Bed fields never get here: the
+      // authority callable above checks them (ID-01).
       const { baseRecord } = options;
       const changedPaths = Object.keys(sanitizedPatch);
-      const acceptsOtherVersion = (stored: DocumentData) => {
+      let committedPayload: DocumentData = asFirestoreUpdatePayload(sanitizedData);
+      let reconciledOverOtherVersion = false;
+      const acceptsOtherVersion = (stored: DocumentData): boolean | DocumentData => {
         const current = docToRecord(stored, date);
         // An older version is this writer's own edit still on its way, as before.
         if (
           !expectedLastUpdated ||
           Date.parse(current.lastUpdated) <= Date.parse(expectedLastUpdated)
-        )
+        ) {
+          committedPayload = asFirestoreUpdatePayload(sanitizedData);
+          reconciledOverOtherVersion = false;
           return true;
-        return Boolean(
-          baseRecord &&
-          changedPaths.every(path => {
-            const value = getValueAtPath(current, path);
-            return (
-              hasSameComparableValue(value, getValueAtPath(baseRecord, path)) ||
-              hasSameComparableValue(value, sanitizedPatch[path])
-            );
-          })
-        );
+        }
+        if (!baseRecord) return false;
+
+        let mergedPayload: Record<string, unknown> | null = null;
+        for (const path of changedPaths) {
+          const storedValue = getValueAtPath(current, path);
+          const baseValue = getValueAtPath(baseRecord, path);
+          const incomingValue = sanitizedPatch[path];
+          if (
+            hasSameComparableValue(storedValue, baseValue) ||
+            hasSameComparableValue(storedValue, incomingValue)
+          ) {
+            continue;
+          }
+          if (E2E_FORCED_MOVEMENT_PATHS.has(path)) {
+            const mergedList = reconcileMovementListThreeWay(baseValue, storedValue, incomingValue);
+            if (!mergedList) return false;
+            mergedPayload ??= { ...sanitizedData };
+            mergedPayload[path] = sanitizeForFirestore(mergedList);
+            continue;
+          }
+          return false;
+        }
+
+        if (!mergedPayload) {
+          committedPayload = asFirestoreUpdatePayload(sanitizedData);
+          reconciledOverOtherVersion = false;
+          return true;
+        }
+        const projectedMovements = {
+          discharges: (mergedPayload.discharges ??
+            current.discharges ??
+            []) as DailyRecord['discharges'],
+          transfers: (mergedPayload.transfers ??
+            current.transfers ??
+            []) as DailyRecord['transfers'],
+          cma: (mergedPayload.cma ?? current.cma ?? []) as DailyRecord['cma'],
+        };
+        if (findActiveMovementLineageConflicts(projectedMovements).length > 0) {
+          return false;
+        }
+        committedPayload = asFirestoreUpdatePayload(mergedPayload);
+        reconciledOverOtherVersion = true;
+        return committedPayload;
       };
       try {
         const committedBase = await withRetry(
-          () =>
-            updateRecordPartiallyAtomically(
+          () => {
+            committedPayload = asFirestoreUpdatePayload(sanitizedData);
+            reconciledOverOtherVersion = false;
+            return updateRecordPartiallyAtomically(
               docRef,
               asFirestoreUpdatePayload(sanitizedData),
               expectedLastUpdated,
@@ -390,7 +434,8 @@ export const updateRecordPartial = async (
                 acceptsOtherVersion,
                 assertCanCommit: options.assertCanPublish,
               }
-            ),
+            );
+          },
           {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
@@ -398,8 +443,9 @@ export const updateRecordPartial = async (
           }
         );
         // An empty base is the not-stored-yet branch: no read to project the committed record on.
-        return options.returnCommittedRecord && Object.keys(committedBase).length
-          ? buildAtomicPartialCommitReceipt(date, committedBase, sanitizedData)
+        return (options.returnCommittedRecord || reconciledOverOtherVersion) &&
+          Object.keys(committedBase).length
+          ? buildAtomicPartialCommitReceipt(date, committedBase, committedPayload)
           : undefined;
       } catch (error) {
         // Only a field of this edit holding another writer's value refuses it here.

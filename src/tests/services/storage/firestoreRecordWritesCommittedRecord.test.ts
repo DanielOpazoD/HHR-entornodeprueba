@@ -24,6 +24,7 @@ vi.mock('firebase/firestore', async () => {
     ...actual,
     collection: vi.fn(),
     doc: vi.fn(),
+    getDoc: vi.fn(),
     setDoc: vi.fn(),
     Timestamp: MockTimestamp,
     updateDoc: vi.fn(),
@@ -194,5 +195,165 @@ describe('updateRecordPartial committed record receipt', () => {
     expect(atomicCommit.mock.calls[0][5]).toEqual({ historyPolicy: undefined });
     expect(mockDocToRecord).not.toHaveBeenCalled();
     expect(mockRecordTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('reconciles disjoint movement edits per item and returns the merged committed receipt', async () => {
+    const discharge = (id: string, patientName: string, diagnosis: string) => ({
+      id,
+      bedName: 'R1',
+      bedId: 'R1',
+      bedType: 'Básica',
+      patientName,
+      rut: '11.111.111-1',
+      diagnosis,
+      time: '10:00',
+      status: 'Vivo' as const,
+    });
+    const baseDischarges = [
+      discharge('d1', 'Paciente Uno', 'Base 1'),
+      discharge('d2', 'Paciente Dos', 'Base 2'),
+    ];
+    const storedAfterWriterA = {
+      date: DATE,
+      lastUpdated: '2026-03-14T10:01:00.000Z',
+      beds: {},
+      discharges: [
+        discharge('d1', 'Paciente Uno', 'Editado por A'),
+        discharge('d2', 'Paciente Dos', 'Base 2'),
+      ],
+      transfers: [],
+      cma: [],
+    };
+    let verdict: unknown;
+    let committedPayload: Record<string, unknown> | undefined;
+    atomicCommit.mockImplementationOnce(
+      async (_docRef, partialData, _expected, _msg, _ctx, opts) => {
+        verdict = opts?.acceptsOtherVersion?.(storedAfterWriterA);
+        committedPayload =
+          typeof verdict === 'object' && verdict
+            ? (verdict as Record<string, unknown>)
+            : partialData;
+        return storedAfterWriterA;
+      }
+    );
+
+    const receipt = await updateRecordPartial(
+      DATE,
+      {
+        discharges: [
+          discharge('d1', 'Paciente Uno', 'Base 1'),
+          discharge('d2', 'Paciente Dos', 'Editado por B'),
+        ],
+      } as never,
+      BASE_VERSION,
+      {
+        historyPolicy: 'skip',
+        baseRecord: docToRecord(
+          { date: DATE, lastUpdated: BASE_VERSION, beds: {}, discharges: baseDischarges },
+          DATE
+        ),
+      }
+    );
+
+    expect(verdict).toEqual(
+      expect.objectContaining({
+        discharges: [
+          expect.objectContaining({ id: 'd1', diagnosis: 'Editado por A' }),
+          expect.objectContaining({ id: 'd2', diagnosis: 'Editado por B' }),
+        ],
+      })
+    );
+    expect(committedPayload?.discharges).toEqual([
+      expect.objectContaining({ id: 'd1', diagnosis: 'Editado por A' }),
+      expect.objectContaining({ id: 'd2', diagnosis: 'Editado por B' }),
+    ]);
+    expect(receipt).toMatchObject({
+      recordState: {
+        lastUpdated: COMMITTED_AT,
+        record: {
+          discharges: [
+            expect.objectContaining({ id: 'd1', diagnosis: 'Editado por A' }),
+            expect.objectContaining({ id: 'd2', diagnosis: 'Editado por B' }),
+          ],
+        },
+      },
+    });
+  });
+
+  it('refuses conflicting edits to the same movement ID or conflicting movement lineage', async () => {
+    const provenance = (lineageId: string) => ({
+      source: 'manual' as const,
+      lineageId,
+      classifiedAt: BASE_VERSION,
+    });
+    const discharge = (id: string, patientName: string, diagnosis: string, lineageId?: string) => ({
+      id,
+      bedName: 'R1',
+      bedId: 'R1',
+      bedType: 'Básica',
+      patientName,
+      rut: '11.111.111-1',
+      diagnosis,
+      time: '10:00',
+      status: 'Vivo' as const,
+      ...(lineageId ? { movementProvenance: provenance(lineageId) } : {}),
+    });
+    const baseDischarges = [
+      discharge('d1', 'Paciente Uno', 'Base 1', 'lin-1'),
+      discharge('d2', 'Paciente Dos', 'Base 2'),
+    ];
+    const baseRecord = docToRecord(
+      { date: DATE, lastUpdated: BASE_VERSION, beds: {}, discharges: baseDischarges },
+      DATE
+    );
+    const sameItemStored = {
+      date: DATE,
+      lastUpdated: '2026-03-14T10:01:00.000Z',
+      beds: {},
+      discharges: [discharge('d1', 'Paciente Uno', 'Editado por A', 'lin-1'), baseDischarges[1]],
+    };
+    const lineageConflictStored = {
+      date: DATE,
+      lastUpdated: '2026-03-14T10:01:00.000Z',
+      beds: {},
+      discharges: [baseDischarges[1]],
+      cma: [
+        {
+          id: 'cma-1',
+          bedName: 'CMA',
+          patientName: 'Paciente Uno',
+          rut: '11.111.111-1',
+          age: '40',
+          diagnosis: 'Base 1',
+          specialty: 'Cirugía',
+          interventionType: 'Cirugía Mayor Ambulatoria',
+          movementProvenance: provenance('lin-1'),
+        },
+      ],
+    };
+
+    for (const [stored, incoming] of [
+      [
+        sameItemStored,
+        [discharge('d1', 'Paciente Uno', 'Editado por B', 'lin-1'), baseDischarges[1]],
+      ],
+      [
+        lineageConflictStored,
+        [discharge('d-dup', 'Paciente Uno', 'Base 1', 'lin-1'), baseDischarges[1]],
+      ],
+    ] as const) {
+      let verdict: unknown;
+      atomicCommit.mockImplementationOnce(
+        async (_docRef, _partial, _expected, _msg, _ctx, opts) => {
+          verdict = opts?.acceptsOtherVersion?.(stored);
+          return stored;
+        }
+      );
+      await updateRecordPartial(DATE, { discharges: incoming } as never, BASE_VERSION, {
+        historyPolicy: 'skip',
+        baseRecord,
+      });
+      expect(verdict).toBe(false);
+    }
   });
 });

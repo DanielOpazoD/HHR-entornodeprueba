@@ -363,4 +363,90 @@ const enabled = process.env.RUN_FIRESTORE_EMULATOR_TESTS === '1';
       expect(stored.beds.R1.pathology).toBe('MEDICO');
     }
   );
+
+  it('8 SAVE-02: concurrent edits to different discharges keep both, while same-item edits conflict', async () => {
+    const initialDischarges = [
+      {
+        id: 'dis-synthetic-1',
+        bedName: 'R1',
+        bedId: 'R1',
+        bedType: 'Básica',
+        patientName: 'PACIENTE EGRESO UNO',
+        rut: '11111111-1',
+        diagnosis: 'DX BASE 1',
+        time: '10:00',
+        status: 'Vivo',
+      },
+      {
+        id: 'dis-synthetic-2',
+        bedName: 'R2',
+        bedId: 'R2',
+        bedType: 'Básica',
+        patientName: 'PACIENTE EGRESO DOS',
+        rut: '22222222-2',
+        diagnosis: 'DX BASE 2',
+        time: '11:00',
+        status: 'Vivo',
+      },
+    ];
+    await admin.doc(dayPath).update({ discharges: initialDischarges });
+    const sharedBase = await read();
+
+    // Writer A updates patient 1; writer B (from the same base) updates patient 2.
+    await patch(
+      'A',
+      {
+        discharges: [
+          { ...initialDischarges[0], diagnosis: 'DX EDITADO A' },
+          initialDischarges[1],
+        ] as DailyRecord['discharges'],
+      },
+      sharedBase
+    );
+    await patch(
+      'B',
+      {
+        discharges: [
+          initialDischarges[0],
+          { ...initialDischarges[1], diagnosis: 'DX EDITADO B' },
+        ] as DailyRecord['discharges'],
+      },
+      sharedBase
+    );
+
+    const afterDisjoint = await read();
+    expect(afterDisjoint.discharges).toEqual([
+      expect.objectContaining({ id: 'dis-synthetic-1', diagnosis: 'DX EDITADO A' }),
+      expect.objectContaining({ id: 'dis-synthetic-2', diagnosis: 'DX EDITADO B' }),
+    ]);
+
+    // Same discharge edited to different values from the same base: first wins, second is refused.
+    await patch(
+      'A',
+      {
+        discharges: [
+          { ...afterDisjoint.discharges[0], diagnosis: 'DX CONFLICTO A' },
+          afterDisjoint.discharges[1],
+        ],
+      },
+      afterDisjoint
+    );
+    await expect(
+      patch(
+        'B',
+        {
+          discharges: [
+            { ...afterDisjoint.discharges[0], diagnosis: 'DX CONFLICTO B' },
+            afterDisjoint.discharges[1],
+          ],
+        },
+        afterDisjoint
+      )
+    ).rejects.toBeInstanceOf(guards.ConcurrencyError);
+
+    expect((await read()).discharges[0]).toMatchObject({
+      id: 'dis-synthetic-1',
+      diagnosis: 'DX CONFLICTO A',
+    });
+  });
 });
