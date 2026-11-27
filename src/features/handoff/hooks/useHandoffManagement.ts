@@ -4,13 +4,13 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useNotification } from '@/context/UIContext';
 import { useAuditContext } from '@/context/AuditContext';
 import { useLatestRef } from '@/hooks/useLatestRef';
-import { getAttributedAuthors } from '@/services/admin/attributionService';
+import { getAttributedAuthors } from '@/features/handoff/services/attributionService';
 import { isValidSharedChecklistValue } from '@/domain/handoff/sharedChecklist';
 import {
   buildChecklistPatch,
   buildHandoffReceivesPatch,
   buildNovedadesPatch,
-} from '@/domain/handoff/management';
+} from '@/features/handoff/domain/management';
 
 /**
  * A handoff field has nobody to answer to. patchRecord already told the user and kept the edit

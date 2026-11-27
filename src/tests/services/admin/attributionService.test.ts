@@ -6,7 +6,7 @@ import {
   getNurseAuthors,
   getAttributedAuthors,
   isSharedNursingAccount,
-} from '@/services/admin/attributionService';
+} from '@/features/handoff/services/attributionService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 describe('attributionService', () => {

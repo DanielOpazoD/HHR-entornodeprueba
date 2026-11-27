@@ -1,6 +1,6 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
-// These are the paths written by nursing notes and domain/handoff/management.ts.
+// These are the paths written by nursing notes and features/handoff/domain/management.ts.
 // A generic handoff context, a whole bed or '*' also carries unrelated work.
 const NURSING_ROOTS = new Set([
   'handoffSharedChecklist',
