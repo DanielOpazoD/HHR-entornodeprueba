@@ -35,6 +35,37 @@ import { WoundCareMobileQrPanel } from './WoundCareMobileQrPanel';
 import { resolveAdmissionDateFromClinicalEpisodeKey } from '@/domain/clinical-episode/clinicalEpisode';
 import { useChangedOnRender } from '@/hooks/useChangedOnRender';
 
+interface WoundCareRetryAlertProps {
+  message: string;
+  isRetrying: boolean;
+  onRetry: () => void;
+}
+
+const WoundCareRetryAlert: React.FC<WoundCareRetryAlertProps> = ({
+  message,
+  isRetrying,
+  onRetry,
+}) => (
+  <div
+    role="alert"
+    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-900"
+  >
+    <span className="inline-flex items-center gap-1.5 font-medium">
+      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+      {message}
+    </span>
+    <button
+      type="button"
+      onClick={onRetry}
+      disabled={isRetrying}
+      className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 transition-colors"
+    >
+      <RefreshCw className={`w-3 h-3 ${isRetrying ? 'animate-spin' : ''}`} />
+      {isRetrying ? 'Reintentando...' : 'Reintentar'}
+    </button>
+  </div>
+);
+
 // ============================================================================
 // Episode Section (collapsible per hospitalization)
 // ============================================================================
@@ -408,49 +439,19 @@ export const WoundCareModal: React.FC<WoundCareModalProps> = ({
             ) : (
               <>
                 {consentsError && (
-                  <div
-                    role="alert"
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-900"
-                  >
-                    <span className="inline-flex items-center gap-1.5 font-medium">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      {consentsError}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={reloadConsents}
-                      disabled={isRefreshingConsents}
-                      className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 transition-colors"
-                    >
-                      <RefreshCw
-                        className={`w-3 h-3 ${isRefreshingConsents ? 'animate-spin' : ''}`}
-                      />
-                      {isRefreshingConsents ? 'Reintentando...' : 'Reintentar'}
-                    </button>
-                  </div>
+                  <WoundCareRetryAlert
+                    message={consentsError}
+                    isRetrying={isRefreshingConsents}
+                    onRetry={reloadConsents}
+                  />
                 )}
 
                 {photosError && (
-                  <div
-                    role="alert"
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-900"
-                  >
-                    <span className="inline-flex items-center gap-1.5 font-medium">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      {photosError}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => reload({ preserveInFlightConsents: true })}
-                      disabled={isRefreshingPhotos}
-                      className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 transition-colors"
-                    >
-                      <RefreshCw
-                        className={`w-3 h-3 ${isRefreshingPhotos ? 'animate-spin' : ''}`}
-                      />
-                      {isRefreshingPhotos ? 'Reintentando...' : 'Reintentar'}
-                    </button>
-                  </div>
+                  <WoundCareRetryAlert
+                    message={photosError}
+                    isRetrying={isRefreshingPhotos}
+                    onRetry={() => reload({ preserveInFlightConsents: true })}
+                  />
                 )}
 
                 {episodes.length === 0 ? (
