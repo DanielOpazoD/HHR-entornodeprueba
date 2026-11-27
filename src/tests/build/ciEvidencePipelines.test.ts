@@ -40,7 +40,7 @@ const download = artifactAction('download');
 export const EVIDENCE_PIPELINES: Record<string, Matcher[]> = {
   'critical-coverage-report': [
     download('critical-coverage-shard-1'),
-    download('critical-coverage-shard-4'),
+    download('critical-coverage-shard-2'),
     run('node scripts/run-critical-coverage.mjs --merge-shards'),
     run('node scripts/report-critical-coverage.mjs'),
     run('node scripts/check-critical-coverage.mjs'),

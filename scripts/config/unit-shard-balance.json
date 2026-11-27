@@ -45,329 +45,462 @@
   "durationHints": [
     {
       "id": "ci-measured-14100ms",
-      "globs": ["src/tests/rayen-import/extensionReleaseDependencyGraph.test.ts"],
+      "globs": ["src/tests/integration/offline-persistence.test.ts"],
       "estimatedDurationMs": 14100
     },
     {
-      "id": "ci-measured-6900ms",
-      "globs": ["src/tests/components/moaSceneAssets.test.ts"],
-      "estimatedDurationMs": 6900
+      "id": "ci-measured-11700ms",
+      "globs": ["src/tests/features/clinical-library/ClinicalFormEditor.test.tsx"],
+      "estimatedDurationMs": 11700
     },
     {
-      "id": "ci-measured-4500ms",
+      "id": "ci-measured-11000ms",
+      "globs": ["src/tests/build/reportInputDependencies.test.ts"],
+      "estimatedDurationMs": 11000
+    },
+    {
+      "id": "ci-measured-9100ms",
+      "globs": [
+        "src/tests/features/census/components/patient-row/UpcClassificationWindowContext.test.tsx"
+      ],
+      "estimatedDurationMs": 9100
+    },
+    {
+      "id": "ci-measured-8800ms",
+      "globs": ["src/tests/features/clinical-library/MedifEditor.test.tsx"],
+      "estimatedDurationMs": 8800
+    },
+    {
+      "id": "ci-measured-6700ms",
+      "globs": ["src/tests/integration/censusRowOccupantChangeEdit.test.tsx"],
+      "estimatedDurationMs": 6700
+    },
+    {
+      "id": "ci-measured-6600ms",
+      "globs": ["src/tests/build/publicImportBoundaryLint.test.ts"],
+      "estimatedDurationMs": 6600
+    },
+    {
+      "id": "ci-measured-6100ms",
+      "globs": ["src/tests/rayen-import/rayenSyncBundleRuntime.test.ts"],
+      "estimatedDurationMs": 6100
+    },
+    {
+      "id": "ci-measured-5200ms",
+      "globs": [
+        "src/tests/build/firstPaintLazyCoverage.test.ts",
+        "src/tests/components/moaSceneAssets.test.ts"
+      ],
+      "estimatedDurationMs": 5200
+    },
+    {
+      "id": "ci-measured-5100ms",
+      "globs": ["src/tests/views/cudyr/CudyrView.test.tsx"],
+      "estimatedDurationMs": 5100
+    },
+    {
+      "id": "ci-measured-4800ms",
+      "globs": ["src/tests/build/sharedLayerFeatureImports.test.ts"],
+      "estimatedDurationMs": 4800
+    },
+    {
+      "id": "ci-measured-4700ms",
+      "globs": ["src/tests/views/census/clinical-explorer/ClinicalExplorerView.test.tsx"],
+      "estimatedDurationMs": 4700
+    },
+    {
+      "id": "ci-measured-4600ms",
+      "globs": ["src/tests/features/clinical-library/medifPdf.test.ts"],
+      "estimatedDurationMs": 4600
+    },
+    {
+      "id": "ci-measured-4400ms",
       "globs": ["src/tests/build/testGovernanceCli.test.ts"],
-      "estimatedDurationMs": 4500
+      "estimatedDurationMs": 4400
+    },
+    {
+      "id": "ci-measured-4300ms",
+      "globs": ["src/tests/scripts/checkFolderDependencies.test.ts"],
+      "estimatedDurationMs": 4300
+    },
+    {
+      "id": "ci-measured-4200ms",
+      "globs": ["src/tests/components/MoveCopyModal.test.tsx"],
+      "estimatedDurationMs": 4200
+    },
+    {
+      "id": "ci-measured-4100ms",
+      "globs": [
+        "src/tests/features/census/components/patient-row/UpcClassificationWindow.test.tsx"
+      ],
+      "estimatedDurationMs": 4100
+    },
+    {
+      "id": "ci-measured-4000ms",
+      "globs": [
+        "src/tests/scripts/checkImportCycles.test.ts",
+        "src/tests/views/census/clinical-explorer/ClinicalExplorerNotes.test.tsx"
+      ],
+      "estimatedDurationMs": 4000
+    },
+    {
+      "id": "ci-measured-3800ms",
+      "globs": ["src/tests/views/census/exam-orders/CensusExamOrderSelection.test.tsx"],
+      "estimatedDurationMs": 3800
     },
     {
       "id": "ci-measured-3700ms",
-      "globs": ["src/tests/views/cudyr/CudyrView.test.tsx"],
+      "globs": [
+        "src/tests/features/clinical-documents/ClinicalDocumentsWorkspace.contextIsolation.test.tsx"
+      ],
       "estimatedDurationMs": 3700
     },
     {
+      "id": "ci-measured-3500ms",
+      "globs": [
+        "src/tests/build/criticalE2EMergeCli.test.ts",
+        "src/tests/features/clinical-library/sicForm.test.ts"
+      ],
+      "estimatedDurationMs": 3500
+    },
+    {
       "id": "ci-measured-3400ms",
-      "globs": ["src/tests/features/clinical-documents/ClinicalDocumentsWorkspace.test.tsx"],
+      "globs": ["src/tests/views/census/censusEloisaBootstrap.integration.test.tsx"],
       "estimatedDurationMs": 3400
     },
     {
+      "id": "ci-measured-3300ms",
+      "globs": [
+        "src/tests/features/clinical-documents/ClinicalDocumentsWorkspace.test.tsx",
+        "src/tests/scripts/checkUnreachableModules.test.ts"
+      ],
+      "estimatedDurationMs": 3300
+    },
+    {
+      "id": "ci-measured-3200ms",
+      "globs": ["src/tests/features/wound-care/WoundCareModal.partialReadPreservation.test.tsx"],
+      "estimatedDurationMs": 3200
+    },
+    {
+      "id": "ci-measured-3100ms",
+      "globs": ["src/tests/features/clinical-library/PharmacyActTool.test.tsx"],
+      "estimatedDurationMs": 3100
+    },
+    {
       "id": "ci-measured-2900ms",
-      "globs": ["src/tests/components/DemographicsModal.test.tsx"],
+      "globs": [
+        "src/tests/components/ExamRequestModal.integration.test.tsx",
+        "src/tests/features/wound-care/WoundCareModal.writeConfirmations.test.tsx",
+        "src/tests/scripts/moveModules.test.ts",
+        "src/tests/views/census/VitalsHistoryReadState.test.tsx"
+      ],
       "estimatedDurationMs": 2900
     },
     {
-      "id": "ci-measured-2800ms",
-      "globs": ["src/tests/features/admin/SystemHealthDashboard.test.tsx"],
-      "estimatedDurationMs": 2800
-    },
-    {
       "id": "ci-measured-2700ms",
-      "globs": ["src/tests/components/MoveCopyModal.test.tsx"],
+      "globs": [
+        "src/tests/build/e2eOperationalMetricsReport.test.ts",
+        "src/tests/features/clinical-library/MedifDrawer.test.tsx",
+        "src/tests/hooks/useMinsalStats.test.tsx",
+        "src/tests/scripts/checkSourcePatterns.test.ts"
+      ],
       "estimatedDurationMs": 2700
     },
     {
       "id": "ci-measured-2600ms",
-      "globs": ["src/tests/build/reportFreshness.test.ts"],
+      "globs": ["src/tests/views/cudyr/CudyrExplorerLoading.test.tsx"],
       "estimatedDurationMs": 2600
     },
     {
       "id": "ci-measured-2500ms",
       "globs": [
-        "src/tests/rayen-import/deterministicClinicalReplay.test.ts",
-        "src/tests/views/census/ClinicalPanelDrawer.test.tsx"
+        "src/tests/build/netlifyMailRuntimeSupport.test.ts",
+        "src/tests/build/reportFreshness.test.ts",
+        "src/tests/scripts/checkEmptyOnFailureReads.test.ts",
+        "src/tests/views/census/SpecialtyRulesWindow.test.tsx"
       ],
       "estimatedDurationMs": 2500
     },
     {
       "id": "ci-measured-2400ms",
-      "globs": ["src/tests/features/clinical-documents/ClinicalDocumentSheet.indications.test.tsx"],
+      "globs": [
+        "src/tests/build/ciChangeScopeGovernance.test.ts",
+        "src/tests/features/analytics/AnalyticsView.minsalReclassificationExport.test.tsx",
+        "src/tests/views/census/PatientClinicalAccess.test.tsx"
+      ],
       "estimatedDurationMs": 2400
     },
     {
+      "id": "ci-measured-2300ms",
+      "globs": [
+        "src/tests/features/admin/SystemHealthDashboard.test.tsx",
+        "src/tests/rayen-import/egresoCalendarDayRecheck2.test.ts",
+        "src/tests/views/census/clinical-explorer/ClinicalExplorerDownloadDialog.test.tsx",
+        "src/tests/views/census/SpecialtyChip.sync.test.tsx"
+      ],
+      "estimatedDurationMs": 2300
+    },
+    {
+      "id": "ci-measured-2200ms",
+      "globs": ["src/tests/features/census/patientIndexFailure.test.tsx"],
+      "estimatedDurationMs": 2200
+    },
+    {
       "id": "ci-measured-2100ms",
-      "globs": ["src/tests/integration/concurrency.test.tsx"],
+      "globs": [
+        "src/tests/integration/concurrency.test.tsx",
+        "src/tests/netlify/telemetryAlertBlobsIntegration.test.ts"
+      ],
       "estimatedDurationMs": 2100
     },
     {
       "id": "ci-measured-2000ms",
       "globs": [
-        "src/tests/services/laboratory/syslabService.test.ts",
-        "src/tests/views/census/SpecialtyRulesWindow.test.tsx"
+        "src/tests/build/applicationPortBoundaryLint.test.ts",
+        "src/tests/build/featureBoundaryLint.test.ts",
+        "src/tests/components/StaffCatalogSaveTruth.integration.test.tsx",
+        "src/tests/features/clinical-documents/ClinicalDocumentSheet.indications.test.tsx",
+        "src/tests/features/clinical-library/ScoresTool.test.tsx",
+        "src/tests/functions/prescriptionAccessFunctions.test.ts",
+        "src/tests/services/laboratory/syslabService.test.ts"
       ],
       "estimatedDurationMs": 2000
     },
     {
       "id": "ci-measured-1900ms",
       "globs": [
-        "src/tests/features/clinical-documents/ClinicalDocumentsWorkspace.behavior.test.tsx"
+        "src/tests/components/DemographicsModal.test.tsx",
+        "src/tests/features/clinical-library/clinicalFormPdf.test.ts",
+        "src/tests/hooks/useDailyRecordQuery.test.tsx",
+        "src/tests/scripts/checkClinicalClock.test.ts",
+        "src/tests/views/census/ClinicalPanelDrawer.test.tsx"
       ],
       "estimatedDurationMs": 1900
     },
     {
+      "id": "ci-measured-1800ms",
+      "globs": [
+        "src/tests/build/pwaGeneratedManifest.test.ts",
+        "src/tests/components/modals/RadiologyViewerModal.test.tsx",
+        "src/tests/features/clinical-library/MedifExportLifecycle.test.tsx",
+        "src/tests/views/census/clinical-explorer/ClinicalExplorerImaging.test.tsx",
+        "src/tests/views/census/clinical-explorer/ClinicalExplorerLab.test.tsx",
+        "src/tests/views/census/exam-orders/RowExamRequestAddPatients.test.tsx"
+      ],
+      "estimatedDurationMs": 1800
+    },
+    {
       "id": "ci-measured-1700ms",
       "globs": [
-        "src/tests/build/criticalCoverageShardRunner.test.ts",
-        "src/tests/rayen-import/deterministicCudyrReplay.test.ts",
-        "src/tests/rayen-import/prescriptionContentExtension.test.ts"
+        "src/tests/build/testRuntimeGovernanceSupport.test.ts",
+        "src/tests/features/admin/admission-audit/AdmissionAuditView.test.tsx",
+        "src/tests/features/clinical-library/ClinicalLibraryDrawer.test.tsx",
+        "src/tests/functions/functionsColdStartBoundary.test.ts",
+        "src/tests/rayen-import/RayenImportButton.feedback.test.tsx"
       ],
       "estimatedDurationMs": 1700
     },
     {
       "id": "ci-measured-1600ms",
       "globs": [
-        "src/tests/functions/prescriptionAccessFunctions.test.ts",
-        "src/tests/services/storage/indexedDBService.localReset.test.ts",
-        "src/tests/views/census/DischargeRow.test.tsx"
+        "src/tests/components/PatientRow.layout-and-actions.test.tsx",
+        "src/tests/features/cudyr/CudyrReportCache.test.tsx",
+        "src/tests/rayen-import/clinicalPanelStampOrder.test.ts",
+        "src/tests/services/storage/indexedDBService.localReset.test.ts"
       ],
       "estimatedDurationMs": 1600
     },
     {
       "id": "ci-measured-1500ms",
       "globs": [
-        "src/tests/build/e2eOperationalMetricsReport.test.ts",
-        "src/tests/build/extensionDownloadPlugin.test.ts",
-        "src/tests/build/testRuntimeGovernanceSupport.test.ts",
-        "src/tests/components/PatientRow.crib-and-demographics.test.tsx",
-        "src/tests/features/census/components/patient-row/UpcClassificationWindow.test.tsx",
-        "src/tests/features/clinical-documents/ClinicalDocumentFormattingToolbar.test.tsx",
-        "src/tests/rayen-import/RayenImportButton.test.tsx",
-        "src/tests/services/dailyRecordRepository.test.ts",
-        "src/tests/views/census/ClinicalPanelTrigger.test.tsx"
+        "src/tests/build/bundleBudgetMessages.test.ts",
+        "src/tests/build/censusControllerBrowserLint.test.ts",
+        "src/tests/build/ciEvidencePipelines.test.ts",
+        "src/tests/build/criticalCoverageShardRunner.test.ts",
+        "src/tests/features/census/staffCatalogSelectionPersistence.test.tsx",
+        "src/tests/features/census/StaffSelector.test.tsx",
+        "src/tests/features/clinical-documents/ClinicalDocumentPharmacyForms.test.tsx",
+        "src/tests/features/clinical-library/MedifFixedFields.test.tsx",
+        "src/tests/features/prescriptions/PrescriptionBedGridView.test.tsx",
+        "src/tests/views/census/clinicalCribRowEdits.test.ts",
+        "src/tests/views/census/VitalsCellClinicalDerived.test.tsx"
       ],
       "estimatedDurationMs": 1500
     },
     {
       "id": "ci-measured-1400ms",
       "globs": [
-        "src/tests/components/PatientRow.layout-and-actions.test.tsx",
-        "src/tests/components/laboratory/LabResultsViewerModal.test.tsx",
-        "src/tests/features/clinical-library/ClinicalLibraryDrawer.test.tsx",
-        "src/tests/hooks/laboratory/useLabViewer.test.ts",
+        "src/tests/build/ciSummaryGovernance.test.ts",
+        "src/tests/components/PatientRow.crib-and-demographics.test.tsx",
+        "src/tests/components/useAppContentRuntime.test.tsx",
+        "src/tests/components/UserMenu.test.tsx",
+        "src/tests/features/admin/AuditView.test.tsx",
+        "src/tests/features/clinical-documents/ClinicalDocumentsWorkspace.behavior.test.tsx",
         "src/tests/hooks/useDailyRecord.census-action-matrix.test.tsx",
-        "src/tests/rayen-import/RayenImportButton.historyAndProgress.test.tsx",
-        "src/tests/views/census/CensusEmailConfigModal.test.tsx"
+        "src/tests/rayen-import/egresoCalendarDayRecheck4.test.ts",
+        "src/tests/rayen-import/extensionReleaseDependencyGraph.test.ts",
+        "src/tests/rayen-import/prescriptionContentExtension.test.ts",
+        "src/tests/services/repositories/dailyRecordWriteResultParityGuards.test.ts",
+        "src/tests/services/storage/remoteDailyRecordAdmission.test.ts",
+        "src/tests/views/census/clinical-explorer/ClinicalExplorerDownloadEpisode.test.tsx",
+        "src/tests/views/census/ClinicalReportsImportRecovery.test.tsx",
+        "src/tests/views/census/DischargeRow.test.tsx"
       ],
       "estimatedDurationMs": 1400
     },
     {
       "id": "ci-measured-1300ms",
       "globs": [
-        "src/tests/components/ExamRequestModal.integration.test.tsx",
-        "src/tests/features/clinical-documents/ClinicalDocumentSheet.test.tsx",
-        "src/tests/features/cudyr/CudyrReportCache.test.tsx",
-        "src/tests/hooks/useDailyRecordSyncQuery.test.tsx",
-        "src/tests/views/census/ClinicalReportsImportRecovery.test.tsx",
-        "src/tests/views/census/CmaSectionRow.test.tsx"
+        "src/tests/build/layer0NoReactLint.test.ts",
+        "src/tests/build/queueRemovalHomeLint.test.ts",
+        "src/tests/build/sessionRawReadLint.test.ts",
+        "src/tests/features/backup/backupComponents.test.tsx",
+        "src/tests/features/prescriptions/PrescriptionReassignDialog.test.tsx",
+        "src/tests/hooks/laboratory/useLabViewer.test.ts"
       ],
       "estimatedDurationMs": 1300
     },
     {
       "id": "ci-measured-1200ms",
       "globs": [
-        "src/tests/components/laboratory/LabViewerComparisonTable.test.tsx",
-        "src/tests/features/clinical-documents/ClinicalDocumentsWorkspace.attachments.test.tsx",
-        "src/tests/features/prescriptions/PrescriptionBedGridView.test.tsx",
-        "src/tests/rayen-import/handoffScoresCenterRuntimeExtension.test.ts",
+        "src/tests/build/unitShardRunner.test.ts",
+        "src/tests/components/DateStrip.test.tsx",
+        "src/tests/components/ExamRequestSignature.test.tsx",
+        "src/tests/components/StaffCatalogBlockedSave.integration.test.tsx",
+        "src/tests/features/analytics/SpecialtyBreakdownTable.test.tsx",
+        "src/tests/functions/prescriptionUploadFunctions.test.ts",
+        "src/tests/hooks/dailyRecordOfflineDurability.test.tsx",
+        "src/tests/services/cudyr/cudyrSourceTable.test.ts",
         "src/tests/utils/lazyWithRetry.test.ts",
-        "src/tests/views/census/SpecialtyChip.test.tsx",
-        "src/tests/views/census/TransfersSection.test.tsx"
+        "src/tests/views/census/CensusDeferredRecovery.test.tsx",
+        "src/tests/views/census/clinical-explorer/ClinicalExplorerView.imagingHistory.test.tsx",
+        "src/tests/views/census/SpecialtyRoundWindow.test.tsx"
       ],
       "estimatedDurationMs": 1200
     },
     {
       "id": "ci-measured-1100ms",
       "globs": [
+        "src/tests/build/dependencyAuditGate.test.ts",
+        "src/tests/build/dicomWorkerFetch.test.ts",
+        "src/tests/build/remoteAdmissionLint.test.ts",
+        "src/tests/components/laboratory/LabResultsViewerModal.test.tsx",
         "src/tests/components/MoaHelpButton.test.tsx",
-        "src/tests/components/useAppContentRuntime.test.tsx",
-        "src/tests/features/clinical-documents/ClinicalDocumentIeehPanel.test.tsx",
+        "src/tests/features/clinical-library/MedifHabitualAction.test.tsx",
         "src/tests/features/cudyr/CudyrReviewPersistence.test.tsx",
-        "src/tests/rayen-import/RayenImportButton.feedback.test.tsx",
-        "src/tests/views/census/PatientIdentityCell.test.tsx"
+        "src/tests/features/prescriptions/prescriptionBedGridSupport.test.ts",
+        "src/tests/functions/prescriptionHospitalClock.test.ts",
+        "src/tests/integration/openingDayShiftChange.test.tsx",
+        "src/tests/services/pdf/ieehPdfRealTemplate.test.ts",
+        "src/tests/services/pdf/imagingRequestPdfName.test.ts",
+        "src/tests/services/storage/dayTaskOccupantChange.test.tsx",
+        "src/tests/views/census/ClinicalPanelTrigger.test.tsx",
+        "src/tests/views/census/CMASection.test.tsx",
+        "src/tests/views/census/CmaSectionRow.test.tsx",
+        "src/tests/views/census/DischargesSection.integration.test.tsx",
+        "src/tests/views/census/DischargesSection.test.tsx",
+        "src/tests/views/census/SpecialtyChip.test.tsx",
+        "src/tests/views/census/VitalsCell.test.tsx"
       ],
       "estimatedDurationMs": 1100
     },
     {
       "id": "ci-measured-1000ms",
       "globs": [
-        "src/tests/build/censusPerformanceGovernance.test.ts",
-        "src/tests/components/DateStrip.test.tsx",
-        "src/tests/features/analytics/SpecialtyBreakdownTable.test.tsx",
-        "src/tests/features/clinical-library/DosingCalculatorTool.test.tsx",
-        "src/tests/functions/functionsColdStartBoundary.test.ts",
-        "src/tests/rayen-import/RayenNursingShiftProposalModal.test.tsx",
-        "src/tests/views/census/CMASection.test.tsx",
-        "src/tests/views/census/DischargesSection.test.tsx",
-        "src/tests/views/census/PatientLaboratoryTrigger.test.tsx"
+        "src/tests/build/ciChromiumInstallScript.test.ts",
+        "src/tests/components/AuthSessionOverlays.test.tsx",
+        "src/tests/components/DeviceSelectorKeyboard.test.tsx",
+        "src/tests/components/laboratory/ExalabResultsViewerModal.test.tsx",
+        "src/tests/components/laboratory/LabViewerComparisonTable.test.tsx",
+        "src/tests/features/admin/LocalErrorLogsView.test.tsx",
+        "src/tests/features/clinical-documents/ClinicalDocumentsWorkspace.attachments.test.tsx",
+        "src/tests/features/clinical-library/ClinicalFormTool.session.test.tsx",
+        "src/tests/features/wound-care/useWoundCareMobileUploadSession.test.tsx",
+        "src/tests/functions/userFacingFunctionMemory.test.ts",
+        "src/tests/hooks/controllers/dailyRecordCrossChannelReadRace.test.ts",
+        "src/tests/hooks/useDailyRecordSyncQuery.test.tsx",
+        "src/tests/hooks/useExistingDaysQuery.test.tsx",
+        "src/tests/hooks/useStaffQuery.test.tsx",
+        "src/tests/integration/bedBlockingFlow.test.tsx",
+        "src/tests/rayen-import/RayenImportButton.test.tsx",
+        "src/tests/scripts/qualityMetricsEvaluation.test.ts",
+        "src/tests/services/storage/dailyRecordPatchIdentityReplay.test.ts",
+        "src/tests/utils/clinicalWallClock.test.ts",
+        "src/tests/views/census/clinical-explorer/ClinicalExplorerLabTable.test.tsx",
+        "src/tests/views/census/TransfersSection.test.tsx"
       ],
       "estimatedDurationMs": 1000
     },
     {
       "id": "ci-measured-900ms",
       "globs": [
-        "src/tests/components/laboratory/LabViewerExamList.test.tsx",
-        "src/tests/components/layout/date-strip/CensusOptionsMenu.test.tsx",
-        "src/tests/features/admin/ClinicalAIProviderRoutingPanel.test.tsx",
-        "src/tests/features/census/FugaNotificationModal.test.tsx",
-        "src/tests/features/census/components/patient-row/UpcChecklistPanel.test.tsx",
-        "src/tests/features/clinical-documents/ClinicalDocumentsSidebar.test.tsx",
-        "src/tests/features/rayen-manual-import/EloisaPatientCodeImportModal.test.tsx",
-        "src/tests/rayen-import/RayenDayBootstrapButton.test.tsx",
-        "src/tests/rayen-import/RayenImportPreviewModalCmaAdmission.test.tsx",
+        "src/tests/build/ciPreviewSmoke.test.ts",
+        "src/tests/build/functionsV1RestrictionLint.test.ts",
+        "src/tests/features/admin/IndividualAccountsPanel.test.tsx",
+        "src/tests/features/auth/LoginPageCard.test.tsx",
+        "src/tests/features/backup/backupCalendarsHospitalClock.test.tsx",
+        "src/tests/features/clinical-documents/ClinicalDocumentSheet.test.tsx",
+        "src/tests/features/clinical-library/clinicalFormDocx.test.ts",
+        "src/tests/features/clinical-library/DosingCalculatorTool.test.tsx",
+        "src/tests/features/prescriptions/PrescriptionBedGridDrag.test.tsx",
+        "src/tests/functions/dailyRecordRestoreInventory.test.ts",
+        "src/tests/hooks/catalogPointReadFailure.test.tsx",
+        "src/tests/hooks/foreignWriteResultSilence.test.tsx",
+        "src/tests/hooks/patchMutationLateCallbackSession.test.tsx",
+        "src/tests/hooks/useExportManager.test.ts",
+        "src/tests/rayen-import/EloisaLinksRing.test.tsx",
+        "src/tests/rayen-import/RayenImportButton.bootstrap.test.tsx",
+        "src/tests/rayen-import/syncToneWording.test.tsx",
+        "src/tests/rayen-import/useRayenClinicalFillHandoff.test.ts",
+        "src/tests/services/repositories/catalogSubscriptionFailure.test.tsx",
+        "src/tests/services/storage/a4TransportProbe.test.ts",
+        "src/tests/services/storage/dailyRecordVerifiableBaseReplay.test.ts",
+        "src/tests/services/storage/verifiedAbsenceInitialization.test.ts",
+        "src/tests/views/census/CensusEmailConfigModal.test.tsx",
         "src/tests/views/census/ClinicalPanelImportRecovery.test.tsx",
         "src/tests/views/census/ClinicalReportsImportFallback.test.tsx",
-        "src/tests/views/census/SpecialtyRoundWindow.test.tsx",
-        "src/tests/views/census/censusEloisaBootstrap.integration.test.tsx",
-        "src/tests/views/cudyr/CudyrExplorerCache.test.tsx"
+        "src/tests/views/census/PatientActionMenu.test.tsx",
+        "src/tests/views/census/PatientClinicalTopicSurfaces.test.tsx",
+        "src/tests/views/census/ScoresDetailModal.test.tsx",
+        "src/tests/views/census/TransferRow.test.tsx",
+        "src/tests/views/cudyr/CudyrMonthlyIndicator.test.tsx",
+        "src/tests/views/handoff/HandoffView.test.tsx"
       ],
       "estimatedDurationMs": 900
     },
     {
       "id": "ci-measured-800ms",
       "globs": [
-        "src/tests/build/dependencyAuditGate.test.ts",
-        "src/tests/components/BedManagerModal.integration.test.tsx",
-        "src/tests/components/DeviceSelector.test.tsx",
-        "src/tests/features/census/StaffSelector.test.tsx",
-        "src/tests/features/clinical-library/ScoresTool.test.tsx",
-        "src/tests/features/cudyr/CudyrLinkReview.test.tsx",
-        "src/tests/features/prescriptions/PrescriptionUploadForm.test.tsx",
-        "src/tests/features/prescriptions/PrescriptionVisorView.test.tsx",
-        "src/tests/integration/masterIntegration.test.tsx",
-        "src/tests/properties/vitalHistoryConvergence.property.test.ts",
-        "src/tests/rayen-import/RayenConnectionMonitor.test.tsx",
-        "src/tests/rayen-import/RayenSyncHistoryModal.issueActions.test.tsx",
-        "src/tests/services/storage/syncQueueService.test.ts",
+        "src/tests/build/ciWorkflowGovernance.test.ts",
+        "src/tests/build/clientEnvironmentBundle.test.ts",
+        "src/tests/components/BaseModal.focus.test.tsx",
+        "src/tests/components/laboratory/LabViewerExamList.test.tsx",
+        "src/tests/features/admin/DataMaintenancePanel.test.tsx",
+        "src/tests/features/analytics/minsalEpisodeTraceability.test.tsx",
+        "src/tests/features/census/StaffShiftDetailsModal.test.tsx",
+        "src/tests/features/clinical-library/pharmacyActPdf.test.ts",
+        "src/tests/features/rayen-manual-import/EloisaPatientCodeImportModal.test.tsx",
+        "src/tests/hooks/controllers/previousDailyRecordPrefetch.test.ts",
+        "src/tests/rayen-import/RayenImportButton.historyAndProgress.test.tsx",
+        "src/tests/services/admin/auditSession/auditConnectionOutbox.test.ts",
+        "src/tests/views/census/CensusAlertsView.test.tsx",
+        "src/tests/views/census/CensusRegisterContent.test.tsx",
         "src/tests/views/census/CensusTable.layout-and-actions.test.tsx",
-        "src/tests/views/census/DischargesSection.integration.test.tsx",
-        "src/tests/views/census/PatientHospitalizationReportsDialog.test.tsx",
-        "src/tests/views/census/PatientInputCells.test.tsx",
-        "src/tests/views/census/ScoresDetailModal.test.tsx",
-        "src/tests/views/census/SpecialtyRoundEntry.test.tsx",
-        "src/tests/views/census/TransferRow.test.tsx",
-        "src/tests/views/census/TransfersSection.integration.test.tsx",
-        "src/tests/views/census/VitalsCell.test.tsx",
-        "src/tests/views/handoff/HandoffView.test.tsx"
+        "src/tests/views/census/PatientHospitalizationReportsDialog.test.tsx"
       ],
       "estimatedDurationMs": 800
     },
     {
-      "id": "ci-measured-700ms",
-      "globs": [
-        "src/tests/build/ciZeroInstallJobs.test.ts",
-        "src/tests/build/firebaseFunctionRegionVerification.test.ts",
-        "src/tests/components/NavbarMoaNavigation.test.tsx",
-        "src/tests/components/laboratory/LabViewerComponents.test.tsx",
-        "src/tests/features/analytics/AnalyticsView.test.tsx",
-        "src/tests/features/clinical-documents/clinicalAttachmentSelection.test.tsx",
-        "src/tests/features/laboratory/LaboratoryQuickAction.test.tsx",
-        "src/tests/features/prescriptions/PrescriptionDetailModal.test.tsx",
-        "src/tests/features/prescriptions/PrescriptionUploadReadonlyViewer.test.tsx",
-        "src/tests/features/prescriptions/prescriptionMonthlyPdfService.test.ts",
-        "src/tests/hooks/useDailyRecordClinicalCribOptimism.test.tsx",
-        "src/tests/hooks/useRoleManagement.test.ts",
-        "src/tests/netlify/telemetryAlertBlobsIntegration.test.ts",
-        "src/tests/rayen-import/ClinicalPanelAntecedents.test.tsx",
-        "src/tests/rayen-import/RayenImportButton.staffing.test.tsx",
-        "src/tests/rayen-import/RayenImportPreviewModal.test.tsx",
-        "src/tests/rayen-import/prescriptionPdfDocumentExtension.test.ts",
-        "src/tests/views/census/CensusSummarySwitcher.test.tsx",
-        "src/tests/views/census/ClinicalInitialBlockEditor.test.tsx",
-        "src/tests/views/census/PatientRowModals.test.tsx",
-        "src/tests/views/cudyr/CudyrMonthlyIndicator.test.tsx"
-      ],
-      "estimatedDurationMs": 700
-    },
-    {
-      "id": "ci-measured-600ms",
-      "globs": [
-        "src/tests/components/BaseModal.focus.test.tsx",
-        "src/tests/components/DeliveryRoutePopover.test.tsx",
-        "src/tests/components/ImagingRequestDialog.test.tsx",
-        "src/tests/components/NavbarMenu.test.tsx",
-        "src/tests/components/StaffCatalogManagerModal.test.tsx",
-        "src/tests/components/TransferModal.test.tsx",
-        "src/tests/components/UserMenu.test.tsx",
-        "src/tests/components/laboratory/LabViewerTrendExperience.test.tsx",
-        "src/tests/components/layout/date-strip/DateStripQuickActions.test.tsx",
-        "src/tests/context/UIContext.test.tsx",
-        "src/tests/features/admin/SystemDiagnosticsView.test.tsx",
-        "src/tests/features/clinical-documents/ClinicalAttachmentsPanel.test.tsx",
-        "src/tests/features/clinical-documents/ClinicalDocumentSectionList.test.tsx",
-        "src/tests/features/clinical-documents/ClinicalDocumentsContainers.test.tsx",
-        "src/tests/features/clinical-documents/FonasaSearchInput.test.tsx",
-        "src/tests/features/conflicts/ClinicalConflictCenterControl.test.tsx",
-        "src/tests/features/cudyr/CudyrRecoveryPanel.test.tsx",
-        "src/tests/features/cudyr/CudyrReportInteractions.test.tsx",
-        "src/tests/features/document-scanner/DocumentScannerEditorControls.test.tsx",
-        "src/tests/functions/prescriptionUploadFunctions.test.ts",
-        "src/tests/hooks/useAudit.test.ts",
-        "src/tests/hooks/useDailyRecordDefinitiveClearConfirmation.test.tsx",
-        "src/tests/hooks/useDailyRecordQuery.test.tsx",
-        "src/tests/views/census/CensusRegisterContent.test.tsx",
-        "src/tests/views/census/CensusStaffHeader.test.tsx",
-        "src/tests/views/census/ClinicalPanelImportFallback.test.tsx",
-        "src/tests/views/census/PatientRadiologyTrigger.test.tsx",
-        "src/tests/views/census/StatusSelect.test.tsx",
-        "src/tests/views/handoff/HandoffCudyrPrintTable.test.tsx"
-      ],
-      "estimatedDurationMs": 600
-    },
-    {
-      "id": "ci-measured-500ms",
-      "globs": [
-        "src/tests/application/clinical-documents/clinicalAttachmentUseCases.test.ts",
-        "src/tests/build/chunkingPolicy.test.ts",
-        "src/tests/components/DischargeModal.test.tsx",
-        "src/tests/features/census/components/patient-row/UpcEvaluationHistoryPanel.test.tsx",
-        "src/tests/features/census/global-search/usePatientSelectionCancellation.test.ts",
-        "src/tests/features/clinical-documents/ClinicalDocumentIndicationsTabSettings.test.tsx",
-        "src/tests/features/clinical-library/ClinicalLibraryQuickAction.test.tsx",
-        "src/tests/features/cudyr/CudyrMonthlyReconciliation.test.tsx",
-        "src/tests/features/prescriptions/PrescriptionReassignDialog.test.tsx",
-        "src/tests/integration/daily-record-sync.test.tsx",
-        "src/tests/rayen-import/ClinicalAntecedentFieldsUi.test.tsx",
-        "src/tests/rayen-import/RayenImportFlowStatus.staffing.test.tsx",
-        "src/tests/rayen-import/RayenImportPreviewModal.newbornRepair.test.tsx",
-        "src/tests/rayen-import/RayenImportPreviewModalBedCollision.test.tsx",
-        "src/tests/rayen-import/RayenSyncHistoryModal.staffing.test.tsx",
-        "src/tests/rayen-import/contentHhrGcConnectRelay.test.ts",
-        "src/tests/rayen-import/examRequestPrintExtension.test.ts",
-        "src/tests/services/repositories/boundedAvailableDates.test.ts",
-        "src/tests/views/census/CensusRegisterRendering.test.tsx",
-        "src/tests/views/census/ClinicalDetailLoading.test.tsx",
-        "src/tests/views/cudyr/CudyrPublicEntries.test.tsx"
-      ],
-      "estimatedDurationMs": 500
-    },
-    {
       "id": "ci-measured-remaining",
       "globs": ["src/tests/**"],
-      "estimatedDurationMs": 65
+      "estimatedDurationMs": 105
     }
   ],
   "lockedAssignments": {},
   "durationSource": "hints",
   "calibration": {
-    "revision": "89d2395e1a1aae433f47be2aa98d5defc1b292d6",
-    "runIds": ["38276199931", "38274966947"],
-    "method": "Median suite execution time across two successful Node 22 GitHub runs; heavy suites rounded to 100 ms, remaining suites use their measured mean. Preparation overhead remains separate and unchanged."
+    "revision": "47805db6a",
+    "runIds": ["45949629098", "45947749429"],
+    "method": "Median suite execution time across two successful Node 22 GitHub runs; suites >= 800 ms rounded to 100 ms, remaining suites use their measured mean. Preparation overhead remains separate and unchanged."
   }
 }

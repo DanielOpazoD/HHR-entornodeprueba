@@ -832,17 +832,17 @@ los scripts operativos con `node --check`, sin ejecutarlos. Cualquier error de
 sintaxis mantiene el rechazo; no se permite publicar con una fase pendiente.
 No hay cache entre ejecuciones ni cambios en la política de versiones o permisos.
 
-## Cobertura crítica en cuatro grupos
+## Cobertura crítica en dos grupos
 
-El CI ejecuta el mismo selector crítico en cuatro shards de Vitest. Cada uno debe
+El CI ejecuta el mismo selector crítico en dos shards de Vitest. Cada uno debe
 pasar y entregar su blob del mismo run. El job `critical-coverage-report` espera
-los cuatro, rechaza archivos faltantes o adicionales y utiliza la unión nativa de
+ambos, rechaza archivos faltantes o adicionales y utiliza la unión nativa de
 Vitest para generar la cobertura sin repetir las pruebas. Los umbrales y el
 artefacto canónico se conservan; la evidencia de release espera el informe unido.
 La ejecución local sin argumentos conserva la suite completa habitual.
 
-Para reproducir: ejecutar `node scripts/run-critical-coverage.mjs --shard=1/4` hasta
-`--shard=4/4` y luego `--merge-shards`; finalmente ejecutar los scripts
+Para reproducir: ejecutar `node scripts/run-critical-coverage.mjs --shard=1/2` y
+`--shard=2/2` y luego `--merge-shards`; finalmente ejecutar los scripts
 `report-critical-coverage.mjs` y `check-critical-coverage.mjs`. Detenerse si falla
 cualquiera de los grupos. No publicar cobertura parcial ni promediar porcentajes.
 
