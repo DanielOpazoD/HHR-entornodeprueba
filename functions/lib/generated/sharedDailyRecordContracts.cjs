@@ -37,6 +37,8 @@ __export(sharedFunctionsContractsServerEntry_exports, {
   SERVER_ONLY_CLINICAL_PATCH_FIELDS: () => SERVER_ONLY_CLINICAL_PATCH_FIELDS,
   buildClinicalDerivedLayout: () => buildClinicalDerivedLayout,
   collectClinicalDerivedEpisodes: () => collectClinicalDerivedEpisodes,
+  collectClinicalEpisodeCoverage: () => collectClinicalEpisodeCoverage,
+  evaluateDailyRecordClinicalAuthority: () => evaluateDailyRecordClinicalAuthorityCore,
   findPatientErasures: () => findPatientErasures,
   findPersistedEpisodeDowngrades: () => findPersistedEpisodeDowngrades,
   findStaleClinicalDerivedEpisodeIds: () => findStaleClinicalDerivedEpisodeIds,
@@ -444,6 +446,272 @@ var seedClinicalCarryover = (source, destination, sourceDate, destinationDate) =
   }
   return result;
 };
+
+// src/utils/clinicalDayScheduleUtils.ts
+var BUSINESS_DAY_SHIFT_START_MINUTES = 8 * 60;
+var NIGHT_SHIFT_START_MINUTES = 20 * 60;
+
+// src/utils/clinicalTimeZone.ts
+var CLINICAL_TIME_ZONE = "Pacific/Easter";
+var clinicalStampFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: CLINICAL_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23"
+});
+
+// src/domain/clinical-episode/clinicalEpisode.ts
+var normalizeClinicalEpisodeTime = (admissionTime) => String(admissionTime || "").trim();
+var buildClinicalEpisodeKey = (patientRut, admissionDate, admissionTime) => {
+  const baseKey = `${patientRut || "sin-rut"}__${admissionDate || "sin-ingreso"}`;
+  const normalizedAdmissionTime = normalizeClinicalEpisodeTime(admissionTime);
+  return normalizedAdmissionTime ? `${baseKey}__${normalizedAdmissionTime}` : baseKey;
+};
+var normalizeClinicalEpisodeId = (clinicalEpisodeId) => String(clinicalEpisodeId || "").trim();
+
+// src/domain/movements/movementTombstonePolicy.ts
+var isMovementDeleted = (movement) => Boolean(String(movement.deletedAt || "").trim());
+var getActiveMovements = (movements) => (movements || []).filter((movement) => !isMovementDeleted(movement));
+var getActiveDischarges = getActiveMovements;
+var getActiveTransfers = getActiveMovements;
+var getActiveCma = getActiveMovements;
+
+// src/types/domain/movements.ts
+var resolveMovementHistoricalAdmissionDate = (movement) => movement.admissionDate || movement.originalData?.firstSeenDate || movement.originalData?.admissionDate;
+var resolveMovementHistoricalAdmissionTime = (movement) => movement.originalData?.admissionTime;
+
+// src/services/repositories/dailyRecordClinicalAuthorityCore.ts
+var normalizeText = (value) => String(value || "").trim();
+var normalizeLowerText = (value) => normalizeText(value).toLowerCase();
+var normalizeEpisodeId = (value) => normalizeClinicalEpisodeId(typeof value === "string" ? value : String(value || ""));
+var normalizeFallbackName = (value) => normalizeText(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toLowerCase();
+var resolveDocumentScopeType = (documentType) => normalizeLowerText(documentType) === "pasaporte" ? "pasaporte" : "rut";
+var hasActivePatientIdentity = (patient) => Boolean(
+  patient && !patient.isBlocked && (normalizeEpisodeId(patient.clinicalEpisodeId) || normalizeLowerText(patient.rut) || normalizeLowerText(patient.patientName) || normalizeLowerText(patient.admissionDate))
+);
+var buildFallbackEpisodeKey = ({
+  clinicalEpisodeId,
+  documentValue,
+  documentType,
+  patientName,
+  admissionDate,
+  admissionTime,
+  isCribScope
+}) => {
+  const persistedEpisodeId = normalizeEpisodeId(clinicalEpisodeId);
+  if (persistedEpisodeId) {
+    return {
+      kind: "episode_id",
+      key: persistedEpisodeId,
+      hasAdmissionTime: true
+    };
+  }
+  const scope = isCribScope ? "crib" : "bed";
+  const normalizedAdmissionDate = normalizeText(admissionDate);
+  const normalizedAdmissionTime = normalizeText(admissionTime);
+  const normalizedDocument = normalizeLowerText(documentValue);
+  if (normalizedDocument) {
+    const docType = resolveDocumentScopeType(documentType);
+    const key2 = buildClinicalEpisodeKey(
+      `${scope}:${docType}:${normalizedDocument}`,
+      normalizedAdmissionDate || void 0,
+      normalizedAdmissionTime || void 0
+    );
+    return {
+      kind: "document",
+      key: key2,
+      hasAdmissionTime: Boolean(normalizedAdmissionTime)
+    };
+  }
+  const normalizedName = normalizeFallbackName(patientName);
+  if (!normalizedName || !normalizedAdmissionDate) {
+    return null;
+  }
+  const key = buildClinicalEpisodeKey(
+    `${scope}:name:${normalizedName}`,
+    normalizedAdmissionDate,
+    normalizedAdmissionTime || void 0
+  );
+  return {
+    kind: "name",
+    key,
+    hasAdmissionTime: Boolean(normalizedAdmissionTime)
+  };
+};
+var resolvePatientAuthorityKey = (patient, isNestedCrib) => buildFallbackEpisodeKey({
+  clinicalEpisodeId: patient.clinicalEpisodeId,
+  documentValue: patient.rut,
+  documentType: patient.documentType,
+  patientName: patient.patientName,
+  admissionDate: patient.firstSeenDate || patient.admissionDate,
+  admissionTime: patient.admissionTime,
+  // ID-03: mother's RUN links mother and newborn without making them the same person.
+  isCribScope: isNestedCrib || patient.bedMode === "Cuna"
+});
+var isMovementCribScope = (movement) => "isNested" in movement && movement.isNested === true || movement.originalData?.bedMode === "Cuna" || "bedType" in movement && movement.bedType === "Cuna";
+var resolveMovementBedId = (movement) => normalizeText("bedId" in movement ? movement.bedId : movement.originalBedId);
+var resolveMovementAuthorityKey = (movement) => buildFallbackEpisodeKey({
+  clinicalEpisodeId: movement.clinicalEpisodeId,
+  documentValue: movement.rut,
+  documentType: movement.originalData?.documentType,
+  patientName: movement.patientName,
+  admissionDate: resolveMovementHistoricalAdmissionDate(movement),
+  admissionTime: resolveMovementHistoricalAdmissionTime(movement),
+  isCribScope: isMovementCribScope(movement)
+});
+var collectActiveEpisodeEntries = (record) => {
+  const entries = [];
+  Object.entries(record?.beds || {}).forEach(([bedId, patient]) => {
+    if (hasActivePatientIdentity(patient)) {
+      const resolved = resolvePatientAuthorityKey(patient, false);
+      if (resolved) {
+        entries.push({
+          bedId,
+          path: `beds.${bedId}`,
+          episodeKey: resolved.key,
+          identityKind: resolved.kind,
+          hasAdmissionTime: resolved.hasAdmissionTime
+        });
+      }
+    }
+    if (hasActivePatientIdentity(patient?.clinicalCrib)) {
+      const resolved = resolvePatientAuthorityKey(patient.clinicalCrib, true);
+      if (resolved) {
+        entries.push({
+          bedId,
+          path: `beds.${bedId}.clinicalCrib`,
+          episodeKey: resolved.key,
+          identityKind: resolved.kind,
+          hasAdmissionTime: resolved.hasAdmissionTime
+        });
+      }
+    }
+  });
+  return entries;
+};
+var collectClosedMovementEntries = (record) => {
+  const entries = [];
+  const append = (movement) => {
+    const resolved = resolveMovementAuthorityKey(movement);
+    if (!resolved) {
+      return;
+    }
+    entries.push({
+      bedId: resolveMovementBedId(movement),
+      episodeKey: resolved.key,
+      identityKind: resolved.kind,
+      hasAdmissionTime: resolved.hasAdmissionTime
+    });
+  };
+  getActiveDischarges(record?.discharges).forEach(append);
+  getActiveTransfers(record?.transfers).forEach(append);
+  getActiveCma(record?.cma).forEach(append);
+  return entries;
+};
+var collectDuplicateEpisodeViolations = (activeEpisodes) => {
+  const seen = /* @__PURE__ */ new Map();
+  const violations = [];
+  activeEpisodes.forEach((entry) => {
+    if (entry.identityKind === "name") {
+      return;
+    }
+    const previous = seen.get(entry.episodeKey);
+    if (!previous) {
+      seen.set(entry.episodeKey, entry);
+      return;
+    }
+    violations.push({
+      type: "duplicate_active_episode",
+      path: entry.path,
+      bedId: entry.bedId,
+      episodeKey: entry.episodeKey,
+      message: `Episodio clinico activo duplicado en ${previous.path} y ${entry.path}.`
+    });
+  });
+  return violations;
+};
+var collectClosedEpisodeViolations = (activeEpisodes, closedMovements) => {
+  const closedByKey = /* @__PURE__ */ new Map();
+  closedMovements.forEach((movement) => {
+    const list = closedByKey.get(movement.episodeKey) ?? [];
+    list.push(movement);
+    closedByKey.set(movement.episodeKey, list);
+  });
+  const activeNameCounts = /* @__PURE__ */ new Map();
+  activeEpisodes.forEach((entry) => {
+    if (entry.identityKind === "name") {
+      activeNameCounts.set(entry.episodeKey, (activeNameCounts.get(entry.episodeKey) ?? 0) + 1);
+    }
+  });
+  const violations = [];
+  activeEpisodes.forEach((entry) => {
+    const matchingMovements = closedByKey.get(entry.episodeKey);
+    if (!matchingMovements || matchingMovements.length === 0) {
+      return;
+    }
+    if (entry.identityKind === "name") {
+      if ((activeNameCounts.get(entry.episodeKey) ?? 0) !== 1) {
+        return;
+      }
+      const hasUnequivocalMatch = matchingMovements.some(
+        (movement) => entry.hasAdmissionTime && movement.hasAdmissionTime || Boolean(movement.bedId) && movement.bedId === entry.bedId
+      );
+      if (!hasUnequivocalMatch) {
+        return;
+      }
+    }
+    violations.push({
+      type: "closed_episode_active_in_bed",
+      path: entry.path,
+      bedId: entry.bedId,
+      episodeKey: entry.episodeKey,
+      message: `Episodio clinico ${entry.episodeKey} permanece activo en cama pese a movimiento de cierre.`
+    });
+  });
+  return violations;
+};
+var evaluateDailyRecordClinicalAuthorityCore = (record) => {
+  const activeEpisodes = collectActiveEpisodeEntries(record);
+  const closedMovements = collectClosedMovementEntries(record);
+  const violations = [
+    ...collectDuplicateEpisodeViolations(activeEpisodes),
+    ...collectClosedEpisodeViolations(activeEpisodes, closedMovements)
+  ];
+  return {
+    status: violations.length > 0 ? "blocked" : "ok",
+    violations
+  };
+};
+var collectClinicalEpisodeCoverage = (record) => {
+  const snapshot = {
+    activePatients: 0,
+    canonicalEpisodeIds: 0,
+    fallbackEpisodeKeys: 0,
+    degenerateFallbackEpisodeKeys: 0
+  };
+  const visit = (patient) => {
+    if (!hasActivePatientIdentity(patient)) {
+      return;
+    }
+    snapshot.activePatients += 1;
+    if (normalizeEpisodeId(patient.clinicalEpisodeId)) {
+      snapshot.canonicalEpisodeIds += 1;
+      return;
+    }
+    snapshot.fallbackEpisodeKeys += 1;
+    if (!normalizeLowerText(patient.rut) || !normalizeText(patient.admissionTime)) {
+      snapshot.degenerateFallbackEpisodeKeys += 1;
+    }
+  };
+  Object.values(record?.beds || {}).forEach((patient) => {
+    visit(patient);
+    visit(patient?.clinicalCrib);
+  });
+  return snapshot;
+};
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   CLIENT_RUNTIME_CONTRACT_VERSION_FIELD,
@@ -461,6 +729,8 @@ var seedClinicalCarryover = (source, destination, sourceDate, destinationDate) =
   SERVER_ONLY_CLINICAL_PATCH_FIELDS,
   buildClinicalDerivedLayout,
   collectClinicalDerivedEpisodes,
+  collectClinicalEpisodeCoverage,
+  evaluateDailyRecordClinicalAuthority,
   findPatientErasures,
   findPersistedEpisodeDowngrades,
   findStaleClinicalDerivedEpisodeIds,
