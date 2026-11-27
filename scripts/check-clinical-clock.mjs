@@ -23,6 +23,12 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
+  deviceClockTimeLines,
+  localCalendarGetterLines,
+  shiftStartLiteralLines,
+  zoneLessFormatLines,
+} from './lib/clinicalClock/astClockRules.mjs';
+import {
   deviceWallClockInstantLines,
   instantCalendarSliceLines,
   lineOf,
@@ -37,83 +43,9 @@ import {
 
 const CLOCK_SOURCE = 'src/utils/clinicalTimeZone.ts';
 const SHIFT_SOURCE = 'src/utils/clinicalDayScheduleUtils.ts';
-// '08:00', "9:00", `20:00`, or 8 * 60 minutes; 8 * 60 * 1000 is a duration, not a time of day.
-const SHIFT_START_LITERAL = /(['"`])(?:0?[89]|20):00\1|\b(?:8|9|20)\s*\*\s*60\b(?!\s*\*)/g;
-const DATE_OPTION = /\b(?:hour|minute|second|day|month|year|weekday|dateStyle|timeStyle|era)\b/;
-const FORMAT_CALL =
-  /\.toLocale(DateString|TimeString|String)\s*\(|new\s+Intl\.DateTimeFormat\s*\(/g;
-
-/** Text between the parenthesis at `openIndex` and the one that closes it. */
-const argumentsAt = (source, openIndex) => {
-  let depth = 0;
-  for (let index = openIndex; index < source.length; index += 1) {
-    if (source[index] === '(') depth += 1;
-    else if (source[index] === ')' && --depth === 0) return source.slice(openIndex + 1, index);
-  }
-  return source.slice(openIndex + 1);
-};
 
 const regexRule = regex => source =>
   [...source.matchAll(new RegExp(regex.source, 'g'))].map(match => lineOf(source, match.index));
-
-const zoneLessFormatLines = source => {
-  const lines = [];
-  for (const match of source.matchAll(FORMAT_CALL)) {
-    const args = argumentsAt(source, match.index + match[0].length - 1);
-    if (/\btimeZone\b/.test(args)) continue;
-    if (match[1] === 'String') {
-      // Number#toLocaleString shares the name: only date receivers or date options count.
-      const receiver = source.slice(Math.max(0, match.index - 160), match.index);
-      if (!/new\s+Date\([^;]*\)\s*$/.test(receiver) && !DATE_OPTION.test(args)) continue;
-    }
-    lines.push(lineOf(source, match.index));
-  }
-  return lines;
-};
-
-const shiftStartLiteralLines = source => {
-  const sourceLines = source.split('\n');
-  const allowed = /^\s*\/\/ clinical-clock-allow shift-start-literal:\s*\S/;
-  const lines = new Set();
-  for (const match of source.matchAll(SHIFT_START_LITERAL)) {
-    const line = lineOf(source, match.index);
-    if (!allowed.test(sourceLines[line - 2] ?? '')) lines.add(line);
-  }
-  return [...lines];
-};
-
-const localCalendarGetterLines = rule => source => {
-  const lines = [];
-  const sourceLines = source.split('\n');
-  const allowed = new RegExp(`^\\s*// clinical-clock-allow ${rule}:\\s*\\S.*$`);
-  const constructors = /(?:\b(?:const|let|var)\s+(\w+)\s*=\s*)?new\s+Date\s*\(/g;
-  const localGetter = /^\s*\.\s*(?:get(?:FullYear|Month|Date)\s*\(\s*\)|setHours\s*\()/;
-  for (const match of source.matchAll(constructors)) {
-    const openIndex = match.index + match[0].length - 1;
-    const args = argumentsAt(source, openIndex);
-    // Multi-argument constructors build calendar values, rather than reading an instant.
-    if (/^\s*\w+\s*,/.test(args)) continue;
-    const afterConstructor = source.slice(openIndex + args.length + 2);
-    const variableGetter = match[1]
-      ? new RegExp(
-          `\\b${match[1]}\\s*\\.\\s*(?:get(?:FullYear|Month|Date)\\s*\\(\\s*\\)|setHours\\s*\\()`
-        )
-      : null;
-    const nextDeclaration = match[1]
-      ? afterConstructor.search(new RegExp(`\\b(?:const|let|var)\\s+${match[1]}\\b`))
-      : -1;
-    const variableUses =
-      nextDeclaration < 0 ? afterConstructor : afterConstructor.slice(0, nextDeclaration);
-    const line = lineOf(source, match.index);
-    if (
-      (localGetter.test(afterConstructor) || variableGetter?.test(variableUses)) &&
-      !allowed.test(sourceLines[line - 2] ?? '')
-    ) {
-      lines.push(line);
-    }
-  }
-  return lines;
-};
 
 /** Checks the hospital clock rules in the repository at `root`, as the command prints and exits. */
 export const checkClinicalClock = (root = process.cwd(), env = process.env) => {
@@ -192,10 +124,7 @@ export const checkClinicalClock = (root = process.cwd(), env = process.env) => {
     {
       rule: 'device-clock-time',
       files: [...productionFiles, ...netlifyFiles],
-      find: source =>
-        [...source.matchAll(/\.(?:get(?:Hours|Minutes)|toTimeString)\s*\(\s*\)/g)].map(match =>
-          lineOf(source, match.index)
-        ),
+      find: deviceClockTimeLines,
       hint: 'read the hospital clock: readClinicalTimestamp() / calendarStampInClinicalTimeZone()',
     },
     {

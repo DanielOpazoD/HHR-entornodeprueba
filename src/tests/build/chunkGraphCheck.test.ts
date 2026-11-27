@@ -54,6 +54,20 @@ describe('staticChunkImports extractor', () => {
       dynamic: ['feature-lazy.js'],
     });
   });
+
+  it('ignores fake import/export strings and comments inside bundled vendor code', () => {
+    const chunk = [
+      '/* import "./feature-comment.js"; */',
+      "const doc = \"export * from './feature-string.js'; import('./feature-dynamic-string.js')\";",
+      'import { real } from "./vendor-real.js";',
+      'export const out = [doc, real];',
+    ].join('\n');
+
+    expect(extractAssetChunkImports(chunk)).toEqual({
+      static: ['vendor-real.js'],
+      dynamic: [],
+    });
+  });
 });
 
 describe('check-chunk-graph.mjs', () => {

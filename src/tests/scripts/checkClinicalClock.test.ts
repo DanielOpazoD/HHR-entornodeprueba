@@ -578,4 +578,30 @@ describe('check-clinical-clock', () => {
     expect(withoutBase.status).toBe(0);
     expect(withoutBase.stdout).toContain('no se comparó la cuenta de fechas escritas a mano');
   });
+
+  it('ignores comments and string decoys while still catching real AST clock violations', () => {
+    const { status, output } = runGuard({
+      'src/features/a.ts': [
+        "// date.toLocaleDateString('es-CL')",
+        '// const now = new Date(); now.getDate();',
+        "// shift starts at '08:00' or 20 * 60",
+        '// date.getHours() and date.toTimeString()',
+        'const doc = "new Date().getHours() and toLocaleDateString(\'es-CL\')";',
+        'function shadowed() {',
+        '  const d = new Date();',
+        '  { const d = { getDate: () => 1 }; d.getDate(); }',
+        '  return d.toISOString();',
+        '}',
+        "const commentedZone = date.toLocaleDateString('es-CL', { /* timeZone */ day: '2-digit' });",
+        "const callWithoutNew = Intl.DateTimeFormat('es-CL', { dateStyle: 'short' }).format(date);",
+      ].join('\n'),
+    });
+    expect(status).toBe(1);
+    expect(output).toContain('[zone-less-format] src/features/a.ts:11');
+    expect(output).toContain('[zone-less-format] src/features/a.ts:12');
+    expect(output.match(/\[zone-less-format\]/g)).toHaveLength(2);
+    expect(output).not.toContain('[device-calendar-today]');
+    expect(output).not.toContain('[shift-start-literal]');
+    expect(output).not.toContain('[device-clock-time]');
+  });
 });
