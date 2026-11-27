@@ -5,8 +5,6 @@
 export { searchMasterPatients } from './searchMasterPatientsUseCase';
 export { buildUndoCmaPatch } from './cmaUndoPatchUseCase';
 export * from './atomicPatientMovementPatchController';
-export * from '@/application/census/controllers/bedManagerGridItemsController';
-export * from '@/application/census/controllers/bedManagerModalController';
 export * from '@/application/census/controllers/censusEmailRecipientsController';
 export * from '@/application/census/controllers/clinicalShiftCalendarController';
 export * from '@/application/census/controllers/dischargeModalController';

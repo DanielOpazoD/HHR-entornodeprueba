@@ -11,7 +11,7 @@ import { ExtraBedsGrid } from '@/features/census/components/bed-manager/ExtraBed
 import {
   resolveBlockedBedsGridItems,
   resolveExtraBedsGridItems,
-} from '@/application/census/public';
+} from '@/features/census/controllers/bedManagerGridItemsController';
 import { useBedManagerModalModel } from '@/features/census/hooks/useBedManagerModalModel';
 
 interface BedManagerModalProps {
