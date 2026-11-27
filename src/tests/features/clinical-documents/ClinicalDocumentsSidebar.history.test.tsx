@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ClinicalDocumentsSidebar } from '@/features/clinical-documents/components/ClinicalDocumentsSidebar';
-import { buildDocument } from './ClinicalDocumentsSidebar.testSupport';
+import { buildDocument } from './useClinicalDocumentWorkspaceBootstrap.fixtures';
 
 describe('ClinicalDocumentsSidebar version history', () => {
   it('restores one section from a version history snapshot', () => {
