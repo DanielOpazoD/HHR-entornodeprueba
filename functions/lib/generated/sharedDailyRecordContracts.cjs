@@ -42,9 +42,12 @@ __export(sharedFunctionsContractsServerEntry_exports, {
   findPatientErasures: () => findPatientErasures,
   findPersistedEpisodeDowngrades: () => findPersistedEpisodeDowngrades,
   findStaleClinicalDerivedEpisodeIds: () => findStaleClinicalDerivedEpisodeIds,
+  getActiveMovements: () => getActiveMovements,
+  getStatisticalDischarges: () => getStatisticalDischarges,
   isBedTypeOverridePath: () => isBedTypeOverridePath,
   isClinicalAuthorityBedScalarPath: () => isClinicalAuthorityBedScalarPath,
   isClinicalAuthorityCallablePatchPath: () => isClinicalAuthorityCallablePatchPath,
+  isClinicalCribDischarge: () => isClinicalCribDischarge,
   isClinicalDerivedDocId: () => isClinicalDerivedDocId,
   meetsClinicalDerivedClientVersion: () => meetsClinicalDerivedClientVersion,
   movementAccountsForBed: () => movementAccountsForBed,
@@ -476,6 +479,8 @@ var normalizeClinicalEpisodeId = (clinicalEpisodeId) => String(clinicalEpisodeId
 var isMovementDeleted = (movement) => Boolean(String(movement.deletedAt || "").trim());
 var getActiveMovements = (movements) => (movements || []).filter((movement) => !isMovementDeleted(movement));
 var getActiveDischarges = getActiveMovements;
+var isClinicalCribDischarge = (movement) => movement.isNested === true || (movement.originalData?.bedMode || movement.bedType) === "Cuna";
+var getStatisticalDischarges = (movements) => getActiveDischarges(movements).filter((movement) => !isClinicalCribDischarge(movement));
 var getActiveTransfers = getActiveMovements;
 var getActiveCma = getActiveMovements;
 
@@ -734,9 +739,12 @@ var collectClinicalEpisodeCoverage = (record) => {
   findPatientErasures,
   findPersistedEpisodeDowngrades,
   findStaleClinicalDerivedEpisodeIds,
+  getActiveMovements,
+  getStatisticalDischarges,
   isBedTypeOverridePath,
   isClinicalAuthorityBedScalarPath,
   isClinicalAuthorityCallablePatchPath,
+  isClinicalCribDischarge,
   isClinicalDerivedDocId,
   meetsClinicalDerivedClientVersion,
   movementAccountsForBed,

@@ -10,6 +10,10 @@ const {
 } = require('./minsalStaySummary');
 const { createEpisodeAdmissionTracker } = require('./minsalEpisodeTracker');
 const { normalizeMovementReportingSnapshot } = require('./sharedMovementCompatibility');
+const {
+  getActiveMovements,
+  getStatisticalDischarges,
+} = require('../generated/sharedDailyRecordContracts.cjs');
 
 const resolveTraceabilityDiagnosis = value => {
   if (typeof value !== 'string') return undefined;
@@ -25,11 +29,6 @@ const resolveMovementAdmissionDate = (tracker, movement) =>
 
 const resolveMovementDiagnosis = movement =>
   resolveTraceabilityDiagnosis(movement && movement.diagnosis);
-
-const isActiveMovement = movement => !(movement && movement.deletedAt);
-
-const getActiveMovements = movements =>
-  Array.isArray(movements) ? movements.filter(isActiveMovement) : [];
 
 const createEmptyCmaBucket = () => ({
   total: 0,
@@ -135,36 +134,12 @@ const calculateMinsalStatistics = ({
         ...buildReportingSpecialtyTraceFields(specialtyResolution),
       });
       specialtyData.set(specialty, existing);
-
-      if (bed.clinicalCrib && bed.clinicalCrib.patientName && bed.clinicalCrib.patientName.trim()) {
-        ocupadas++;
-        const cribSpecialtyResolution = resolveReportingSpecialty({
-          specialty: bed.clinicalCrib.specialty,
-          options,
-        });
-        const cribSpecialty = cribSpecialtyResolution.reportingSpecialty;
-        const cribExisting = specialtyData.get(cribSpecialty) || createEmptySpecialtyBucket();
-        cribExisting.diasOcupados++;
-        cribExisting.diasOcupadosList.push({
-          name: bed.clinicalCrib.patientName,
-          rut: bed.clinicalCrib.rut,
-          diagnosis: resolveTraceabilityDiagnosis(bed.clinicalCrib.pathology),
-          date: record.date,
-          bedName: bed.clinicalCrib.bedName || bed.bedName,
-          admissionDate: episodeTracker.resolveAdmissionDate(
-            bed.clinicalCrib,
-            bed.clinicalCrib.admissionDate
-          ),
-          ...buildReportingSpecialtyTraceFields(cribSpecialtyResolution),
-        });
-        specialtyData.set(cribSpecialty, cribExisting);
-      }
     });
 
     totalDiasCamaDisponibles += hospitalCapacity - bloqueadas;
     totalDiasCamaOcupados += ocupadas;
 
-    const activeDischarges = getActiveMovements(record.discharges);
+    const activeDischarges = getStatisticalDischarges(record.discharges);
     const activeTransfers = getActiveMovements(record.transfers);
     const activeCma = getActiveMovements(record.cma);
 
