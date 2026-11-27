@@ -40,3 +40,9 @@ export {
   collectClinicalEpisodeCoverage,
   evaluateDailyRecordClinicalAuthorityCore as evaluateDailyRecordClinicalAuthority,
 } from './repositories/dailyRecordClinicalAuthorityCore';
+
+export {
+  getActiveMovements,
+  isClinicalCribDischarge,
+  getStatisticalDischarges,
+} from '../domain/movements/movementTombstonePolicy';
