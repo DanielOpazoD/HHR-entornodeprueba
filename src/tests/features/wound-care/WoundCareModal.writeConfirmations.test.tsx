@@ -163,8 +163,12 @@ describe('WoundCareModal write confirmations & concurrency resilience', () => {
 
     await screen.findByAltText('Curación A');
     expect(listPhotosByPatientRutMock).toHaveBeenCalledTimes(1);
+    const consentButton = screen.getByRole('button', { name: /subir ci/i });
+    await waitFor(() => {
+      expect(consentButton).toBeEnabled();
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+    fireEvent.click(consentButton);
     expect(screen.getByText('Consentimiento Informado')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
 
@@ -262,7 +266,11 @@ describe('WoundCareModal write confirmations & concurrency resilience', () => {
     );
 
     await screen.findByAltText('Curación A');
-    fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+    const consentButton = screen.getByRole('button', { name: /subir ci/i });
+    await waitFor(() => {
+      expect(consentButton).toBeEnabled();
+    });
+    fireEvent.click(consentButton);
 
     const fileInputs = document.querySelectorAll('input[type="file"]');
     const consentInput = fileInputs[fileInputs.length - 1] as HTMLInputElement;
@@ -556,7 +564,11 @@ describe('WoundCareModal write confirmations & concurrency resilience', () => {
     fireEvent.click(within(lightbox).getByRole('button', { name: 'Cerrar' }));
 
     // 2. Confirmed consent must immediately switch "Subir CI" into read-only view during slow reload.
-    fireEvent.click(screen.getByRole('button', { name: /subir ci/i }));
+    const uploadConsentTrigger = screen.getByRole('button', { name: /subir ci/i });
+    await waitFor(() => {
+      expect(uploadConsentTrigger).toBeEnabled();
+    });
+    fireEvent.click(uploadConsentTrigger);
     const fileInputs = document.querySelectorAll('input[type="file"]');
     const consentInput = fileInputs[fileInputs.length - 1] as HTMLInputElement;
     fireEvent.change(consentInput, {
