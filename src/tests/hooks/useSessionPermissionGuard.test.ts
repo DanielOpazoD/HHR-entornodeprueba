@@ -36,9 +36,12 @@ vi.mock('@/services/auth/sessionPermissionProbe', () => ({
   hasRecentRecoveryReload: () => probe.recent,
   markRecoveryReload: () => probe.mark,
 }));
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: { reload },
-}));
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({ reload }),
+  };
+});
 
 const user = { uid: 'u1', email: 'u1@hospital.test', role: 'nurse' } as unknown as AuthUser;
 const unauthenticated = { status: 'unauthenticated', user: null } as AuthSessionState;

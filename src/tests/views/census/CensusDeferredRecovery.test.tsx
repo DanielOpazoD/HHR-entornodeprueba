@@ -24,9 +24,15 @@ vi.mock('@/components/ui/lazyWithRetry', async importOriginal => {
     },
   };
 });
-vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({
-  defaultBrowserWindowRuntime: { confirm: fault.confirm, reload: fault.reload },
-}));
+vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {
+  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
+  return {
+    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime({
+      confirm: fault.confirm,
+      reload: fault.reload,
+    }),
+  };
+});
 vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
