@@ -213,8 +213,9 @@ const FIXTURE_DUPLICATION_DETECTORS = {
     (content.includes('beds: {') || content.includes('beds: [')) &&
     !content.includes('DataFactory.createMockDailyRecord'),
   'browser-runtime-mock': (_file, content) =>
-    content.includes("vi.mock('@/shared/runtime/browserWindowRuntimeCore'") ||
-    content.includes('vi.mock("@/shared/runtime/browserWindowRuntimeCore"'),
+    (content.includes("vi.mock('@/shared/runtime/browserWindowRuntimeCore'") ||
+      content.includes('vi.mock("@/shared/runtime/browserWindowRuntimeCore"')) &&
+    !content.includes('createMockBrowserWindowRuntime'),
   'sync-client-scenario': (file, content) =>
     content.includes('expectedVersion') &&
     content.includes('changedPaths') &&

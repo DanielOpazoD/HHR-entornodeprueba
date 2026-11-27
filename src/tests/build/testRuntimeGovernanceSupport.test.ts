@@ -224,6 +224,38 @@ describe('test runtime governance support', () => {
     expect(markdown).toContain('CI observed unit shard runtime');
     expect(markdown).toContain('## Fixture Duplication Governance');
     expect(markdown).toContain('## Fixture Duplication Signals');
+    expect(
+      report.fixtureGovernance.signals.find(
+        (signal: { id: string }) => signal.id === 'browser-runtime-mock'
+      )
+    ).toMatchObject({ files: 0, examples: [] });
+  });
+
+  it('flags only bespoke browserWindowRuntimeCore mocks that bypass createMockBrowserWindowRuntime', () => {
+    const root = makeReportRoot();
+    fs.mkdirSync(path.join(root, 'src/tests/synthetic'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'src/tests/synthetic/compliant.test.ts'),
+      `vi.mock('@/shared/runtime/browserWindowRuntimeCore', async () => {\n` +
+        `  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');\n` +
+        `  return { defaultBrowserWindowRuntime: createMockBrowserWindowRuntime() };\n` +
+        `});\n`
+    );
+    fs.writeFileSync(
+      path.join(root, 'src/tests/synthetic/bespoke.test.ts'),
+      `vi.mock('@/shared/runtime/browserWindowRuntimeCore', () => ({\n` +
+        `  defaultBrowserWindowRuntime: { reload: vi.fn() },\n` +
+        `}));\n`
+    );
+
+    const report = buildTestRuntimeGovernanceReport(root);
+    const signal = report.fixtureGovernance.signals.find(
+      (item: { id: string }) => item.id === 'browser-runtime-mock'
+    );
+    expect(signal).toMatchObject({
+      files: 1,
+      examples: ['src/tests/synthetic/bespoke.test.ts'],
+    });
   });
 
   it('requires an exact one-to-one match between fixture watchlist patterns and detectors', () => {
