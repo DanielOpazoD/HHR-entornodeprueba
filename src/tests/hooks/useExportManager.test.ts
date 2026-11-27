@@ -109,19 +109,6 @@ describe('useExportManager', () => {
     window.cancelIdleCallback = originalCancelIdleCallback;
   });
 
-  it('should return all export functions', () => {
-    const { result } = renderHook(() =>
-      useExportManager({ ...defaultProps, canVerifyArchiveStatus: false })
-    );
-
-    expect(typeof result.current.handleExportPDF).toBe('function');
-    expect(typeof result.current.handlePrintWithBrowserOptions).toBe('function');
-    expect(typeof result.current.handleBackupExcel).toBe('function');
-    expect(typeof result.current.handleBackupHandoff).toBe('function');
-    expect(result.current.isArchived).toBe(false);
-    expect(result.current.isBackingUp).toBe(false);
-  });
-
   it('opens browser print after flushing local handoff state for configurable Chrome print options', async () => {
     vi.useFakeTimers();
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined);
@@ -454,6 +441,8 @@ describe('useExportManager', () => {
       initialProps: { ...defaultProps, canVerifyArchiveStatus: false },
     });
 
+    expect(result.current.isArchived).toBe(false);
+    expect(result.current.isBackingUp).toBe(false);
     const initialReturn = result.current;
     const initialBackupHandoff = result.current.handleBackupHandoff;
     const updatedRecord: DailyRecord = {
