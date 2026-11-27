@@ -122,3 +122,44 @@ export const openDialog = () => {
   fireEvent.click(screen.getByRole('button', { name: 'Descargar ficha, exámenes e informes' }));
   return screen.getByRole('dialog', { name: /Descargar ficha, exámenes e informes/ });
 };
+
+export interface ExplorerDownloadMocks {
+  audit: ReturnType<typeof vi.fn>;
+  auditCancel: ReturnType<typeof vi.fn>;
+  lab: ReturnType<typeof vi.fn>;
+  search: ReturnType<typeof vi.fn>;
+  checkDigit: ReturnType<typeof vi.fn>;
+  pdf: ReturnType<typeof vi.fn>;
+  download: ReturnType<typeof vi.fn>;
+  health: ReturnType<typeof vi.fn>;
+}
+
+export const configureDefaultExplorerDownloadMocks = async (
+  mocks: ExplorerDownloadMocks
+): Promise<void> => {
+  mocks.audit.mockReturnValue({ result: okRecord(), cancel: mocks.auditCancel });
+  mocks.lab.mockReturnValue({
+    phase: 'ready',
+    analysis,
+    pending: 0,
+    exams: [],
+    pendingLinks: [],
+    message: '',
+    progress: null,
+  });
+  mocks.health.mockReset().mockResolvedValue({
+    report: { version: '0.48.74', protocolVersion: 5, checkedAt: '2026-11-04T12:00:00Z' },
+  });
+  mocks.search.mockResolvedValue({ rut: RUT, examenes: [ctExam, xRay] });
+  mocks.checkDigit.mockResolvedValue({ rut: RUT, examenes: [], check_digit_search: 'complete' });
+  const ct = await syntheticPdf(300);
+  mocks.pdf.mockResolvedValue(new Blob([ct], { type: 'application/pdf' }));
+};
+
+export const readDownloadedPdfWidths = async (
+  downloadMock: ReturnType<typeof vi.fn>
+): Promise<number[]> => {
+  const [blob] = downloadMock.mock.calls[0] as [Blob, string];
+  const doc = await PDFDocument.load(await readBytes(blob));
+  return doc.getPages().map(page => Math.round(page.getWidth()));
+};

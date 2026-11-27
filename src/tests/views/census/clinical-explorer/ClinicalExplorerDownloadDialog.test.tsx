@@ -1,5 +1,4 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { PDFDocument } from 'pdf-lib';
 import PizZip from 'pizzip';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuditDocumentsResult } from '@/features/audit-documents/eloisa-history';
@@ -56,23 +55,19 @@ import { setSessionGeneration } from '@/services/session/sessionStorageTransitio
 import {
   HISTORY_NAME,
   RUT,
-  analysis,
+  configureDefaultExplorerDownloadMocks,
   ctExam,
-  okRecord,
   openDialog,
   otherPatient,
   patient,
   readBytes,
+  readDownloadedPdfWidths,
   renderHeader,
   syntheticPdf,
   xRay,
 } from './clinicalExplorerDownload.testSupport';
 
-const downloadedWidths = async (): Promise<number[]> => {
-  const [blob] = mocks.download.mock.calls[0] as [Blob, string];
-  const doc = await PDFDocument.load(await readBytes(blob));
-  return doc.getPages().map(page => Math.round(page.getWidth()));
-};
+const downloadedWidths = (): Promise<number[]> => readDownloadedPdfWidths(mocks.download);
 
 const auditAnswers = (result: Promise<AuditDocumentsResult>) =>
   mocks.audit.mockReturnValue({ result, cancel: mocks.auditCancel });
@@ -84,23 +79,7 @@ describe('ClinicalExplorerDownloadDialog', () => {
     // 01:30 on 7 November in Santiago is still 6 November at the hospital (TIME-02).
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-07T04:30:00Z'));
-    auditAnswers(okRecord());
-    mocks.lab.mockReturnValue({
-      phase: 'ready',
-      analysis,
-      pending: 0,
-      exams: [],
-      pendingLinks: [],
-      message: '',
-      progress: null,
-    });
-    mocks.health.mockReset().mockResolvedValue({
-      report: { version: '0.48.74', protocolVersion: 5, checkedAt: '2026-11-04T12:00:00Z' },
-    });
-    mocks.search.mockResolvedValue({ rut: RUT, examenes: [ctExam, xRay] });
-    mocks.checkDigit.mockResolvedValue({ rut: RUT, examenes: [], check_digit_search: 'complete' });
-    const ct = await syntheticPdf(300);
-    mocks.pdf.mockResolvedValue(new Blob([ct], { type: 'application/pdf' }));
+    await configureDefaultExplorerDownloadMocks(mocks);
   });
 
   afterEach(() => {
