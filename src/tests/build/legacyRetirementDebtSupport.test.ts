@@ -8,7 +8,7 @@ import {
   buildLegacyRetirementDebtReport,
   collectObservedLegacyConsumers,
   formatLegacyRetirementDebtMarkdown,
-} from '../../../scripts/legacyRetirementDebtSupport.mjs';
+} from '../../../scripts/check-legacy-retirement-debt.mjs';
 
 const baseConfig = {
   policyVersion: '2026-06-v1',

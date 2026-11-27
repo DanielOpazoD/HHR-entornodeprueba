@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildFirestoreRulesGovernanceReport } from '../../../scripts/firestoreRulesGovernanceSupport.mjs';
-import { collectRulesSourceGovernanceIssues } from '../../../scripts/rulesSourceGovernanceSupport.mjs';
+import { buildFirestoreRulesGovernanceReport } from '../../../scripts/check-firestore-rules-governance.mjs';
+import { collectRulesSourceGovernanceIssues } from '../../../scripts/check-rules-source-governance.mjs';
 import { normalizeGeneratedRuleFragment } from '../../../scripts/rulesSourceSupport.mjs';
 
 describe('firestoreRulesGovernanceSupport', () => {

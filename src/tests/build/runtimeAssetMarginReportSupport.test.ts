@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRuntimeAssetMarginReport,
   formatRuntimeAssetMarginMarkdown,
-} from '../../../scripts/runtimeAssetMarginReportSupport.mjs';
+} from '../../../scripts/check-runtime-asset-margin.mjs';
 
 const ledgerConfig = {
   policyVersion: 'test-policy',

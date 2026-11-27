@@ -7,7 +7,7 @@ import {
   formatRerunReport,
   groupRecoveredFailures,
   normalizeTestTitle,
-} from '../../../scripts/ciRerunReportSupport.mjs';
+} from '../../../scripts/report-ci-reruns.mjs';
 
 const attempt = (
   runId: number,

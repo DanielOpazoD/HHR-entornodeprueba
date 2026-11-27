@@ -1,29 +1,258 @@
 #!/usr/bin/env node
 
-import {
-  formatLegacyRetirementDebtMarkdown,
-  loadLegacyRetirementDebtReport,
-} from './legacyRetirementDebtSupport.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { isDirectCliEntry } from './lib/cliEntry.mjs';
 
-let report;
-try {
-  report = loadLegacyRetirementDebtReport();
-} catch (error) {
-  console.error(
-    `[legacy-retirement-debt] ${error instanceof Error ? error.message : String(error)}`
-  );
-  process.exit(1);
-}
+export const LEGACY_RETIREMENT_DEBT_GENERATED_AT = 'stable:legacy-retirement-debt';
 
-if (report.status !== 'ok') {
-  console.error('[legacy-retirement-debt] Validation failed:');
-  for (const issue of report.issues) {
-    console.error(`- ${issue}`);
+const asArray = value => (Array.isArray(value) ? value : []);
+
+const asNumber = value => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const hasNumericBudget = value => Number.isFinite(Number(value));
+
+const normalizePath = value => String(value || '').replace(/\\/g, '/');
+
+const matchesAnyPattern = (value, patterns) =>
+  asArray(patterns).some(pattern => new RegExp(pattern).test(value));
+
+const walkFiles = (root, relativeDir, files = []) => {
+  const absoluteDir = path.join(root, relativeDir);
+  if (!fs.existsSync(absoluteDir)) return files;
+
+  for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
+    const relativePath = normalizePath(path.join(relativeDir, entry.name));
+    if (entry.isDirectory()) {
+      if (!['node_modules', 'dist', 'build', 'coverage', 'reports'].includes(entry.name)) {
+        walkFiles(root, relativePath, files);
+      }
+      continue;
+    }
+
+    if (/\.(c|m)?(t|j)sx?$/.test(entry.name)) {
+      files.push(relativePath);
+    }
   }
-  console.error('\n' + formatLegacyRetirementDebtMarkdown(report));
-  process.exit(1);
-}
 
-console.log(
-  `[legacy-retirement-debt] OK — ${report.openSurfaceCount}/${report.maxOpenSurfaces || 'n/a'} open legacy surfaces remain within budget.`
-);
+  return files;
+};
+
+const collectDetectedConsumers = ({ root, detection }) => {
+  const roots =
+    asArray(detection?.sourceRoots).length > 0 ? asArray(detection.sourceRoots) : ['src'];
+  const markers = asArray(detection?.markers).filter(Boolean);
+  if (markers.length === 0) return [];
+
+  const includePatterns = asArray(detection?.includePathPatterns);
+  const excludePatterns = asArray(detection?.excludePathPatterns);
+  const candidateFiles = roots.flatMap(sourceRoot => walkFiles(root, sourceRoot));
+  const consumers = [];
+
+  for (const relativePath of candidateFiles) {
+    if (includePatterns.length > 0 && !matchesAnyPattern(relativePath, includePatterns)) continue;
+    if (matchesAnyPattern(relativePath, excludePatterns)) continue;
+
+    const content = fs.readFileSync(path.join(root, relativePath), 'utf8');
+    if (markers.some(marker => content.includes(marker))) {
+      consumers.push(relativePath);
+    }
+  }
+
+  return [...new Set(consumers)].sort();
+};
+
+export const collectObservedLegacyConsumers = ({
+  config,
+  root = process.cwd(),
+  observedConsumersBySurface = {},
+}) => {
+  const observed = { ...observedConsumersBySurface };
+
+  for (const surface of asArray(config?.surfaces)) {
+    if (!surface?.id || !surface.consumerDetection || observed[surface.id]) continue;
+    observed[surface.id] = collectDetectedConsumers({
+      root,
+      detection: surface.consumerDetection,
+    });
+  }
+
+  return observed;
+};
+
+const createSurfaceResult = ({ surface, status, signal, issues }) => ({
+  id: surface.id,
+  label: surface.label || surface.id,
+  owner: surface.owner || 'unknown',
+  phase: surface.phase || 'unknown',
+  status,
+  signal,
+  guardrails: asArray(surface.guardrails),
+  evidenceReports: asArray(surface.evidenceReports),
+  retirementCriteria: surface.retirementCriteria || '',
+  nextAction: surface.nextAction || '',
+  issues,
+});
+
+const buildConsumerBudgetSurface = ({ surface, observedConsumersBySurface }) => {
+  const approvedConsumers = asArray(surface.approvedConsumers);
+  const observedConsumers = asArray(observedConsumersBySurface?.[surface.id]);
+  const maxAuthorizedConsumers = asNumber(surface.maxAuthorizedConsumers);
+  const hasConsumerBudget = hasNumericBudget(surface.maxAuthorizedConsumers);
+  const isRetiredZeroBudget =
+    surface.phase === 'retired' || (hasConsumerBudget && maxAuthorizedConsumers === 0);
+  const unapprovedConsumers = observedConsumers.filter(
+    consumer => !approvedConsumers.includes(consumer)
+  );
+  const issues = [];
+
+  if (observedConsumers.length === 0 && !isRetiredZeroBudget) {
+    issues.push(`${surface.id} has no observed consumers from static detection`);
+  }
+  if (hasConsumerBudget && observedConsumers.length > maxAuthorizedConsumers) {
+    issues.push(
+      `${surface.id} observed consumers ${observedConsumers.length} exceed budget ${maxAuthorizedConsumers}`
+    );
+  }
+  if (unapprovedConsumers.length > 0) {
+    issues.push(`${surface.id} has unapproved consumers: ${unapprovedConsumers.join(', ')}`);
+  }
+
+  return createSurfaceResult({
+    surface,
+    status: issues.length === 0 ? 'ok' : 'degraded',
+    signal: `consumers=${observedConsumers.length}/${hasConsumerBudget ? maxAuthorizedConsumers : 'n/a'}, unapproved=${unapprovedConsumers.length}`,
+    issues,
+  });
+};
+
+const buildGenericSurface = surface =>
+  createSurfaceResult({
+    surface,
+    status: 'ok',
+    signal: 'documented',
+    issues: [],
+  });
+
+const buildSurface = ({ surface, observedConsumersBySurface }) => {
+  if (surface.maxAuthorizedConsumers != null) {
+    return buildConsumerBudgetSurface({ surface, observedConsumersBySurface });
+  }
+
+  return buildGenericSurface(surface);
+};
+
+export const buildLegacyRetirementDebtReport = ({ config, observedConsumersBySurface = {} }) => {
+  const surfaces = asArray(config?.surfaces).map(surface =>
+    buildSurface({
+      surface,
+      observedConsumersBySurface,
+    })
+  );
+  const maxOpenSurfaces = asNumber(config?.maxOpenSurfaces);
+  const openSurfaceCount = surfaces.filter(surface => surface.phase !== 'retired').length;
+  const issues = surfaces.flatMap(surface => surface.issues);
+
+  if (maxOpenSurfaces > 0 && openSurfaceCount > maxOpenSurfaces) {
+    issues.push(`open legacy surfaces ${openSurfaceCount} exceed budget ${maxOpenSurfaces}`);
+  }
+
+  return {
+    generatedAt: LEGACY_RETIREMENT_DEBT_GENERATED_AT,
+    policyVersion: config?.policyVersion || 'unknown',
+    status: issues.length === 0 ? 'ok' : 'degraded',
+    openSurfaceCount,
+    maxOpenSurfaces,
+    surfaces,
+    issues,
+  };
+};
+
+const readRequiredJson = (root, relativePath) => {
+  const absolutePath = path.join(root, relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    throw new Error(`Missing required JSON input: ${relativePath}`);
+  }
+  return JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
+};
+
+export const loadLegacyRetirementDebtReport = (root = process.cwd()) => {
+  const config = readRequiredJson(root, 'scripts/config/legacy-retirement-debt.json');
+  const observedConsumersBySurface = collectObservedLegacyConsumers({ config, root });
+
+  return buildLegacyRetirementDebtReport({
+    config,
+    observedConsumersBySurface,
+  });
+};
+
+export const formatLegacyRetirementDebtMarkdown = report => {
+  const lines = [
+    '# Legacy Retirement Debt Snapshot',
+    '',
+    `- Generated: ${report.generatedAt}`,
+    `- Policy version: ${report.policyVersion}`,
+    `- Status: ${report.status}`,
+    `- Open surfaces: ${report.openSurfaceCount}/${report.maxOpenSurfaces || 'n/a'}`,
+    '',
+    '## Surfaces',
+    '',
+    '| Surface | Owner | Phase | Status | Signal | Next action |',
+    '| --- | --- | --- | --- | --- | --- |',
+  ];
+
+  for (const surface of report.surfaces) {
+    lines.push(
+      `| ${surface.label} | ${surface.owner} | ${surface.phase} | ${surface.status} | ${surface.signal} | ${surface.nextAction} |`
+    );
+  }
+
+  lines.push('', '## Evidence', '');
+  for (const surface of report.surfaces) {
+    lines.push(`### ${surface.label}`, '');
+    lines.push(`- Retirement criteria: ${surface.retirementCriteria || 'n/a'}`);
+    lines.push(`- Guardrails: ${surface.guardrails.join(', ') || 'n/a'}`);
+    lines.push(`- Reports: ${surface.evidenceReports.join(', ') || 'n/a'}`);
+    if (surface.issues.length > 0) {
+      lines.push(`- Issues: ${surface.issues.join('; ')}`);
+    }
+    lines.push('');
+  }
+
+  if (report.issues.length > 0) {
+    lines.push('## Issues', '');
+    for (const issue of report.issues) {
+      lines.push(`- ${issue}`);
+    }
+  }
+
+  return lines.join('\n').trimEnd();
+};
+
+if (isDirectCliEntry(import.meta.url)) {
+  let report;
+  try {
+    report = loadLegacyRetirementDebtReport();
+  } catch (error) {
+    console.error(
+      `[legacy-retirement-debt] ${error instanceof Error ? error.message : String(error)}`
+    );
+    process.exit(1);
+  }
+
+  if (report.status !== 'ok') {
+    console.error('[legacy-retirement-debt] Validation failed:');
+    for (const issue of report.issues) {
+      console.error(`- ${issue}`);
+    }
+    console.error('\n' + formatLegacyRetirementDebtMarkdown(report));
+    process.exit(1);
+  }
+
+  console.log(
+    `[legacy-retirement-debt] OK — ${report.openSurfaceCount}/${report.maxOpenSurfaces || 'n/a'} open legacy surfaces remain within budget.`
+  );
+}

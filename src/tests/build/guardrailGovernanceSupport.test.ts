@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   collectGuardrailGovernanceIssues,
   collectReferencedScripts,
-} from '../../../scripts/guardrailGovernanceSupport.mjs';
+} from '../../../scripts/check-guardrail-governance.mjs';
 
 const tempRoots: string[] = [];
 
