@@ -1,5 +1,6 @@
+import { useCallback } from 'react';
+import type { TableColumnConfig } from '@/context/TableConfigContext';
 import { useEmptyBedActivation } from '../components/useEmptyBedActivation';
-import { useCensusColumnResize } from './useCensusColumnResize';
 import { useCensusTableDependencies } from './useCensusTableDependencies';
 import { useCensusTableModel } from './useCensusTableModel';
 
@@ -24,9 +25,13 @@ export const useCensusTableRuntime = ({ currentDateString }: UseCensusTableRunti
     confirm: dependencies.confirm,
     warning: dependencies.warning,
   });
-  const { handleColumnResize } = useCensusColumnResize({
-    updateColumnWidth: dependencies.updateColumnWidth,
-  });
+  const { updateColumnWidth } = dependencies;
+  const handleColumnResize = useCallback(
+    (column: keyof TableColumnConfig) => (width: number) => {
+      updateColumnWidth(column, width);
+    },
+    [updateColumnWidth]
+  );
 
   return {
     ...dependencies,
