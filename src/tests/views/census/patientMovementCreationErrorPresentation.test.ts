@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { getMovementCreationWarningMessage } from '@/features/census/controllers/patientMovementCreationErrorPresentation';
+import { getMovementCreationWarningMessage } from '@/features/census/hooks/usePatientMovementExecutors';
 
 describe('patientMovementCreationErrorPresentation', () => {
   it('formats discharge warnings', () => {

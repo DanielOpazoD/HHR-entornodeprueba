@@ -16,10 +16,6 @@ import type {
   MovementCreationError,
   MovementCreationErrorCode,
 } from '@/features/census/controllers/patientMovementCreationController';
-import {
-  getMovementCreationWarningMessage,
-  type MovementKind,
-} from '@/features/census/controllers/patientMovementCreationErrorPresentation';
 import type { PatientMovementRuntime } from '@/features/census/controllers/patientMovementRuntimeController';
 import {
   resolveUndoPatientMovement,
@@ -30,6 +26,24 @@ import {
   type UndoMovementKind,
 } from '@/features/census/controllers/patientMovementUndoErrorPresentation';
 import type { UndoMovementDescriptor } from '@/features/census/controllers/patientMovementSelectionController';
+
+export type MovementKind = 'discharge' | 'transfer';
+
+export const getMovementCreationWarningMessage = (
+  kind: MovementKind,
+  code: MovementCreationErrorCode,
+  bedId: string
+): string => {
+  if (kind === 'discharge') {
+    return code === 'SOURCE_BED_EMPTY'
+      ? `Attempted to discharge empty bed: ${bedId}`
+      : `Attempted to discharge unknown bed: ${bedId}`;
+  }
+
+  return code === 'SOURCE_BED_EMPTY'
+    ? `Attempted to transfer empty bed: ${bedId}`
+    : `Attempted to transfer unknown bed: ${bedId}`;
+};
 
 interface UndoDescriptor {
   patientName: string;

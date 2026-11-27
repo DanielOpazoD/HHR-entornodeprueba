@@ -88,7 +88,6 @@ describe('census startup payload', () => {
       'ClinicalPanelSections.tsx',
       'PatientDocumentManagerDialog.tsx',
       'RayenEncounterButton.tsx',
-      'clinicalAntecedentEntries.ts',
       'useClinicalPanelSnapshot.ts',
     ].map(file => `${rowDir}/${file}`);
     for (const file of consumers) {

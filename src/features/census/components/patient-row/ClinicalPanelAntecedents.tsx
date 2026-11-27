@@ -3,15 +3,29 @@ import { Loader2, RefreshCw } from 'lucide-react';
 import {
   requestClinicalAction,
   type ClinicalActionResult,
+  type ClinicalAntecedentEntry,
 } from '@/features/rayen-import/clinical-panel';
 import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
 import { ClinicalAntecedentCard } from './ClinicalAntecedentCard';
 import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';
-import {
-  clinicalAntecedentEntryKey,
-  uniqueClinicalAntecedentEntries,
-} from './clinicalAntecedentEntries';
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
+
+const clinicalAntecedentEntryKey = (
+  entry: Pick<ClinicalAntecedentEntry, 'source' | 'id'>
+): string => JSON.stringify([entry.source, entry.id]);
+
+/** Keep the first source/id occurrence, including its original object and position. */
+export const uniqueClinicalAntecedentEntries = (
+  entries: readonly ClinicalAntecedentEntry[]
+): ClinicalAntecedentEntry[] => {
+  const seen = new Set<string>();
+  return entries.filter(entry => {
+    const key = clinicalAntecedentEntryKey(entry);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 const sameResult = (left: ClinicalActionResult | null, right: ClinicalActionResult): boolean =>
   JSON.stringify(left) === JSON.stringify(right);
 type OlderPage = { requestedEnd: string; data: ClinicalActionResult };
