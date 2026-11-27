@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { formatClinicalDocumentDateTime } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
+import { formatClinicalDocumentDateTime } from '@/features/clinical-documents/domain/clinicalDocumentPresentation';
 import type { ClinicalAttachmentRecord } from '@/features/clinical-documents/contracts/clinicalAttachmentContracts';
 
 const formatAttachmentSize = (sizeBytes: number): string => {

@@ -1,16 +1,10 @@
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import type { ConfirmOptions } from '@/context/uiContracts';
 import { getClinicalDocumentDefinition } from '@/domain/clinical-documents/definitions';
-import { formatClinicalDocumentDateTime as formatClinicalDocumentDateTimePresentation } from '@/features/clinical-documents/domain/clinicalDocumentPresentation';
 
 /** Serializes a clinical document record to JSON, returning empty string for null. */
 export const serializeClinicalDocument = (record: ClinicalDocumentRecord | null): string =>
   record ? JSON.stringify(record) : '';
-
-/** Formats an ISO date string for display in the clinical document UI. */
-export const formatClinicalDocumentDateTime = (isoString?: string): string => {
-  return formatClinicalDocumentDateTimePresentation(isoString);
-};
 
 /** Returns the CSS grid class names for a patient field cell by field ID. */
 export const getClinicalDocumentPatientFieldGridClass = (fieldId: string): string =>

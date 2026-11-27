@@ -17,10 +17,8 @@ import {
 import clsx from 'clsx';
 
 import { getClinicalDocumentTypeLabel } from '@/features/clinical-documents/controllers/clinicalDocumentTemplateController';
-import {
-  formatClinicalDocumentAuthorName,
-  formatClinicalDocumentDateTime,
-} from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
+import { formatClinicalDocumentAuthorName } from '@/features/clinical-documents/controllers/clinicalDocumentWorkspaceController';
+import { formatClinicalDocumentDateTime } from '@/features/clinical-documents/domain/clinicalDocumentPresentation';
 import { withCurrentClinicalDocumentVersionSnapshotFallback } from '@/domain/clinical-documents/versionHistory';
 import type { ClinicalDocumentsSidebarProps } from '@/features/clinical-documents/contracts/clinicalDocumentsSidebarContracts';
 import { ClinicalDocumentVersionBadge } from '@/features/clinical-documents/components/ClinicalDocumentVersionBadge';
