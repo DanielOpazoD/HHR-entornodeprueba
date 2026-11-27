@@ -10,11 +10,11 @@ const vitestEntry = path.join(root, 'node_modules', 'vitest', 'vitest.mjs');
 const targets = getCriticalCoverageTestTargets(root);
 const requested = process.argv.slice(2);
 const blobDirectory = 'reports/critical-coverage-blobs';
-const shardCount = 4;
+const shardCount = 2;
 let args = ['run', '-c', 'vitest.critical-coverage.config.ts', ...targets];
 
 if (requested.length > 0) {
-  if (requested.length === 1 && /^--shard=[1-4]\/4$/.test(requested[0])) {
+  if (requested.length === 1 && /^--shard=[1-2]\/2$/.test(requested[0])) {
     const index = requested[0].match(/\d/)[0];
     args.push(
       requested[0],
@@ -31,15 +31,13 @@ if (requested.length > 0) {
     );
     if (JSON.stringify(files) !== JSON.stringify(expectedFiles)) {
       console.error(
-        '[critical-coverage] All four shard reports are required; unexpected files are rejected.'
+        '[critical-coverage] Both shard reports are required; unexpected files are rejected.'
       );
       process.exit(1);
     }
     args = ['-c', 'vitest.critical-coverage.config.ts', `--merge-reports=${blobDirectory}`];
   } else {
-    console.error(
-      '[critical-coverage] Expected --shard=1/4 through --shard=4/4 or --merge-shards.'
-    );
+    console.error('[critical-coverage] Expected --shard=1/2, --shard=2/2, or --merge-shards.');
     process.exit(1);
   }
 }
