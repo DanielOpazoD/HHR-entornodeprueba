@@ -155,7 +155,7 @@ export const buildCudyrReportWorkbook = async (
       ],
       [
         'Turno',
-        'Regla HHR vigente: aplicaciones desde 00:00 hasta antes de 12:00 (madrugada del turno noche y horario diferido de matronas) se atribuyen al día censal previo en Pacific/Easter.',
+        'Regla HHR vigente: aplicaciones desde 00:00 hasta antes de 12:00 (madrugada del turno noche y horario diferido de matronas o enfermería) se atribuyen al día censal previo en Pacific/Easter.',
       ],
       [
         'Referencia de cama',

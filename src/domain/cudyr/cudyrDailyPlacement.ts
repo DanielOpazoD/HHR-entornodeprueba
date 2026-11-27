@@ -61,9 +61,9 @@ export const resolveCudyrDailyPlacement = (input: CudyrDailyPlacementInput) => {
     initialReferenceAt ?? '',
     input.sourcePlacements
   );
-  // A deferred morning CUDYR (e.g. midwife entry 08:00-11:59 on D+1) may be recorded after the
-  // patient already left their overnight bed. When no placement is active at that later instant,
-  // resolve the overnight bed at the fixed 01:00 cutoff (CUD-04) without altering earlier entries.
+  // A deferred morning CUDYR (e.g. midwife or nursing entry 08:00-11:59 on D+1) may be recorded
+  // after the patient already left their overnight bed. When no placement is active at that later
+  // instant, resolve the overnight bed at the fixed 01:00 cutoff (CUD-04) without altering earlier entries.
   const evaluationInstant = input.evaluationAt ? Date.parse(input.evaluationAt) : NaN;
   const cutoffInstant = cutoffAt ? Date.parse(cutoffAt) : NaN;
   const cutoffSource =

@@ -42,7 +42,7 @@ cargador y su modelo (los usa también el respaldo mensual), la cola del archivo
 
 - Ya no existe botón manual de `Bloqueado/Desbloqueado` en la UI CUDYR.
 - El CUDYR pertenece a la fecha de inicio del turno noche: turno del día `D` va de `20:00 D` a `08:00 D + 1`.
-- Una medición realizada durante la madrugada o mañana siguiente (`00:00`–`11:59`, incluido el horario diferido de matronas de `08:00` a `11:59`) se persiste en el registro `D` (`X-1`), aunque una sincronización diferida se ejecute después o con el censo `D + 1` visible.
+- Una medición realizada durante la madrugada o mañana siguiente (`00:00`–`11:59`, incluido el horario diferido de `08:00` a `11:59` de matronas o enfermería) se persiste en el registro `D` (`X-1`), aunque una sincronización diferida se ejecute después o con el censo `D + 1` visible.
 - Eloísa es la fuente autoritativa del CUDYR importado: una sincronización reemplaza una copia histórica antigua o mal fechada; no se limita a completar casillas vacías.
 - HHR permite completar durante `D + 1` la sincronización pendiente del registro `D`; la hora de sincronización no cambia la fecha dueña.
 - La fecha dueña viaja en la mutación (`shiftDate = record.date`) y nunca se recalcula desde la hora posterior de sincronización.
