@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   extractExcludePatterns,
+  patternExcludesFile,
   resolveUnitSuiteExcludePatterns,
 } from '../../../scripts/ciRiskPackMembershipSupport.mjs';
 
@@ -57,5 +58,33 @@ describe('ci risk pack membership support', () => {
       'src/tests/emulator/**',
       'src/tests/emulator-ui/**',
     ]);
+  });
+
+  it('matches directory glob exclusions on exact directory boundaries without colliding with sibling prefixes', () => {
+    expect(patternExcludesFile('src/tests/emulator/**', 'src/tests/emulator/sync.test.ts')).toBe(
+      true
+    );
+    expect(
+      patternExcludesFile('src/tests/emulator/**', 'src/tests/emulator/nested/sync.test.ts')
+    ).toBe(true);
+    expect(
+      patternExcludesFile(
+        'src/tests/emulator/**',
+        'src/tests/emulator-ui/offlineReplayEquivalence.emulator-ui.test.tsx'
+      )
+    ).toBe(false);
+    expect(patternExcludesFile('src/tests/emulator/**', 'src/tests/emulator')).toBe(false);
+    expect(
+      patternExcludesFile(
+        'src/tests/security/firestore-rules.test.ts',
+        'src/tests/security/firestore-rules.test.ts'
+      )
+    ).toBe(true);
+    expect(
+      patternExcludesFile(
+        'src/tests/security/firestore-rules.test.ts',
+        'src/tests/security/firestore-rules.test.ts.bak'
+      )
+    ).toBe(false);
   });
 });

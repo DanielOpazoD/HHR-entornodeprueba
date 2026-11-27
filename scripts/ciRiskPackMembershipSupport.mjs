@@ -20,7 +20,7 @@ export const patternExcludesFile = (pattern, file) => {
     return true;
   }
   if (pattern.endsWith('/**')) {
-    return file.startsWith(pattern.slice(0, -3));
+    return file.startsWith(pattern.slice(0, -2));
   }
   return false;
 };
