@@ -208,7 +208,15 @@ describe('test runtime governance support', () => {
     const report = buildRepositoryReport();
     const markdown = formatTestRuntimeGovernanceMarkdown(report);
 
-    expect(report.fixtureGovernance.signals.length).toBeGreaterThanOrEqual(3);
+    expect(
+      report.fixtureGovernance.signals.map(
+        (signal: { id: string; preferred: string; reason: string }) => ({
+          pattern: signal.id,
+          preferred: signal.preferred,
+          reason: signal.reason,
+        })
+      )
+    ).toEqual(report.fixtureGovernance.duplicationWatchlist);
     expect(markdown).toContain('# Test Runtime Governance');
     expect(markdown).toContain('## PR Blocking Suites');
     expect(markdown).toContain('## Nightly Suites');
@@ -216,6 +224,59 @@ describe('test runtime governance support', () => {
     expect(markdown).toContain('CI observed unit shard runtime');
     expect(markdown).toContain('## Fixture Duplication Governance');
     expect(markdown).toContain('## Fixture Duplication Signals');
+  });
+
+  it('requires an exact one-to-one match between fixture watchlist patterns and detectors', () => {
+    const setupValidRoot = () => {
+      const root = makeReportRoot();
+      copyGovernedFiles(root);
+      for (const relative of ['src/tests/support', 'src/tests/utils', 'src/tests/integration']) {
+        fs.mkdirSync(path.join(root, relative), { recursive: true });
+      }
+      fs.writeFileSync(path.join(root, 'src/tests/integration/setup.tsx'), '');
+      return root;
+    };
+
+    const mutateWatchlist = (
+      root: string,
+      mutate: (watchlist: Array<{ pattern: string; preferred: string; reason: string }>) => void
+    ) => {
+      const configPath = path.join(root, 'scripts/config/test-runtime-governance.json');
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      mutate(config.fixtureGovernance.duplicationWatchlist);
+      fs.writeFileSync(configPath, JSON.stringify(config));
+    };
+
+    const duplicateRoot = setupValidRoot();
+    mutateWatchlist(duplicateRoot, watchlist => {
+      watchlist.push({ ...watchlist[0] });
+    });
+    expect(collectTestRuntimeGovernanceIssues(duplicateRoot)).toEqual([
+      'fixtureGovernance.duplicationWatchlist contains duplicate pattern: large-inline-daily-record.',
+    ]);
+
+    const missingRoot = setupValidRoot();
+    mutateWatchlist(missingRoot, watchlist => {
+      watchlist.splice(
+        watchlist.findIndex(item => item.pattern === 'browser-runtime-mock'),
+        1
+      );
+    });
+    expect(collectTestRuntimeGovernanceIssues(missingRoot)).toEqual([
+      'fixtureGovernance.duplicationWatchlist is missing detector pattern: browser-runtime-mock.',
+    ]);
+
+    const unknownRoot = setupValidRoot();
+    mutateWatchlist(unknownRoot, watchlist => {
+      watchlist.push({
+        pattern: 'unregistered-fixture-pattern',
+        preferred: 'src/tests/support',
+        reason: 'No detector exists for this pattern.',
+      });
+    });
+    expect(collectTestRuntimeGovernanceIssues(unknownRoot)).toEqual([
+      'fixtureGovernance.duplicationWatchlist pattern has no detector: unregistered-fixture-pattern.',
+    ]);
   });
   it('preserves the source of a stored observation instead of assigning this report commit', () => {
     const source = {
