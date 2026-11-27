@@ -4,7 +4,7 @@ import {
   shouldAlertOperationalTelemetry,
 } from '../../src/shared/observability/operationalTelemetryIngestPolicy';
 import {
-  buildCorsHeaders,
+  buildCorsPreflightResponse,
   buildJsonResponse,
   buildTooManyRequestsResponse,
   getClientIp,
@@ -41,14 +41,10 @@ export const createOperationalTelemetryHandler =
       });
     if (!isOriginAllowed(requestOrigin)) return response(403, { error: 'Origin not allowed' });
     if (event.httpMethod === 'OPTIONS')
-      return {
-        statusCode: 200,
-        headers: buildCorsHeaders(requestOrigin, {
-          allowedHeaders: 'Content-Type',
-          allowedMethods: 'POST,OPTIONS',
-        }),
-        body: '',
-      };
+      return buildCorsPreflightResponse(requestOrigin, {
+        allowedHeaders: 'Content-Type',
+        allowedMethods: 'POST,OPTIONS',
+      });
     if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
     if (isRateLimited(getClientIp(event), RATE_LIMIT))
       return buildTooManyRequestsResponse(requestOrigin);

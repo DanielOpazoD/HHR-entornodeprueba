@@ -4,7 +4,7 @@ import { authorizeAdminAIRequest } from './lib/admin-ai-auth';
 import { listClinicalAIProviderAvailability } from './lib/ai-provider';
 import { SERVERLESS_ADMIN_ONLY_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 import {
-  buildCorsHeaders,
+  buildCorsPreflightResponse,
   buildJsonResponse,
   getRequestOrigin,
   isOriginAllowed,
@@ -15,21 +15,16 @@ const ADMIN_AI_PROVIDER_STATUS_ALLOWED_ROLES = SERVERLESS_ADMIN_ONLY_ROLES;
 
 export const handler = async (event: NetlifyEventLike) => {
   const requestOrigin = getRequestOrigin(event);
-  const corsHeaders = buildCorsHeaders(requestOrigin, {
-    allowedHeaders: 'Content-Type, Authorization, Accept',
-    allowedMethods: 'GET,OPTIONS',
-  });
 
   if (!isOriginAllowed(requestOrigin)) {
     return buildJsonResponse(403, { error: 'Origin not allowed' }, { requestOrigin });
   }
 
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: '',
-    };
+    return buildCorsPreflightResponse(requestOrigin, {
+      allowedHeaders: 'Content-Type, Authorization, Accept',
+      allowedMethods: 'GET,OPTIONS',
+    });
   }
 
   if (event.httpMethod !== 'GET') {

@@ -4,7 +4,7 @@ import * as z from 'zod';
 import { sendCensusEmail } from './lib/gmailClient';
 import { getFirebaseServer } from './lib/firebase-server';
 import {
-  buildCorsHeaders,
+  buildCorsPreflightResponse,
   buildJsonResponse,
   buildTextResponse,
   buildTooManyRequestsResponse,
@@ -52,21 +52,13 @@ const resolvePsychiatryRecipientsFromEnv = (): string[] =>
 
 export const handler = async (event: NetlifyEventLike) => {
   const requestOrigin = getRequestOrigin(event);
-  const corsHeaders = buildCorsHeaders(requestOrigin, {
-    allowedHeaders: 'Content-Type, Authorization, Accept, X-User-Role',
-    allowedMethods: 'POST,OPTIONS',
-  });
 
   if (!isOriginAllowed(requestOrigin)) {
     return buildJsonResponse(403, { error: 'Origin not allowed' }, { requestOrigin });
   }
 
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: '',
-    };
+    return buildCorsPreflightResponse(requestOrigin, { allowedMethods: 'POST,OPTIONS' });
   }
 
   if (event.httpMethod !== 'POST') {
