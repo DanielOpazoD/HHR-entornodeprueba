@@ -52,11 +52,9 @@ comprobación real de la extensión en Chrome.
 
 ### Selección rápida antes del PR
 
-| Cambio                                                         | Validación local mínima                                          | Ruta automática del PR |
-| -------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- |
-| Solo documentación permitida                                   | `npm run check:docs-drift && npm run check:operational-runbooks` | `docs-only`            |
-| Solo fuente de Firebase Functions                              | secuencia completa de Functions indicada abajo                   | `functions-only`       |
-| Aplicación, dependencias, configuración, reglas o cambio mixto | `npm run check:changed` y pruebas focalizadas del área tocada    | `full`                 |
+La matriz canónica de alcances automáticos (`docs-only`, `functions-only`, `tooling-only` y `full`), sus fallbacks conservadores y los gates exactos viven en
+[CI Gates and Failure Runbooks](../CI_GATES_AND_FAILURE_RUNBOOKS.md#alcance-automático-de-ci-en-pull-requests).
+Antes de subir código habitual basta con `npm run check:changed` y las pruebas focalizadas del área tocada.
 
 Para reproducir localmente el gate `functions-only`, usar Node.js 22 y ejecutar:
 
@@ -71,9 +69,6 @@ npm run check:serverless-sensitive-coverage
 npm run check:serverless-runtime-governance
 npm --prefix functions run check:clinical-pdf-runtime
 ```
-
-La definición canónica, los fallbacks conservadores y los gates exactos están en
-[CI Gates and Failure Runbooks](../CI_GATES_AND_FAILURE_RUNBOOKS.md#alcance-automático-de-ci-en-pull-requests).
 
 ## 3. Cobertura crítica
 
@@ -140,7 +135,7 @@ En PR con alcance `full` deben seguir bloqueando:
 - `emulator-ui`
 - `e2e-critical`
 
-Los alcances `docs-only` y `functions-only` usan gates enfocados y `ci-summary`
+Los alcances `docs-only`, `functions-only` y `tooling-only` usan gates enfocados y `ci-summary`
 comprueba que la matriz completa haya quedado en `skipped` de forma intencional.
 
 Las suites más caras quedan en `.github/workflows/nightly-test-runtime.yml` con `workflow_dispatch`
