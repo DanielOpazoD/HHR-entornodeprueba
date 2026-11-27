@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { Script } from 'node:vm';
+import ts from 'typescript';
 
 const root = process.cwd();
 const extensionDir = path.join(root, 'extension');
@@ -57,15 +58,86 @@ const validateFileReferences = (source, files) => {
   }
 };
 
-const parseLiteralImportScripts = source => {
-  const withoutTrailingComma = source.trim().replace(/,\s*$/, '');
-  if (!withoutTrailingComma) return { files: [], valid: true };
-  const entries = withoutTrailingComma.split(',').map(entry => entry.trim());
+const parseSourceFile = (fileName, source, scriptKind = ts.ScriptKind.JS) =>
+  ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, scriptKind);
+
+const visitAst = (node, visitor) => {
+  visitor(node);
+  ts.forEachChild(node, child => visitAst(child, visitor));
+};
+
+const readConstStringDeclaration = (sourceFile, name) => {
+  const values = [];
+  visitAst(sourceFile, node => {
+    if (!ts.isVariableDeclarationList(node)) return;
+    if ((node.flags & ts.NodeFlags.Const) === 0) return;
+    for (const declaration of node.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== name) continue;
+      if (declaration.initializer && ts.isStringLiteralLike(declaration.initializer)) {
+        values.push(declaration.initializer.text);
+      } else {
+        values.push(undefined);
+      }
+    }
+  });
+  return values.length === 1 ? values[0] : undefined;
+};
+
+const readIntegerConstantDeclaration = (sourceFile, name) => {
+  const values = [];
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== name) continue;
+      const initializer = declaration.initializer;
+      if (initializer && ts.isNumericLiteral(initializer) && /^\d+$/.test(initializer.text)) {
+        values.push(Number(initializer.text));
+      } else {
+        values.push(Number.NaN);
+      }
+    }
+  }
+  return values.length === 1 ? values[0] : Number.NaN;
+};
+
+const isImportScriptsCallee = expression => {
+  if (ts.isParenthesizedExpression(expression)) {
+    return isImportScriptsCallee(expression.expression);
+  }
+  if (ts.isIdentifier(expression)) return expression.text === 'importScripts';
+  if (ts.isPropertyAccessExpression(expression)) return expression.name.text === 'importScripts';
+  if (ts.isElementAccessExpression(expression)) {
+    return (
+      expression.argumentExpression !== undefined &&
+      ts.isStringLiteralLike(expression.argumentExpression) &&
+      expression.argumentExpression.text === 'importScripts'
+    );
+  }
+  return false;
+};
+
+const collectImportScriptsCalls = sourceFile => {
+  const calls = [];
+  visitAst(sourceFile, node => {
+    if (ts.isCallExpression(node) && isImportScriptsCallee(node.expression)) {
+      calls.push(node);
+    }
+  });
+  return calls;
+};
+
+const isTopLevelDeclarationStatement = statement =>
+  ts.isVariableStatement(statement) ||
+  ts.isFunctionDeclaration(statement) ||
+  ts.isClassDeclaration(statement);
+
+const extractLiteralImportScriptsArguments = callExpression => {
   const files = [];
-  for (const entry of entries) {
-    const literal = entry.match(/^(['"])([^'"]+)\1$/);
-    if (!literal) return { files: [], valid: false };
-    files.push(literal[2]);
+  for (const argument of callExpression.arguments) {
+    if (!ts.isStringLiteral(argument)) {
+      return { files: [], valid: false };
+    }
+    files.push(argument.text);
   }
   return { files, valid: true };
 };
@@ -167,8 +239,11 @@ if (manifest.minimum_chrome_version !== '118') {
 // El inject de mundo principal no puede leer el manifest: publica una constante que el relay
 // compara con la versión instalada. Si divergen, TODA pestaña fresca quedaría «versión anterior».
 const injectPath = path.join(extensionDir, 'inject-fichamedico.js');
-const injectVersion = existsSync(injectPath)
-  ? (readFileSync(injectPath, 'utf8').match(/const INJECT_VERSION = '([^']+)'/) || [])[1]
+const injectVersion = isRegularFile(injectPath)
+  ? readConstStringDeclaration(
+      parseSourceFile('inject-fichamedico.js', readFileSync(injectPath, 'utf8')),
+      'INJECT_VERSION'
+    )
   : undefined;
 if (injectVersion !== manifest.version) {
   fail(
@@ -178,9 +253,11 @@ if (injectVersion !== manifest.version) {
 // Gestión de Camas has its own MAIN-world inject with the same lockstep requirement: a manifest
 // bump that forgets it marks every open GC tab as `outdated_tab`.
 const gestionCamasInjectPath = path.join(extensionDir, 'inject-gestioncamas.js');
-const gestionCamasInjectVersion = existsSync(gestionCamasInjectPath)
-  ? (readFileSync(gestionCamasInjectPath, 'utf8').match(/const INJECT_VERSION = '([^']+)'/) ||
-      [])[1]
+const gestionCamasInjectVersion = isRegularFile(gestionCamasInjectPath)
+  ? readConstStringDeclaration(
+      parseSourceFile('inject-gestioncamas.js', readFileSync(gestionCamasInjectPath, 'utf8')),
+      'INJECT_VERSION'
+    )
   : undefined;
 if (gestionCamasInjectVersion !== manifest.version) {
   fail(
@@ -323,11 +400,19 @@ const backgroundSource =
 const healthBridgeSource = existsSync(healthBridgePath)
   ? readFileSync(healthBridgePath, 'utf8')
   : '';
-const extensionProtocolVersion = Number(
-  backgroundSource.match(/\bEXTENSION_PROTOCOL_VERSION\s*=\s*(\d+)/)?.[1]
+const backgroundSourceFile = parseSourceFile(backgroundWorker || 'background.js', backgroundSource);
+const healthBridgeSourceFile = parseSourceFile(
+  'extensionHealthBridge.ts',
+  healthBridgeSource,
+  ts.ScriptKind.TS
 );
-const applicationProtocolVersion = Number(
-  healthBridgeSource.match(/\bRAYEN_EXTENSION_PROTOCOL_VERSION\s*=\s*(\d+)/)?.[1]
+const extensionProtocolVersion = readIntegerConstantDeclaration(
+  backgroundSourceFile,
+  'EXTENSION_PROTOCOL_VERSION'
+);
+const applicationProtocolVersion = readIntegerConstantDeclaration(
+  healthBridgeSourceFile,
+  'RAYEN_EXTENSION_PROTOCOL_VERSION'
 );
 if (!Number.isInteger(extensionProtocolVersion)) {
   fail('background.js no declara EXTENSION_PROTOCOL_VERSION como entero literal.');
@@ -344,27 +429,30 @@ if (
     `Protocolo incompatible: extensión=${extensionProtocolVersion}, aplicación=${applicationProtocolVersion}.`
   );
 }
-const executableBackgroundSource = backgroundSource
-  .replace(/\/\*[\s\S]*?\*\//g, '')
-  .replace(/\/\/.*$/gm, '');
-const importScriptsCalls = [
-  ...executableBackgroundSource.matchAll(/\bimportScripts\s*\(([^)]*)\)\s*;/g),
-];
+const importScriptsCalls = collectImportScriptsCalls(backgroundSourceFile);
 if (importScriptsCalls.length !== 1) {
   fail('background.js debe registrar sus runtimes en una única llamada importScripts() inicial.');
 }
 const startupCall = importScriptsCalls[0];
-const firstDeclarationIndex = executableBackgroundSource.search(
-  /\b(?:const|let|var|function|class)\b/
+const firstDeclarationIndex = backgroundSourceFile.statements.findIndex(
+  isTopLevelDeclarationStatement
 );
+const startupStatementIndex =
+  startupCall &&
+  ts.isExpressionStatement(startupCall.parent) &&
+  startupCall.parent.parent === backgroundSourceFile
+    ? backgroundSourceFile.statements.indexOf(startupCall.parent)
+    : -1;
 if (
   startupCall &&
-  firstDeclarationIndex >= 0 &&
-  Number(startupCall.index) > firstDeclarationIndex
+  (startupStatementIndex === -1 ||
+    (firstDeclarationIndex >= 0 && startupStatementIndex > firstDeclarationIndex))
 ) {
   fail('importScripts() debe ejecutarse antes de las declaraciones del service worker MV3.');
 }
-const startupRuntimeList = parseLiteralImportScripts(String(startupCall?.[1] || ''));
+const startupRuntimeList = startupCall
+  ? extractLiteralImportScriptsArguments(startupCall)
+  : { files: [], valid: true };
 if (startupCall && !startupRuntimeList.valid) {
   fail('background service worker debe declarar importScripts() sólo con rutas literales locales.');
 }
@@ -382,10 +470,8 @@ const runtimeLoaderPath = path.join(extensionDir, 'runtime-loader.js');
 const runtimeLoaderSource = isRegularFile(runtimeLoaderPath)
   ? readFileSync(runtimeLoaderPath, 'utf8')
   : '';
-const executableRuntimeLoaderSource = runtimeLoaderSource
-  .replace(/\/\*[\s\S]*?\*\//g, '')
-  .replace(/\/\/.*$/gm, '');
-if (/\bimportScripts\s*\(/.test(executableRuntimeLoaderSource)) {
+const runtimeLoaderSourceFile = parseSourceFile('runtime-loader.js', runtimeLoaderSource);
+if (collectImportScriptsCalls(runtimeLoaderSourceFile).length > 0) {
   fail(
     'runtime-loader.js no puede ejecutar importScripts() después de instalar el service worker MV3.'
   );
