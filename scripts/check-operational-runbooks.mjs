@@ -84,6 +84,56 @@ for (const doc of requiredDocs) {
   }
 }
 
+const collectRunbookFiles = () => {
+  const files = new Set(requiredDocs.map(doc => doc.file));
+  const docsDir = path.join(workspaceRoot, 'docs');
+  if (fs.existsSync(docsDir)) {
+    for (const entry of fs.readdirSync(docsDir, { withFileTypes: true })) {
+      if (entry.isFile() && /^RUNBOOK.*\.md$/i.test(entry.name)) {
+        files.add(`docs/${entry.name}`);
+      }
+    }
+    const nestedRunbooksDir = path.join(docsDir, 'runbooks');
+    if (fs.existsSync(nestedRunbooksDir)) {
+      for (const entry of fs.readdirSync(nestedRunbooksDir, { withFileTypes: true })) {
+        if (entry.isFile() && entry.name.endsWith('.md')) {
+          files.add(`docs/runbooks/${entry.name}`);
+        }
+      }
+    }
+  }
+  return [...files].sort();
+};
+
+const rootScripts = readJson('package.json').scripts || {};
+const functionsPkgPath = path.join(workspaceRoot, 'functions', 'package.json');
+const functionsScripts = fs.existsSync(functionsPkgPath)
+  ? readJson('functions/package.json').scripts || {}
+  : {};
+
+const brokenCommands = [];
+const NPM_RUN_PATTERN = /(?:cd\s+functions\s*&&\s*)?npm\s+run(?:\s+-s)?\s+([a-zA-Z0-9:_-]+)/g;
+
+for (const relativeFile of collectRunbookFiles()) {
+  const content = read(relativeFile);
+  for (const match of content.matchAll(NPM_RUN_PATTERN)) {
+    const fullMatch = match[0];
+    const scriptName = match[1];
+    const isFunctionsScoped = /^cd\s+functions\b/.test(fullMatch);
+    const targetScripts = isFunctionsScoped ? functionsScripts : rootScripts;
+    const targetPkg = isFunctionsScoped ? 'functions/package.json' : 'package.json';
+    if (!Object.prototype.hasOwnProperty.call(targetScripts, scriptName)) {
+      brokenCommands.push(`${relativeFile}: "npm run ${scriptName}" is missing from ${targetPkg}`);
+    }
+  }
+}
+
+if (brokenCommands.length > 0) {
+  fail(
+    `Unexecutable npm commands found in operational runbooks:\n  - ${[...new Set(brokenCommands)].join('\n  - ')}`
+  );
+}
+
 const report = readJson('reports/operational-health.json');
 const requiredKeys = [
   'systemHealth',

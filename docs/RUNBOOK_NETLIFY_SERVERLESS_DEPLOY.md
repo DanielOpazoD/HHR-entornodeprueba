@@ -116,6 +116,5 @@ los imports estáticos conservando el resto del handler.
 ```bash
 npm run check:serverless-runtime-governance
 npm run check:netlify-functions-bundle
-npm run report:serverless-runtime-governance
 npm run build
 ```
