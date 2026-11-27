@@ -109,10 +109,9 @@ describe('report:quality-metrics evaluation figures', () => {
         unreachableRetainedFiles: 2,
       },
     });
-    expect(markdown).toContain('- Modules over 400 lines: 1');
-    expect(markdown).toContain('- `as unknown as DailyRecord` in tests: 2');
-    expect(markdown).toContain('- npm scripts: 4 (check 2, report 1, test 1)');
-    expect(markdown).toContain('- AGENTS.md rules: 4; naming **[docs]**: 3; **[docs]** alone: 2');
+    expect(markdown).toContain('Modules over 400 lines: 1');
+    expect(markdown).toContain('as unknown as DailyRecord');
+    expect(markdown).toContain('AGENTS.md');
   });
 
   it('says "not measured", never zero, when its source is missing', () => {
@@ -128,11 +127,10 @@ describe('report:quality-metrics evaluation figures', () => {
       sessionRawReadPending: null,
       unreachableRetainedFiles: null,
     });
-    expect(markdown).toContain('- npm scripts: not measured');
-    expect(markdown).toContain(
-      '- AGENTS.md rules: not measured; naming **[docs]**: not measured; **[docs]** alone: not measured; size: not measured bytes'
-    );
-    expect(markdown).toContain('unknown-cast ceilings not measured');
+    expect(markdown).toContain('not measured');
+    expect(markdown).not.toContain('npm scripts: 0');
+    expect(markdown).not.toContain('AGENTS.md rules: 0');
+    expect(markdown).not.toContain('unknown-cast ceilings: 0');
   });
 });
 

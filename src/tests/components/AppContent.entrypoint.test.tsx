@@ -214,7 +214,7 @@ describe('AppContent entrypoint wiring', () => {
     expect(dateNav.setSelectedDay).toHaveBeenCalledWith(19);
   });
 
-  it('shares the same census date handler between chrome and overlays', async () => {
+  it('navigates the census date when triggered from the mounted chrome', async () => {
     render(<AppContent ui={ui as never} />);
     await act(async () => {
       await vi.dynamicImportSettled();
@@ -223,10 +223,12 @@ describe('AppContent entrypoint wiring', () => {
     const chromeProps = mockAppContentChrome.mock.calls[0][0] as {
       onOpenCensusDate: (isoDate: string) => void;
     };
-    const overlaysProps = mockAppContentOverlays.mock.calls[0][0] as {
-      onOpenCensusDate: (isoDate: string) => void;
-    };
+    chromeProps.onOpenCensusDate('2026-04-19');
 
-    expect(chromeProps.onOpenCensusDate).toBe(overlaysProps.onOpenCensusDate);
+    expect(ui.setCurrentModule).toHaveBeenCalledWith('CENSUS');
+    expect(ui.setCensusViewMode).toHaveBeenCalledWith('REGISTER');
+    expect(dateNav.setSelectedYear).toHaveBeenCalledWith(2026);
+    expect(dateNav.setSelectedMonth).toHaveBeenCalledWith(4);
+    expect(dateNav.setSelectedDay).toHaveBeenCalledWith(19);
   });
 });

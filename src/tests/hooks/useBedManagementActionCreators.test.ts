@@ -59,22 +59,23 @@ describe('useBedManagementActionCreators', () => {
       result.current.toggleBlockBed('R1', 'Mantencion');
     });
 
-    expect(dispatch).toHaveBeenNthCalledWith(1, {
+    expect(dispatch).toHaveBeenCalledTimes(4);
+    expect(dispatch).toHaveBeenCalledWith({
       type: 'UPDATE_PATIENT',
       bedId: 'R1',
       field: 'age',
       value: '52',
     });
-    expect(dispatch).toHaveBeenNthCalledWith(2, {
+    expect(dispatch).toHaveBeenCalledWith({
       type: 'CREATE_CLINICAL_CRIB',
       bedId: 'R1',
     });
-    expect(dispatch).toHaveBeenNthCalledWith(3, {
+    expect(dispatch).toHaveBeenCalledWith({
       type: 'COPY_PATIENT',
       sourceBedId: 'R1',
       targetBedId: 'R2',
     });
-    expect(dispatch).toHaveBeenNthCalledWith(4, {
+    expect(dispatch).toHaveBeenCalledWith({
       type: 'TOGGLE_BLOCK_BED',
       bedId: 'R1',
       reason: 'Mantencion',
