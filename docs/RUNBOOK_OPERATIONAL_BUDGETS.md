@@ -96,11 +96,10 @@ Regla operativa:
 Si una superficie cruza `near-limit`:
 
 1. correr `npm run build`
-2. correr `npm run report:runtime-asset-margin`
+2. correr `npm run check:runtime-asset-margin` (muestra el estado de las superficies vigiladas y, si entra en `blocking`, imprime el informe Markdown detallado)
 3. revisar que la dependencia siga detrás de su loader (`loadHeicConverter`,
    `loadPdfJsTextRuntime`, `loadPdfLibGenerationRuntime`)
-4. correr `npm run check:runtime-asset-margin`
-5. actualizar este runbook solo si cambia el criterio operativo, no por drift normal de bytes
+4. actualizar este runbook solo si cambia el criterio operativo, no por drift normal de bytes
 
 ## Local Persistence
 
@@ -157,7 +156,7 @@ Regla práctica:
 
 ```bash
 npm run report:operational-health
-npm run report:runtime-asset-margin
+npm run check:runtime-asset-margin
 npm run check:docs-drift
 npm run check:operational-runbooks
 ```

@@ -52,6 +52,5 @@ Operar y diagnosticar los providers AI usados por búsqueda CIE-10, importación
 
 ```bash
 npm run test:risk:platform
-npm run report:serverless-runtime-governance
 npm run check:serverless-runtime-governance
 ```
