@@ -9,7 +9,7 @@ import {
   convertTransferToCmaRecord,
   convertTransferToHomeDischargeRecord,
   selectMovementReclassificationSummary,
-} from '@/application/census/movementTypeConversionPolicy';
+} from '@/features/census/controllers/movementTypeConversionPolicy';
 import {
   getActiveCma,
   getActiveDischarges,

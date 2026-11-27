@@ -5,18 +5,18 @@ import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
-import { buildCmaEpisodeMovementFields } from '@/application/census/cmaEpisodeMovementFields';
-import { buildUndoCmaPatch } from '@/application/census/cmaUndoPatchUseCase';
+import { buildCmaEpisodeMovementFields } from '@/features/census/controllers/cmaEpisodeMovementFields';
+import { buildUndoCmaPatch } from '@/features/census/controllers/cmaUndoPatchUseCase';
 import { buildDischarge } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import {
   resolveAddDischargeMovement,
   resolveAddTransferMovement,
-} from '@/application/census/controllers/patientMovementCreationController';
-import { resolveUndoPatientMovement } from '@/application/census/controllers/patientMovementUndoController';
+} from '@/features/census/controllers/patientMovementCreationController';
+import { resolveUndoPatientMovement } from '@/features/census/controllers/patientMovementUndoController';
 import {
   resolveApplyUndoDischargeRecord,
   resolveApplyUndoTransferRecord,
-} from '@/application/census/controllers/patientMovementUndoMutationController';
+} from '@/features/census/controllers/patientMovementUndoMutationController';
 import { getActiveMovements } from '@/domain/movements/movementTombstonePolicy';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData, TransferData } from '@/types/domain/movements';

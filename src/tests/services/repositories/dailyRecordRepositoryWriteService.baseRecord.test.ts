@@ -10,7 +10,7 @@ import {
   buildPatient,
   buildRecord,
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
-import { buildAtomicPatientMovementPatch } from '@/application/census/atomicPatientMovementPatchController';
+import { buildAtomicPatientMovementPatch } from '@/features/census/controllers/atomicPatientMovementPatchController';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({

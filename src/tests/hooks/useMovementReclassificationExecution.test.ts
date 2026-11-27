@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { useMovementReclassificationExecution } from '@/hooks/useMovementReclassificationExecution';
+import { useMovementReclassificationExecution } from '@/features/census/hooks/useMovementReclassificationExecution';
 
 describe('useMovementReclassificationExecution', () => {
   it('claims one source movement until persistence completes', async () => {

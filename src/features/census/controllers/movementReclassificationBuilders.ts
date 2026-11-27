@@ -8,7 +8,7 @@ import type {
 import {
   buildReclassifiedMovementProvenance,
   stableReclassifiedMovementId,
-} from './movementProvenancePolicy';
+} from '@/application/census/movementProvenancePolicy';
 
 export type MovementCreateId = () => string;
 export type CmaWithOriginalBed = CMAData & { originalBedId: string };

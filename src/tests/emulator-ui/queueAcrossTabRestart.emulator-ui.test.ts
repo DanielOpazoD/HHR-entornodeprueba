@@ -8,10 +8,8 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
-import {
-  buildAtomicPatientMovementPatch,
-  resolveAddDischargeMovement,
-} from '@/application/census/public';
+import { buildAtomicPatientMovementPatch } from '@/features/census/controllers/atomicPatientMovementPatchController';
+import { resolveAddDischargeMovement } from '@/features/census/controllers/patientMovementCreationController';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { BEDS } from '@/constants/beds';
 import { createDailyRecordWriteAuthorityFunctions } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';

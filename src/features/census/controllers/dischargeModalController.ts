@@ -6,7 +6,7 @@ import type { DischargeStatus } from '@/constants/clinicalMovementConstants';
 import type { DischargeType } from '@/types/domain/movements';
 import { validateDischargeExecutionInput } from '@/shared/census/censusActionValidation';
 import type { DischargeModalConfirmPayload, DischargeTarget } from '@/types/movements';
-import { resolveMovementEditorInitialDate } from '@/application/census/controllers/clinicalShiftCalendarController';
+import { resolveMovementEditorInitialDate } from '@/features/census/controllers/clinicalShiftCalendarController';
 import { resolveValidHourMinuteOrFallback } from '@/application/census/controllers/timeInputController';
 
 export interface DischargeModalFieldErrors {

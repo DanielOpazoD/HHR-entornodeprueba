@@ -3,7 +3,7 @@ import type { PatientData } from '@/types/domain/patient';
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { usePatientMovementUndoExecutor } from '@/hooks/usePatientMovementUndoExecutor';
+import { usePatientMovementUndoExecutor } from '@/features/census/hooks/usePatientMovementExecutors';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 

@@ -4,7 +4,7 @@ import { BedDefinition } from '@/types/domain/beds';
 
 import { TransferData } from '@/types/domain/movements';
 import type { TransferCommandPayload } from '@/types/movements';
-import { buildClearedBedPatient } from '@/application/census/controllers/patientMovementCreationSharedController';
+import { buildClearedBedPatient } from '@/features/census/controllers/patientMovementCreationSharedController';
 import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import type { MovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
 import { buildMovementRow } from '@/application/census/movementRowBuilder';

@@ -1,6 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
-import { resolveMovementTimeInputMax } from '@/application/census/public';
+import { resolveMovementTimeInputMax } from '@/features/census/controllers/clinicalShiftCalendarController';
 
 export type MovementDateTimeFieldTone = 'emerald' | 'blue';
 

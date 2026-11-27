@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
-import { resolveUndoPatientMovement } from '@/application/census/controllers/patientMovementUndoController';
+import { resolveUndoPatientMovement } from '@/features/census/controllers/patientMovementUndoController';
 
 describe('patientMovementUndoController', () => {
   it('restores main patient snapshot when bed is empty', () => {

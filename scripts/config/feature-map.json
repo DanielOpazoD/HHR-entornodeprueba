@@ -269,7 +269,7 @@
       },
       "gate": [
         "src/features/census/controllers/censusDischargeCommandController.ts",
-        "src/hooks/usePatientDischarges.ts",
+        "src/features/census/hooks/usePatientDischarges.ts",
         "src/features/census/components/movements/DischargeModal.tsx"
       ],
       "flow": [
@@ -282,7 +282,7 @@
           "decides": "Valida los datos del alta y construye el comando normalizado con diagnóstico, hora y objetivo."
         },
         {
-          "at": "src/hooks/usePatientDischarges.ts › usePatientDischarges",
+          "at": "src/features/census/hooks/usePatientDischarges.ts › usePatientDischarges",
           "decides": "Ejecuta el alta, registra el movimiento con el episodio exacto, libera la cama/cuna y permite deshacer manteniendo consistencia."
         },
         {
@@ -306,7 +306,7 @@
       "reach": { "screen": "Censo Diario, menú de la fila", "controls": [{ "text": "Trasladar" }] },
       "gate": [
         "src/features/census/controllers/censusTransferCommandController.ts",
-        "src/hooks/usePatientTransfers.ts",
+        "src/features/census/hooks/usePatientTransfers.ts",
         "src/features/census/components/movements/TransferModal.tsx"
       ],
       "tests": [
@@ -321,12 +321,15 @@
     {
       "id": "census.cma",
       "name": "Egreso CMA (cirugía mayor ambulatoria)",
-      "owner": "src/hooks",
+      "owner": "src/features/census",
       "reach": {
         "screen": "Censo Diario, menú de la fila y sección CMA",
         "controls": [{ "text": "Egreso CMA" }]
       },
-      "gate": ["src/hooks/useCMA.ts", "src/features/census/components/CMASection.tsx"],
+      "gate": [
+        "src/features/census/hooks/useCMA.ts",
+        "src/features/census/components/CMASection.tsx"
+      ],
       "tests": [
         "src/tests/hooks/useCMA.test.ts",
         "src/tests/views/census/CMASection.test.tsx",

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { usePatientTransfers } from '@/hooks/usePatientTransfers';
+import { usePatientTransfers } from '@/features/census/hooks/usePatientTransfers';
 import { DataFactory, asStoredDailyRecordShape } from '@/tests/factories/DataFactory';
 import type { PersistDailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 

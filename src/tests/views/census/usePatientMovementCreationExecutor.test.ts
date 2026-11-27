@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { usePatientMovementCreationExecutor } from '@/hooks/usePatientMovementCreationExecutor';
+import { usePatientMovementCreationExecutor } from '@/features/census/hooks/usePatientMovementExecutors';
 
 describe('usePatientMovementCreationExecutor', () => {
   it('routes creation errors through notifyCreationError', () => {

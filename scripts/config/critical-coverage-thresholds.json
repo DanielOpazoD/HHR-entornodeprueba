@@ -1,7 +1,15 @@
 {
   "zones": {
     "src/features/census/controllers": {
-      "tests": "src/tests/views/census",
+      "tests": [
+        "src/tests/views/census",
+        "src/tests/application/census/movementTypeConversionPolicy.test.ts",
+        "src/tests/hooks/useCMA.test.ts",
+        "src/tests/hooks/usePatientDischarges.test.ts",
+        "src/tests/hooks/usePatientDischarges.reclassification.test.ts",
+        "src/tests/hooks/usePatientTransfers.test.ts",
+        "src/tests/integration/censusCmaUndoEpisodeConsistency.test.ts"
+      ],
       "coverageBaseline": {
         "lines": 90.6,
         "functions": 94.3,

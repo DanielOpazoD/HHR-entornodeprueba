@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { usePatientDischarges } from '@/hooks/usePatientDischarges';
+import { usePatientDischarges } from '@/features/census/hooks/usePatientDischarges';
 import type {
   ApplyDailyRecordPatch,
   PersistDailyRecord,

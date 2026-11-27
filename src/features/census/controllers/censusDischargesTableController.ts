@@ -3,7 +3,7 @@ import type { DischargeData } from '@/types/domain/movements';
 import { buildCensusMovementTableHeaders } from './censusMovementTableHeaders';
 import type { CensusMovementActionDescriptor } from '@/features/census/types/censusMovementActionTypes';
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
-import { canReclassifyHomeDischarge } from '@/application/census/movementTypeConversionPolicy';
+import { canReclassifyHomeDischarge } from '@/features/census/controllers/movementTypeConversionPolicy';
 import { isClinicalCribDischarge } from '@/domain/movements/movementTombstonePolicy';
 import {
   resolveAccreditedClinicalEpisodeId,

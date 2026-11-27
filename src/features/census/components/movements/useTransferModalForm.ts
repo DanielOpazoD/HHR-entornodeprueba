@@ -1,14 +1,14 @@
 import { useCallback, useMemo } from 'react';
 import type { EvacuationMethod, ReceivingCenter } from '@/constants/clinicalMovementConstants';
 import { isTransferEscortOption } from '@/constants/clinicalMovementConstants';
+import { resolveMovementDateTimeBounds } from '@/features/census/controllers/clinicalShiftCalendarController';
 import {
   buildTransferValidationErrors,
-  resolveMovementDateTimeBounds,
   resolveTransferInitialMovementDate,
   resolveTransferInitialTime,
   resolveTransferMethodChangeEffects,
   type TransferModalFieldErrors,
-} from '@/application/census/public';
+} from '@/features/census/controllers/transferModalController';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import type { TransferModalConfirmPayload } from '@/types/movements';
 import type { TransferUpdateField } from '@/features/census/types/censusActionModalContracts';

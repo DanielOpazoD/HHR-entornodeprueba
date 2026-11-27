@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { buildUndoCmaPatch } from '@/application/census/cmaUndoPatchUseCase';
+import { buildUndoCmaPatch } from '@/features/census/controllers/cmaUndoPatchUseCase';
 import {
   buildDeleteCmaDialog,
   buildRestoreCmaDialog,

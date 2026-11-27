@@ -1,9 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuditContext } from '@/context/AuditContext';
-import { useCMA } from '@/hooks/useCMA';
-import { usePatientDischarges } from '@/hooks/usePatientDischarges';
-import { usePatientTransfers } from '@/hooks/usePatientTransfers';
+import { useCMA } from '@/features/census/hooks/useCMA';
+import { usePatientDischarges } from '@/features/census/hooks/usePatientDischarges';
+import { usePatientTransfers } from '@/features/census/hooks/usePatientTransfers';
 import { applyOptimisticDailyRecordPatch } from '@/hooks/controllers/dailyRecordQueryController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';

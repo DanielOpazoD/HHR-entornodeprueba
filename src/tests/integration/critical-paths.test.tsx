@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
-import { usePatientDischarges } from '@/hooks/usePatientDischarges';
+import { usePatientDischarges } from '@/features/census/hooks/usePatientDischarges';
 import { AuthProvider } from '@/context/AuthContext';
 import { UIProvider } from '@/context/UIContext';
 import { AuditProvider } from '@/context/AuditContext';

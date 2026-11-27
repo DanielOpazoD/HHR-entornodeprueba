@@ -18,11 +18,11 @@ import {
 } from '@/hooks/controllers/dailyRecordQueryController';
 import { buildClinicalCribPatch } from '@/hooks/controllers/clinicalCribController';
 import { bedManagementReducer } from '@/hooks/useBedManagementReducer';
-import { usePatientMovementCreationExecutor } from '@/hooks/usePatientMovementCreationExecutor';
+import { usePatientMovementCreationExecutor } from '@/features/census/hooks/usePatientMovementExecutors';
 import {
   resolveAddDischargeMovement,
   resolveAddTransferMovement,
-} from '@/application/census/public';
+} from '@/features/census/controllers/patientMovementCreationController';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { BEDS } from '@/constants/beds';
 import {

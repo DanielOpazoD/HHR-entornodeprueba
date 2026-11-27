@@ -3,13 +3,15 @@ import type { DischargeStatus } from '@/constants/clinicalMovementConstants';
 import type { DischargeType } from '@/types/domain/movements';
 import type { DischargeModalConfirmPayload, DischargeTarget } from '@/types/movements';
 import {
+  resolveMovementDateTimeBounds,
+  resolveMovementDateTimeValidationError,
+} from '@/features/census/controllers/clinicalShiftCalendarController';
+import {
   buildDischargeConfirmPayload,
   buildInitialDischargeFormState,
   mapDischargeValidationErrors,
-  resolveMovementDateTimeValidationError,
-  resolveMovementDateTimeBounds,
   type DischargeModalFieldErrors,
-} from '@/application/census/public';
+} from '@/features/census/controllers/dischargeModalController';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useModalFormFlow } from '@/hooks/useModalFormFlow';
 
