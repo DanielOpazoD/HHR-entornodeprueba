@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { formatClinicalAntecedentDate } from '@/features/census/components/patient-row/clinicalAntecedentDate';
-import { uniqueClinicalAntecedentEntries } from '@/features/census/components/patient-row/clinicalAntecedentEntries';
+import { uniqueClinicalAntecedentEntries } from '@/features/census/components/patient-row/ClinicalPanelAntecedents';
 import { decodeClinicalAntecedentDetail } from '@/features/rayen-import/bridge/clinicalAntecedentDetail';
 import type { ClinicalAntecedentEntry } from '@/features/rayen-import';
 import '../../../extension/clinical-antecedents-fields.js';

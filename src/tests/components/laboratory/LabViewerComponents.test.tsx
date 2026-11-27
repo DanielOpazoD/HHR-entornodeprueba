@@ -74,8 +74,10 @@ vi.mock('html2canvas', () => ({
 /* ------------------------------------------------------------------ */
 
 import { LabViewerControls } from '@/features/laboratory/components/LabViewerControls';
-import { LabViewerProgress } from '@/features/laboratory/components/LabViewerProgress';
-import { LabViewerEmptyState } from '@/features/laboratory/components/LabViewerEmptyState';
+import {
+  LabViewerEmptyState,
+  LabViewerProgress,
+} from '@/features/laboratory/components/LabResultsViewerModal';
 import { LabViewerAnalyzeBar } from '@/features/laboratory/components/LabViewerAnalyzeBar';
 import { LabViewerPdf } from '@/features/laboratory/components/LabViewerPdf';
 import { LabExportConfigDialog } from '@/features/laboratory/components/LabExportConfigDialog';

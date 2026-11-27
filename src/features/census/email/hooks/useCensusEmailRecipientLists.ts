@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import type { RecipientRuntimeMutationSpec } from '@/features/census/email/controllers/censusEmailRecipientMutationActionController';
 import {
   applyRecipientListSelection,
@@ -10,8 +10,29 @@ import {
 import { useCensusEmailRecipientBootstrapEffect } from '@/features/census/email/hooks/useCensusEmailRecipientBootstrapEffect';
 import { useCensusEmailRecipientDeferredSyncEffect } from '@/features/census/email/hooks/useCensusEmailRecipientDeferredSyncEffect';
 import { useCensusEmailRecipientMutationActions } from '@/features/census/email/hooks/useCensusEmailRecipientMutationActions';
-import { useCensusEmailRecipientPersistenceEffect } from '@/features/census/email/hooks/useCensusEmailRecipientPersistenceEffect';
 import { useCensusEmailRecipientRuntimeState } from '@/features/census/email/hooks/useCensusEmailRecipientRuntimeState';
+import { saveSetting } from '@/services/storage/indexeddb/indexedDbSettingsService';
+
+const ACTIVE_LIST_STORAGE_KEY = 'censusEmailActiveRecipientListId';
+const RECIPIENTS_STORAGE_KEY = 'censusEmailRecipients';
+
+interface UseCensusEmailRecipientPersistenceEffectParams {
+  activeRecipientListId: string;
+  recipientsReady: boolean;
+  recipients: string[];
+}
+
+export const useCensusEmailRecipientPersistenceEffect = ({
+  activeRecipientListId,
+  recipientsReady,
+  recipients,
+}: UseCensusEmailRecipientPersistenceEffectParams): void => {
+  useEffect(() => {
+    if (!recipientsReady) return;
+    void saveSetting(RECIPIENTS_STORAGE_KEY, recipients);
+    void saveSetting(ACTIVE_LIST_STORAGE_KEY, activeRecipientListId);
+  }, [activeRecipientListId, recipients, recipientsReady]);
+};
 
 export type {
   UseCensusEmailRecipientListsParams,

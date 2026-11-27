@@ -12,7 +12,6 @@ import {
 import { RayenPlanningStop } from '../domain/rayenPlanningStop';
 import { applyEgresoLookupFallback } from '../domain/applyEgresoLookupFallback';
 import { applyEgresoReport } from '../domain/applyEgresoReport';
-import { applyPreviousCensusEgresoScope } from '../domain/previousCensusEgresoScope';
 import { reconstructHistoricalSnapshotAtClose } from '../domain/historicalSnapshotReconstruction';
 import { assertHistoricalCensusHasEvidence } from '../domain/historicalCensusSync';
 import {
@@ -48,6 +47,28 @@ interface ReplanRayenStructureDependencies {
   lookupEgresos: (targets: EgresoLookupTarget[]) => Promise<EgresoLookupResult[]>;
   measureEvidence?: <T>(operation: () => Promise<T>) => Promise<T>;
 }
+
+/** Preserves the D-1 clinical-crib scope after an exact row becomes a report-only egreso. */
+const applyPreviousCensusEgresoScope = (
+  diff: CensusImportDiff,
+  rows: readonly EgresoReportRow[]
+): CensusImportDiff => {
+  const cribEpisodes = new Set(
+    rows
+      .filter(row => row.fromClinicalCrib)
+      .map(row => row.encounterId?.trim())
+      .filter((episode): episode is string => Boolean(episode))
+  );
+  if (cribEpisodes.size === 0 || !diff.reportEgresos?.length) return diff;
+  return {
+    ...diff,
+    reportEgresos: diff.reportEgresos.map(egreso =>
+      egreso.encounterId && cribEpisodes.has(egreso.encounterId)
+        ? { ...egreso, fromClinicalCrib: true }
+        : egreso
+    ),
+  };
+};
 
 const appendConflicts = (
   diff: CensusImportDiff,

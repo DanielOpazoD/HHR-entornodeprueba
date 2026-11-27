@@ -20,12 +20,27 @@ import {
 } from './rayenCensusPersistenceGuard';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { hasUnchangedRayenStructuralState } from '../domain/rayenStructuralCheckpoint';
+import { stableStringify } from '../domain/rayenStableStringify';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { QueryClient } from '@tanstack/react-query';
 import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import type { AuthoringSessionGuard } from '@/services/session/authoringSession';
+
+const structuralState = (record: DailyRecord) => ({
+  beds: record.beds,
+  activeExtraBeds: record.activeExtraBeds ?? [],
+  discharges: record.discharges ?? [],
+  transfers: record.transfers ?? [],
+  cma: record.cma ?? [],
+  rayenBedCollisionResolutions: record.rayenBedCollisionResolutions ?? [],
+});
+
+/** Metadata-only checkpointing is safe only when reconciliation leaves all structural state intact. */
+export const hasUnchangedRayenStructuralState = (
+  before: DailyRecord,
+  after: DailyRecord
+): boolean => stableStringify(structuralState(before)) === stableStringify(structuralState(after));
 
 export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
   confirmedHandoff: ConfirmedRayenCensusHandoff;

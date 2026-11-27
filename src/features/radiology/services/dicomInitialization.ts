@@ -7,18 +7,36 @@ import {
   PanTool,
   ZoomTool,
   StackScrollTool,
+  TrackballRotateTool as BaseTrackballRotateTool,
 } from '@cornerstonejs/tools';
-import { DicomTrackballRotateTool as TrackballRotateTool } from './dicomTrackballRotateTool';
 import { mprTools } from './dicomMprTools';
 import { dicomStackTools } from './dicomStackTools';
 import { installDicomCalibration } from './dicomCalibration';
+
+/** Viewport sizing belongs to our world-position-preserving observer, not a camera reset. */
+class DicomTrackballRotateTool extends BaseTrackballRotateTool {
+  constructor(...args: ConstructorParameters<typeof BaseTrackballRotateTool>) {
+    super(...args);
+    // Core tools 4.22 installs resize/global viewport listeners here, including for later
+    // groups reusing the same id. Their resetCamera loses the reviewed slice/orientation.
+    this.onSetToolActive = () => {};
+    const disable = this.onSetToolDisabled;
+    this.onSetToolDisabled = () => {
+      disable.call(this);
+      if (this.cleanUp) {
+        document.removeEventListener('mouseup', this.cleanUp);
+        this.cleanUp();
+      }
+    };
+  }
+}
 
 export const dicomTools = [
   WindowLevelTool,
   PanTool,
   ZoomTool,
   StackScrollTool,
-  TrackballRotateTool,
+  DicomTrackballRotateTool,
 ];
 let initialization: Promise<void> | undefined;
 export const initializeDicom = () =>

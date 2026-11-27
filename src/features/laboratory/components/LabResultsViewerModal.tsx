@@ -10,14 +10,42 @@ import { useLabViewer } from '../hooks/useLabViewer';
 import type { LabPatient } from '@/types/domain/labExamTypes';
 import { buildLabViewerModalShellModel } from '../controllers/labViewerController';
 import { LabViewerControls } from './LabViewerControls';
-import { LabViewerProgress } from './LabViewerProgress';
 import { LabViewerExamList } from './LabViewerExamList';
 import { LabViewerAnalyzeBar } from './LabViewerAnalyzeBar';
 import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
-import { LabViewerEmptyState } from './LabViewerEmptyState';
 import { SyslabAccessPrompt } from './SyslabAccessPrompt';
 import { useSyslabAccess, type SyslabAccessModel } from '../hooks/useSyslabAccess';
+import type { ProgressState } from '../types/labViewerTypes';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+
+interface LabViewerProgressProps {
+  progress: ProgressState | null;
+}
+
+export const LabViewerProgress: React.FC<LabViewerProgressProps> = ({ progress }) =>
+  progress ? (
+    <div className="mb-4">
+      <div className="h-[3px] w-full overflow-hidden rounded-full bg-slate-200/80">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-500 ease-out"
+          style={{ width: `${progress.pct}%` }}
+        />
+      </div>
+      <p className="mt-1.5 text-center text-[11px] text-slate-400">{progress.text}</p>
+    </div>
+  ) : null;
+
+export const LabViewerEmptyState: React.FC = () => (
+  <div className="flex flex-col items-center justify-center py-12 text-center">
+    <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-300">
+      <FlaskConical size={26} />
+    </span>
+    <p className="text-[13px] font-medium text-slate-400">Selecciona un paciente y busca</p>
+    <p className="mt-0.5 text-[11px] text-slate-300">
+      Los examenes de laboratorio Syslab se mostraran aqui
+    </p>
+  </div>
+);
 
 interface InitialLabViewerAutoSearchOptions {
   isOpen: boolean;

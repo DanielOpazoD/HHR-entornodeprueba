@@ -9,7 +9,6 @@ import userEvent from '@testing-library/user-event';
 
 vi.unmock('@/features/laboratory/components/LabResultsViewerModal');
 vi.unmock('@/features/laboratory/components/LabViewerControls');
-vi.unmock('@/features/laboratory/components/LabViewerProgress');
 vi.unmock('@/features/laboratory/components/LabViewerExamList');
 vi.unmock('@/features/laboratory/components/LabViewerAnalyzeBar');
 vi.unmock('@/features/laboratory/components/LabViewerPdf');
@@ -17,7 +16,6 @@ vi.unmock('@/features/laboratory/components/LabViewerAnalysis');
 vi.unmock('@/features/laboratory/components/LabViewerTrendCharts');
 vi.unmock('@/features/laboratory/components/LabViewerComparisonTable');
 vi.unmock('@/features/laboratory/components/LabExportConfigDialog');
-vi.unmock('@/features/laboratory/components/LabViewerEmptyState');
 vi.unmock('@/features/laboratory/components/SyslabAccessPrompt');
 vi.unmock('@/features/laboratory/types/labViewerTypes');
 

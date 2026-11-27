@@ -66,8 +66,6 @@ features/laboratory/
 │   ├── labTrendChartExport.ts
 │   ├── LabViewerComparisonTable.tsx
 │   ├── LabExportConfigDialog.tsx
-│   ├── LabViewerEmptyState.tsx
-│   ├── LabViewerProgress.tsx
 │   └── LabChartErrorBoundary.tsx
 ├── hooks/
 │   ├── useLabViewer.ts          # Fachada pública del visor

@@ -1,6 +1,6 @@
 import { buttonClassName } from '@/components/ui/base/buttonStyles';
 import React, { useEffect, useRef, useState } from 'react';
-import { Download, FileText, Printer, Save, Settings2, Upload } from 'lucide-react';
+import { Check, Download, FileText, Printer, Save, Settings2, Upload } from 'lucide-react';
 import {
   emptyMedifValues,
   hasMedifDraftData,
@@ -18,7 +18,6 @@ import {
 import { ToolFrame } from '../ToolFrame';
 import { TOOL_INPUT_CLASS } from '../ToolField';
 import { MedifFormSection } from './MedifFormSection';
-import { MedifHabitualButton } from './MedifHabitualButton';
 import { applyMedifHabitualAnswers } from '../../../domain/medifHabitualAnswers';
 import { MedifPreferencesPanel } from './MedifPreferencesPanel';
 import { MedifVariableIndex } from './MedifVariableIndex';
@@ -233,10 +232,15 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
           </select>
         </label>
         <div className="medif-toolbar-actions">
-          <MedifHabitualButton
+          <button
+            type="button"
+            className={`${MEDIF_SECONDARY_BUTTON} medif-habitual-button`}
             onClick={applyHabitualAnswers}
             disabled={busy || Boolean(replacement)}
-          />
+            title="Completar campos vacíos con las respuestas habituales; conservar las respuestas existentes"
+          >
+            <Check size={16} aria-hidden="true" /> Respuestas habituales
+          </button>
           <button
             type="button"
             className={`${MEDIF_SECONDARY_BUTTON} medif-icon-button`}

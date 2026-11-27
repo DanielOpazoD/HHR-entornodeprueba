@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { hasUnchangedRayenStructuralState } from '@/features/rayen-import/domain/rayenStructuralCheckpoint';
+import { hasUnchangedRayenStructuralState } from '@/features/rayen-import/hooks/useRayenCensusDiffApplication';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const record = (): DailyRecord =>

@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import type { Statistics } from '@/types/domain/statistics';
 import { StaffSelector } from './StaffSelector';
 import { BaseModal } from '@/components/shared/BaseModal';
@@ -10,9 +11,11 @@ import { CensusSummarySwitcher } from './CensusSummarySwitcher';
 import { MoaCompanionSlot } from '@/features/census/components/moa/MoaCompanionSlot';
 import {
   useDailyRecordBeds,
+  useDailyRecordData,
   useDailyRecordStaff,
   useDailyRecordMovements,
 } from '@/context/DailyRecordContext';
+import { useCensusToolbarMenuTarget } from '@/context/CensusToolbarMenuTargetContext';
 import { useCensusStaffActions } from '../hooks/useCensusStaffActions';
 import { useStaffContext } from '@/context/StaffContext';
 import { buildCensusStaffHeaderReadModel } from '@/features/census/controllers/censusStaffHeaderReadModel';
@@ -26,9 +29,28 @@ const RayenImportButton = lazyWithRetry(() =>
   }))
 );
 import { RayenOperationsLoadingCard } from './RayenOperationsLoadingCard';
-import { CensusMedicalHandoffPortal } from './CensusMedicalHandoffPortal';
 import type { BedDefinition } from '@/types/domain/beds';
-import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
+import type {
+  CensusMedicalHandoffActionContext,
+  RenderCensusMedicalHandoffAction,
+} from '@/features/census/contracts/censusMedicalHandoffAction';
+
+type CensusMedicalHandoffPortalProps = Pick<
+  CensusMedicalHandoffActionContext,
+  'visibleBeds' | 'professionalsCatalog'
+> & {
+  renderAction: RenderCensusMedicalHandoffAction;
+};
+
+/** Only the medical handoff action needs every revision of the full record. */
+const CensusMedicalHandoffPortal = ({
+  renderAction,
+  ...context
+}: CensusMedicalHandoffPortalProps) => {
+  const { record } = useDailyRecordData();
+  const target = useCensusToolbarMenuTarget();
+  return target && record ? createPortal(renderAction({ ...context, record }), target) : null;
+};
 
 interface CensusStaffHeaderProps {
   selectedDate?: string;
@@ -81,10 +103,13 @@ export const CensusStaffHeader = React.memo(function CensusStaffHeader({
     movementsData,
   });
   const canEditDetail = !readOnly && !readModel.specialistAccess;
-  React.useEffect(() => {
+  const detailScopeKey = canEditDetail && recordDate ? recordDate : null;
+  const [prevDetailScopeKey, setPrevDetailScopeKey] = React.useState(detailScopeKey);
+  if (prevDetailScopeKey !== detailScopeKey) {
     // Discard the edit intent when its date or edit access changes.
-    setActiveDetail(previous => (canEditDetail && previous?.date === recordDate ? previous : null));
-  }, [canEditDetail, recordDate]);
+    setPrevDetailScopeKey(detailScopeKey);
+    if (activeDetail !== null) setActiveDetail(null);
+  }
 
   return (
     // animate-fade-in crea un stacking context propio (z auto), así que los
