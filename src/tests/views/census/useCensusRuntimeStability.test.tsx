@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { useCensusTableRuntime } from '@/features/census/hooks/useCensusTableRuntime';
 import { getDefaultConfig } from '@/services/storage/tableConfigService';
@@ -9,9 +9,6 @@ vi.mock('@/features/census/hooks/useCensusTableDependencies', () => ({
 }));
 vi.mock('@/features/census/components/useEmptyBedActivation', () => ({
   useEmptyBedActivation: () => ({ activateEmptyBed: vi.fn() }),
-}));
-vi.mock('@/features/census/hooks/useCensusColumnResize', () => ({
-  useCensusColumnResize: () => ({ handleColumnResize: vi.fn() }),
 }));
 vi.mock('@/features/census/controllers/censusTableViewController', async original => ({
   ...(await original<typeof import('@/features/census/controllers/censusTableViewController')>()),
@@ -29,17 +26,29 @@ const dependencies = {
   resetDay: vi.fn(),
   confirm: vi.fn(),
   warning: vi.fn(),
+  updateColumnWidth: vi.fn(),
 };
 it('builds unchanged rows once across five renders without staff configuration', () => {
   const { result, rerender } = renderHook(() =>
     useCensusTableRuntime({ currentDateString: '2026-11-06' })
   );
   const rows = result.current.unifiedRows;
+  const initialResize = result.current.handleColumnResize;
   for (let i = 0; i < 4; i++) rerender();
   expect(buildCensusBedRows).toHaveBeenCalledTimes(1);
   expect(result.current.unifiedRows).toBe(rows);
+  expect(result.current.handleColumnResize).toBe(initialResize);
   dependencies.beds = {};
   rerender();
   expect(buildCensusBedRows).toHaveBeenCalledTimes(2);
   expect(result.current.unifiedRows).not.toBe(rows);
+  expect(result.current.handleColumnResize).toBe(initialResize);
+
+  act(() => {
+    result.current.handleColumnResize('bed')(144);
+    result.current.handleColumnResize('diagnosis')(220);
+  });
+
+  expect(dependencies.updateColumnWidth).toHaveBeenNthCalledWith(1, 'bed', 144);
+  expect(dependencies.updateColumnWidth).toHaveBeenNthCalledWith(2, 'diagnosis', 220);
 });
