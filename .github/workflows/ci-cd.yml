@@ -1165,8 +1165,6 @@ jobs:
       - name: Install Chromium
         uses: ./.github/actions/setup-ci-chromium
         timeout-minutes: 15
-      - name: Validate measurement report contracts
-        run: npm run test:census-performance-report
       - name: Measure populated census navigations per scenario
         run: npm run test:e2e:census-performance
         env:

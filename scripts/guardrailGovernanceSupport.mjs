@@ -26,7 +26,12 @@ export const readGuardrailGovernanceSummary = root => {
 export const extractReferencedScripts = command =>
   Array.from(String(command).matchAll(/npm run ([A-Za-z0-9:_-]+)/g)).map(match => match[1]);
 
-export const collectReferencedScripts = (scripts, scriptNames, visited = new Set()) => {
+const extractShellEntrypoints = command =>
+  Array.from(String(command).matchAll(/(?:^|[\s;&|])(?:ba)?sh\s+(scripts\/[^\s"']+\.sh)\b/g)).map(
+    match => match[1]
+  );
+
+export const collectReferencedScripts = (scripts, scriptNames, visited = new Set(), root = '') => {
   const referencedScripts = new Set();
 
   for (const scriptName of scriptNames) {
@@ -41,12 +46,23 @@ export const collectReferencedScripts = (scripts, scriptNames, visited = new Set
       continue;
     }
 
-    for (const nestedScriptName of extractReferencedScripts(scriptCommand)) {
+    const nestedTargets = [...extractReferencedScripts(scriptCommand)];
+    if (root) {
+      for (const relativeShellPath of extractShellEntrypoints(scriptCommand)) {
+        const shellPath = path.join(root, relativeShellPath);
+        if (fs.existsSync(shellPath)) {
+          nestedTargets.push(...extractReferencedScripts(fs.readFileSync(shellPath, 'utf8')));
+        }
+      }
+    }
+
+    for (const nestedScriptName of nestedTargets) {
       referencedScripts.add(nestedScriptName);
       for (const transitiveScriptName of collectReferencedScripts(
         scripts,
         [nestedScriptName],
-        visited
+        visited,
+        root
       )) {
         referencedScripts.add(transitiveScriptName);
       }
@@ -147,7 +163,9 @@ export const collectGuardrailGovernanceIssues = root => {
       const directConfiguredScripts = releaseConfidenceConfig.steps.flatMap(step =>
         extractReferencedScripts(step?.command || '')
       );
-      const configuredScripts = [...collectReferencedScripts(scripts, directConfiguredScripts)];
+      const configuredScripts = [
+        ...collectReferencedScripts(scripts, directConfiguredScripts, new Set(), root),
+      ];
 
       for (const requiredScript of requiredScripts) {
         if (!configuredScripts.includes(requiredScript)) {

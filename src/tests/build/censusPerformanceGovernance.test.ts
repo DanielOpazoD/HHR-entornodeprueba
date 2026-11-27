@@ -11,7 +11,13 @@ describe('census measurement release gate', () => {
     const census = jobs['census-startup-performance'];
     expect(census.strategy?.matrix.environment).toEqual(['development', 'production']);
     const runs = census.steps.map(step => step.run);
-    expect(runs).toContain('npm run test:census-performance-report');
+    expect(runs).not.toContain('npm run test:census-performance-report');
+    expect(jobs['quality-static-base'].steps.map(step => step.run)).toContain(
+      'npm run test:scripts'
+    );
+    const pkg = JSON.parse(read('package.json'));
+    expect(pkg.scripts['test:scripts']).toContain('scripts/tests/*.test.mjs');
+    expect(fs.existsSync('scripts/tests/census-startup-performance-report.test.mjs')).toBe(true);
     const measure = census.steps.find(step => step.run === 'npm run test:e2e:census-performance');
     expect(measure?.env).toMatchObject({
       CENSUS_PERF_SAMPLES: "${{ github.event_name == 'pull_request' && '5' || '30' }}",
