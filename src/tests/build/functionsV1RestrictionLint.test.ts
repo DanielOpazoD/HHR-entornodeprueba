@@ -53,4 +53,15 @@ describe('Cloud Functions v1 downward-only restriction', () => {
       ).toBe(true);
     }
   });
+
+  it('keeps HttpsError on firebase-functions/v2/https across all Cloud Functions modules', () => {
+    const offenders: string[] = [];
+    for (const relativeFile of LEGACY_FUNCTIONS_V1_FILES) {
+      const source = fs.readFileSync(path.join(ROOT, relativeFile), 'utf8');
+      if (/\b(?:functions\.)?https\.HttpsError\b/.test(source)) {
+        offenders.push(relativeFile);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
 });

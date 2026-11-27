@@ -7,6 +7,7 @@ const {
 const { saveCudyrCensusSource, readCudyrCensusSources } = require('./cudyrCensusSourceStore');
 const { saveCudyrExclusion, readCudyrExclusions } = require('./cudyrExclusionStore');
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { isDeepStrictEqual } = require('node:util');
 const { FieldPath } = require('firebase-admin/firestore');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
@@ -77,7 +78,7 @@ const createCudyrHistoryFunctions = ({
       });
       const auth = context.auth;
       if (!auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Authentication required.');
+        throw new HttpsError('unauthenticated', 'Authentication required.');
       }
       const actor = {
         uid: auth.uid,
@@ -94,10 +95,7 @@ const createCudyrHistoryFunctions = ({
         });
       if (data?.kind === 'save-daily-exclusion') {
         if (!isAdminOrHospitalNurseRole(role))
-          throw new functions.https.HttpsError(
-            'permission-denied',
-            'Review permission is required.'
-          );
+          throw new HttpsError('permission-denied', 'Review permission is required.');
         return saveCudyrExclusion({
           hospital,
           data,
@@ -107,10 +105,7 @@ const createCudyrHistoryFunctions = ({
       }
       if (data?.kind === 'save-monthly-review' || data?.kind === 'save-verified-context') {
         if (!isAdminOrHospitalNurseRole(role))
-          throw new functions.https.HttpsError(
-            'permission-denied',
-            'Review permission is required.'
-          );
+          throw new HttpsError('permission-denied', 'Review permission is required.');
         return (data.kind === 'save-verified-context' ? saveCudyrVerifiedContext : saveCudyrReview)(
           {
             hospital,
@@ -125,10 +120,7 @@ const createCudyrHistoryFunctions = ({
         data?.kind === 'import-daily-census-source'
       ) {
         if (!isAdminOrHospitalNurseRole(role))
-          throw new functions.https.HttpsError(
-            'permission-denied',
-            'Monthly import permission is required.'
-          );
+          throw new HttpsError('permission-denied', 'Monthly import permission is required.');
         return (
           data.kind === 'import-daily-census-source' ? saveCudyrCensusSource : saveCudyrSupplement
         )({
@@ -140,10 +132,7 @@ const createCudyrHistoryFunctions = ({
       }
       if (data?.kind === 'correct-discharge') {
         if (!isAdminOrHospitalNurseRole(role))
-          throw new functions.https.HttpsError(
-            'permission-denied',
-            'Discharge editing permission is required.'
-          );
+          throw new HttpsError('permission-denied', 'Discharge editing permission is required.');
         return saveDischargeCorrection({
           firestore,
           hospital,
@@ -168,10 +157,7 @@ const createCudyrHistoryFunctions = ({
           hospital.collection('settings').doc('rayenImportPolicy')
         );
         if (!recordSnapshot.exists)
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            'Synchronization census is missing.'
-          );
+          throw new HttpsError('failed-precondition', 'Synchronization census is missing.');
         const record = recordSnapshot.data();
         assertCudyrArchiveAuthority({
           record,
@@ -208,10 +194,7 @@ const createCudyrHistoryFunctions = ({
             JSON.stringify(receiptSnapshot.data().observationIds) !==
               JSON.stringify(observationIds))
         )
-          throw new functions.https.HttpsError(
-            'already-exists',
-            'Capture identity has different content.'
-          );
+          throw new HttpsError('already-exists', 'Capture identity has different content.');
         const now = new Date().toISOString();
         if (receiptRef && !receiptSnapshot.exists) {
           const receipt = {
@@ -226,10 +209,7 @@ const createCudyrHistoryFunctions = ({
             verifiedRunId: payload.runId,
           };
           if (Buffer.byteLength(JSON.stringify(receipt), 'utf8') > 40_000)
-            throw new functions.https.HttpsError(
-              'resource-exhausted',
-              'CUDYR receipt exceeds its size limit.'
-            );
+            throw new HttpsError('resource-exhausted', 'CUDYR receipt exceeds its size limit.');
           transaction.create(receiptRef, receipt);
         }
         writeManifest();
@@ -262,10 +242,7 @@ const createCudyrHistoryFunctions = ({
           };
           // Bounds a 100-row callable page below its response-size limit, including context.
           if (Buffer.byteLength(JSON.stringify(observation), 'utf8') > 40_000) {
-            throw new functions.https.HttpsError(
-              'resource-exhausted',
-              'CUDYR observation exceeds its size limit.'
-            );
+            throw new HttpsError('resource-exhausted', 'CUDYR observation exceeds its size limit.');
           }
           transaction.create(ref, observation);
           return { id, eventKey, status: 'recorded' };
@@ -283,10 +260,9 @@ const createCudyrHistoryFunctions = ({
     .region('southamerica-east1')
     .runWith({ memory: '1GB' })
     .https.onCall(async (data, context) => {
-      if (!context.auth)
-        throw new functions.https.HttpsError('unauthenticated', 'Sign in to read CUDYR history.');
+      if (!context.auth) throw new HttpsError('unauthenticated', 'Sign in to read CUDYR history.');
       if (!(await hasCallableClinicalAccess(context))) {
-        throw new functions.https.HttpsError('permission-denied', 'Clinical access is required.');
+        throw new HttpsError('permission-denied', 'Clinical access is required.');
       }
       if (data?.kind === 'read-view') return readReadView(hospital, data, context.auth.uid);
       if (data?.kind === 'official-report') return readOfficialReport(hospital, data);

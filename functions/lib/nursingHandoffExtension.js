@@ -1,5 +1,6 @@
 const { createHash, timingSafeEqual } = require('node:crypto');
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { resolveClinicalDayForDateTime } = require('./generated/cudyrSourceParser.cjs');
 const { createPatchHandler } = require('./dailyRecordPatchCallable');
@@ -14,7 +15,7 @@ const validLocalKey = value => typeof value === 'string' && /^[a-f0-9]{64}$/.tes
 const loopbackEmulator = host => /^127\.0\.0\.1:\d+$/.test(host ?? '');
 const positiveId = value => typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value);
 const fail = (code, message, details) => {
-  throw new functions.https.HttpsError(code, message, details);
+  throw new HttpsError(code, message, details);
 };
 
 function clinicalSlot(now) {
@@ -100,7 +101,7 @@ function batchViews(snapshot, visits, slot, census) {
       const entry = findHandoff(snapshot, record, visit.episode, code, slot, census);
       return viewWithComparison(entry, slot.date, slot.shift);
     } catch (error) {
-      if (!(error instanceof functions.https.HttpsError)) throw error;
+      if (!(error instanceof HttpsError)) throw error;
       return {
         error: error.message,
         code: error.toJSON().status,
@@ -268,7 +269,7 @@ function createHandler({
     const matchesText = (entry, text) =>
       entry.nightValue === text && (shift === 'night' || entry.dayValue === text);
     const rejected = error => {
-      if (!batch || !(error instanceof functions.https.HttpsError)) throw error;
+      if (!batch || !(error instanceof HttpsError)) throw error;
       return { error: error.message, code: error.toJSON().status };
     };
     const results = visits.map(visit => {

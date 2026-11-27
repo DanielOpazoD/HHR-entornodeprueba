@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
 const { getPatient } = require('./specialtyDecisionContract');
@@ -12,7 +13,7 @@ const { evaluateWithJev, JevAdapterError } = require('./specialtyJevAdapter');
 
 /** @returns {never} */
 const fail = (code, message) => {
-  throw new functions.https.HttpsError(code, message);
+  throw new HttpsError(code, message);
 };
 const validRequestId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{12,100}$/.test(value);
 const validBedId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(value);

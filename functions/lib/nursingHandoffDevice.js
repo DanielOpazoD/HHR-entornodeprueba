@@ -1,5 +1,6 @@
 const { timingSafeEqual } = require('node:crypto');
-const { https, region } = require('firebase-functions/v1');
+const { region } = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const {
   ACCESS,
   PRIVATE,
@@ -19,11 +20,11 @@ const collection = 'hhr_nursing_handoff_devices';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const hex = /^[a-f0-9]{64}$/;
 const denied = () =>
-  new https.HttpsError('permission-denied', 'La cuenta HHR no tiene acceso a Entrega de turno.');
+  new HttpsError('permission-denied', 'La cuenta HHR no tiene acceso a Entrega de turno.');
 const disconnected = () =>
-  new https.HttpsError('unauthenticated', 'Este equipo no tiene una llave vigente para ese RUN.');
+  new HttpsError('unauthenticated', 'Este equipo no tiene una llave vigente para ese RUN.');
 const enrollmentError = () =>
-  new https.HttpsError('failed-precondition', 'El registro de este equipo no está disponible.');
+  new HttpsError('failed-precondition', 'El registro de este equipo no está disponible.');
 
 function compareHash(left, right) {
   return (
@@ -127,7 +128,7 @@ function createDeviceHandoffHandlers({ firestore, auth, Timestamp, FieldValue, n
       typeof challenge !== 'string' ||
       !hex.test(challenge)
     ) {
-      throw new https.HttpsError('invalid-argument', 'Registro de equipo inválido.');
+      throw new HttpsError('invalid-argument', 'Registro de equipo inválido.');
     }
     const { uid, token } = context.auth ?? {};
     if (typeof uid !== 'string' || !Number.isSafeInteger(token?.auth_time) || token.auth_time <= 0)
@@ -311,14 +312,14 @@ function createNursingHandoffDeviceFunctions(deps, env = process.env) {
           typeof data !== 'object' ||
           Array.isArray(data)
         ) {
-          throw new https.HttpsError('invalid-argument', 'Se requiere una solicitud JSON válida.');
+          throw new HttpsError('invalid-argument', 'Se requiere una solicitud JSON válida.');
         }
         res.json({ result: await operate(data) });
       } catch (error) {
         const failure =
-          error instanceof https.HttpsError
+          error instanceof HttpsError
             ? error
-            : new https.HttpsError('internal', 'HHR no pudo procesar la entrega de turno.');
+            : new HttpsError('internal', 'HHR no pudo procesar la entrega de turno.');
         res.status(failure.httpErrorCode.status).json({ error: failure.toJSON() });
       }
     }),

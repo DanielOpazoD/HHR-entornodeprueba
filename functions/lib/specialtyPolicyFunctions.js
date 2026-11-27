@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const crypto = require('node:crypto');
 const {
   prepareSpecialtyPolicyApplication,
@@ -18,7 +19,7 @@ const { assertTrustedSpecialtyPatient } = require('./specialtyAuditAuthority');
 
 /** @returns {never} */
 const fail = (code, message) => {
-  throw new functions.https.HttpsError(code, message);
+  throw new HttpsError(code, message);
 };
 const assertPilotEnabled = () => {
   if (process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT !== 'enabled') {

@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { HttpsError } = require('firebase-functions/v2/https');
 const { randomUUID } = require('node:crypto');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
@@ -60,7 +61,7 @@ const createDailyRecordRestoreFunctions = ({
         try {
           return await handler({ data, context, email, source, hospital, ref });
         } catch (error) {
-          if (error instanceof functions.https.HttpsError) throw error;
+          if (error instanceof HttpsError) throw error;
           // Never return raw SDK exceptions or clinical payloads.
           fail(
             'unavailable',
