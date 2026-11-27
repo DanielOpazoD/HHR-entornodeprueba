@@ -55,12 +55,28 @@ const sourceContext = (evidence: ObservedCudyrPlacement): CudyrPlacement => ({
 /** Daily facts stay attached to their own day; a current bed never reclassifies the whole stay. */
 export const resolveCudyrDailyPlacement = (input: CudyrDailyPlacementInput) => {
   const cutoffAt = cudyrReferenceInstant(input.date);
-  const referenceAt = input.evaluationAt || cutoffAt;
-  const source = resolveCudyrPlacementAt(
+  const initialReferenceAt = input.evaluationAt || cutoffAt;
+  const initialSource = resolveCudyrPlacementAt(
     input.clinicalEpisodeId ?? '',
-    referenceAt ?? '',
+    initialReferenceAt ?? '',
     input.sourcePlacements
   );
+  // A deferred morning CUDYR (e.g. midwife entry 08:00-11:59 on D+1) may be recorded after the
+  // patient already left their overnight bed. When no placement is active at that later instant,
+  // resolve the overnight bed at the fixed 01:00 cutoff (CUD-04) without altering earlier entries.
+  const evaluationInstant = input.evaluationAt ? Date.parse(input.evaluationAt) : NaN;
+  const cutoffInstant = cutoffAt ? Date.parse(cutoffAt) : NaN;
+  const cutoffSource =
+    initialSource.status === 'sin_evidencia' &&
+    cutoffAt &&
+    Number.isFinite(evaluationInstant) &&
+    Number.isFinite(cutoffInstant) &&
+    evaluationInstant > cutoffInstant
+      ? resolveCudyrPlacementAt(input.clinicalEpisodeId ?? '', cutoffAt, input.sourcePlacements)
+      : null;
+  const usedCutoffFallback = Boolean(cutoffSource && cutoffSource.status !== 'sin_evidencia');
+  const source = usedCutoffFallback ? cutoffSource! : initialSource;
+  const referenceAt = usedCutoffFallback ? cutoffAt : initialReferenceAt;
   // Matching source corrections retain the reviewed onset of independent care.
   // Other source beds/services and conflicting intervals remain authoritative.
   const reviewedCandidate = reviewedNeonatalHospitalPlacement(

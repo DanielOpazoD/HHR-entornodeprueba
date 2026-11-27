@@ -39,8 +39,9 @@ se conservan. Las respuestas confirman persistencia únicamente después del com
 Un error invalida el lote completo. No se registra el contenido clínico en logs.
 
 El tiempo de la fuente conserva el offset. `censusDate` usa la convención nocturna
-existente `hhr-night-v1` en Pacific/Easter: desde 00:01 hasta antes de 12:00 pertenece
-al día anterior. Esto es atribución de la evaluación, no elegibilidad del paciente.
+existente `hhr-night-v1` en Pacific/Easter: desde 00:00 inclusive hasta antes de 12:00
+(madrugada del turno noche y horario diferido de matronas de 08:00 a 11:59) pertenece
+al día anterior (`X-1`). Esto es atribución de la evaluación, no elegibilidad del paciente.
 El contexto de cama pertenece a la primera captura; no prueba la cama al evaluar.
 
 Se exige identificador de evaluación de origen. El HAR validado lo contiene; los
@@ -152,9 +153,10 @@ un intervalo capturado después, sin consultar Eloísa. Debe agotarse la paginac
 
 La política del reporte agrupa NEO 1–2 y H1C1–H6C2 como **medias**, y R1–R4 como
 **intermedias**. No depende de UPC ni de overrides de tipo de cama. Cuna y cualquier
-modalidad CMA son exclusiones temporales; se conservan en el detalle. La proyección
-resuelve la cama con la fecha original de la evaluación, o el corte HHR de 01:00 del
-siguiente día cuando falta evaluación. No extrapola un intervalo más allá de su captura.
+modalidad CMA son exclusiones temporales; se conservan en el detalle. La proyección resuelve la cama con la fecha original de la evaluación, o el corte HHR de 01:00 del
+siguiente día cuando falta evaluación o cuando un registro diferido posterior a las 01:00 ocurre
+tras cerrarse la asignación nocturna de cama. La elegibilidad por egreso se evalúa siempre contra
+el corte fijo de las 01:00 del día siguiente. No extrapola un intervalo más allá de su captura.
 Ante falta de intervalo, identifica explícitamente el contexto como censo diario HHR.
 
 La regla de 8 horas se conserva. Ingreso sin hora suficiente para resolver el día,

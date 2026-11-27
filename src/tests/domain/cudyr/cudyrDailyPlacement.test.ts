@@ -316,6 +316,46 @@ describe('daily CUDYR context projection', () => {
     expect(day.eligibility).toBe('no_elegible');
     expect(day.contextSource).toBe('hhr_daily');
   });
+  it('resolves the overnight bed at 01:00 when a deferred morning CUDYR is entered after morning discharge', () => {
+    const overnightStay = evidence(
+      'H3C1',
+      'hospitalizacion',
+      '2026-10-01T10:00:00-05:00',
+      '2026-10-03T09:00:00-05:00'
+    );
+    const deferred = resolveCudyrDailyPlacement({
+      ...input,
+      date: '2026-10-02',
+      evaluationAt: '2026-10-03T09:41:00-05:00',
+      placements: [{ bedId: 'H3C1' }],
+      sourcePlacements: [overnightStay],
+    });
+    expect(deferred).toMatchObject({
+      contextSource: 'eloisa_interval',
+      group: 'media',
+      modality: 'hospitalizacion',
+      eligibility: 'elegible',
+      referenceAt: cudyrReferenceInstant('2026-10-02'),
+    });
+    expect(deferred.contexts[0].bedId).toBe('H3C1');
+
+    const leftBeforeCutoff = resolveCudyrDailyPlacement({
+      ...input,
+      date: '2026-10-02',
+      evaluationAt: '2026-10-03T09:41:00-05:00',
+      placements: [{ bedId: 'H3C1' }],
+      sourcePlacements: [
+        evidence(
+          'H3C1',
+          'hospitalizacion',
+          '2026-10-01T10:00:00-05:00',
+          '2026-10-02T22:00:00-05:00'
+        ),
+      ],
+    });
+    expect(leftBeforeCutoff.contextSource).toBe('hhr_daily');
+    expect(leftBeforeCutoff.eligibility).toBe('por_revisar');
+  });
 });
 
 it('keeps blocked census patients under review even with an old hospital admission', () => {

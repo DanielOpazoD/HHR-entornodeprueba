@@ -38,7 +38,7 @@ export const resolveCudyrPendingStatus = (
     return {
       phase: 'scheduled',
       label: CUDYR_WAITING_LABEL,
-      detail: `Aún no corresponde aplicarlo. El CUDYR del ${censusLabel} se completa durante el turno noche y la madrugada del ${applicationLabel}.`,
+      detail: `Aún no corresponde aplicarlo. El CUDYR del ${censusLabel} se completa durante el turno noche y en horario diferido hasta las 11:59 del ${applicationLabel}.`,
     };
   }
   if (
@@ -48,7 +48,7 @@ export const resolveCudyrPendingStatus = (
     return {
       phase: 'application_window',
       label: CUDYR_WAITING_LABEL,
-      detail: `Turno noche en curso. Se sincronizará cuando el CUDYR sea registrado en Eloísa durante la madrugada del ${applicationLabel}.`,
+      detail: `Turno noche en curso o registro diferido hasta las 11:59 del ${applicationLabel}. Se sincronizará cuando el CUDYR sea registrado en Eloísa.`,
     };
   }
   return {

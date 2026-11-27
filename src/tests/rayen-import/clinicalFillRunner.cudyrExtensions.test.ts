@@ -446,4 +446,84 @@ describe('daily sync recovers the prior night after discharge', () => {
     expect(current).toEqual(before);
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
+
+  it('archives a deferred morning midwife CUDYR (09:41) onto day X-1 after morning discharge on day X', async () => {
+    const patient = {
+      ...createEmptyPatient('H3C1'),
+      clinicalEpisodeId: 'synthetic-deferred-midwife-episode',
+      patientName: 'Paciente Obstétrica Sintética',
+    };
+    let historical = { ...buildInitializedDayRecord('2026-11-25', null), beds: { H3C1: patient } };
+    const current = buildInitializedDayRecord('2026-11-26', null);
+    current.discharges = [
+      {
+        id: 'synthetic-morning-discharge',
+        clinicalEpisodeId: patient.clinicalEpisodeId,
+        bedId: 'H3C1',
+        bedName: 'H3C1',
+        bedType: 'Media',
+        patientName: patient.patientName,
+        rut: 'synthetic-document',
+        diagnosis: '',
+        time: '09:00',
+        movementDate: current.date,
+        status: 'Vivo',
+        originalData: patient,
+      },
+    ];
+    const before = structuredClone(current);
+    const deps: ClinicalFillDeps = {
+      fetchDeviceReport: vi.fn(),
+      extractDeviceItems: vi.fn(),
+      fetchHistoryScales: vi.fn(),
+      fetchScalesForms: vi.fn(),
+      applyPatch: vi.fn(),
+      fetchCudyrCategories: async () => ({
+        source: 'gestion_camas',
+        historyAvailable: true,
+        observedEpisodeIds: [patient.clinicalEpisodeId],
+        metadataStatus: 'complete',
+        items: [
+          {
+            encId: patient.clinicalEpisodeId,
+            source: 'gestion_camas',
+            crdValue: 'D3',
+            crdDateTime: '2026-11-26T09:41:00-05:00',
+            author: 'Matrona Sintética',
+            authorRole: 'Matrona',
+          },
+        ],
+      }),
+      archiveCudyrCapture: async () => 'persisted',
+      applyHistoricalCudyrBatch: async (day, items) => {
+        expect(day).toBe('2026-11-25');
+        return items.map(item => {
+          const result = resolveHistoricalCudyrBatchOperation(
+            historical,
+            item.clinicalEpisodeId,
+            item.cudyr
+          );
+          if (result.operation?.patch)
+            historical = applyPatches(historical, result.operation?.patch);
+          return {
+            clinicalEpisodeId: item.clinicalEpisodeId,
+            persisted: result.matched,
+            changed: Boolean(result.operation?.patch),
+          };
+        });
+      },
+      now: () => new Date('2026-11-26T10:05:00-05:00'),
+      createId: () => 'synthetic-deferred-midwife-sync',
+    };
+    const summary = await runClinicalFill(current, current.date, deps);
+    expect(summary).toMatchObject({ total: 1, patched: 1, errors: [] });
+    expect(historical.beds.H3C1.evaluationScores?.cudyr).toMatchObject({
+      category: 'D3',
+      recordedDate: '2026-11-25',
+      recordedAt: '2026-11-26T09:41:00-05:00',
+      author: 'Matrona Sintética',
+    });
+    expect(current).toEqual(before);
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+  });
 });
