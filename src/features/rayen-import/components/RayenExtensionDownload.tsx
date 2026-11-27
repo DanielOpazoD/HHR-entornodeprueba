@@ -26,17 +26,8 @@ export const RayenExtensionDownload: React.FC<Props> = ({
     typeof installedBuildId === 'string' && /^[a-f0-9]{64}$/.test(installedBuildId)
       ? installedBuildId
       : undefined;
-  const samePackage = installedVersion === release.version && verifiedId === release.buildId;
-  const differentPackage = Boolean(verifiedId && !samePackage);
-  const unidentified = Boolean(installedVersion && !verifiedId);
-  const needsReview = incompatible || differentPackage || unidentified;
-  const label = incompatible
-    ? 'Actualización necesaria'
-    : differentPackage
-      ? 'Paquete diferente'
-      : unidentified
-        ? 'Identidad sin verificar'
-        : 'Descargar extensión';
+  const needsReview = incompatible;
+  const label = incompatible ? 'Actualización necesaria' : 'Descargar extensión';
   const download = (
     <a
       href={`${import.meta.env.BASE_URL}${release.path}`}
@@ -107,9 +98,6 @@ export const RayenExtensionDownload: React.FC<Props> = ({
               <DownloadDetails
                 installedVersion={installedVersion}
                 verifiedId={verifiedId}
-                samePackage={samePackage}
-                differentPackage={differentPackage}
-                unidentified={unidentified}
                 incompatible={incompatible}
               />
             </React.Suspense>
