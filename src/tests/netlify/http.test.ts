@@ -232,6 +232,19 @@ describe('http utilities', () => {
       expect(headers['Access-Control-Allow-Origin']).toBe('https://app.example.com');
       expect(headers.Vary).toBe('Origin');
     });
+
+    it('forwards scoped allowedMethods and allowedHeaders options', () => {
+      const res = buildCorsPreflightResponse('https://app.example.com', {
+        allowedHeaders: 'Content-Type',
+        allowedMethods: 'POST,OPTIONS',
+      });
+      const headers = res.headers as Record<string, string>;
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toBe('');
+      expect(headers['Content-Length']).toBe('0');
+      expect(headers['Access-Control-Allow-Headers']).toBe('Content-Type');
+      expect(headers['Access-Control-Allow-Methods']).toBe('POST,OPTIONS');
+    });
   });
 
   /* ── buildTextResponse ───────────────────────────────────────────────── */

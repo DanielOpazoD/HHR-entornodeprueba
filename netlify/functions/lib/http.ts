@@ -126,10 +126,14 @@ export const buildJsonResponse = (
   body: JSON.stringify(payload),
 });
 
-export const buildCorsPreflightResponse = (requestOrigin?: string) => ({
+export const buildCorsPreflightResponse = (
+  requestOrigin?: string,
+  options?: Parameters<typeof buildCorsHeaders>[1]
+) => ({
   statusCode: 200,
   headers: {
-    ...buildJsonResponse(200, {}, { requestOrigin }).headers,
+    ...buildCorsHeaders(requestOrigin, options),
+    'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': '0',
   },
   body: '',

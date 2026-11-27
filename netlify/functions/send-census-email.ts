@@ -12,7 +12,7 @@ import {
 } from '../../src/utils/excelValidation';
 import type { DailyRecord } from '../../src/types/domain/dailyRecord';
 import {
-  buildCorsHeaders,
+  buildCorsPreflightResponse,
   buildJsonResponse,
   buildTextResponse,
   buildTooManyRequestsResponse,
@@ -35,21 +35,13 @@ const ALLOWED_ROLES = SERVERLESS_ADMIN_AND_NURSE_ROLES;
 
 export const handler = async (event: NetlifyEventLike) => {
   const requestOrigin = getRequestOrigin(event);
-  const corsHeaders = buildCorsHeaders(requestOrigin, {
-    allowedHeaders: 'Content-Type, Authorization, Accept, X-User-Role',
-    allowedMethods: 'POST,OPTIONS',
-  });
 
   if (!isOriginAllowed(requestOrigin)) {
     return buildJsonResponse(403, { error: 'Origin not allowed' }, { requestOrigin });
   }
 
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: '',
-    };
+    return buildCorsPreflightResponse(requestOrigin, { allowedMethods: 'POST,OPTIONS' });
   }
 
   if (event.httpMethod !== 'POST') {
