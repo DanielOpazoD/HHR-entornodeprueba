@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ClinicalDocumentsSidebar } from '@/features/clinical-documents/components/ClinicalDocumentsSidebar';
-import { buildDocument } from './ClinicalDocumentsSidebar.testSupport';
+import { buildDocument } from './useClinicalDocumentWorkspaceBootstrap.fixtures';
 
 describe('ClinicalDocumentsSidebar', () => {
   it('shows read-only notice and disables create without patient name', () => {
