@@ -452,6 +452,7 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
   expect(docsSetup?.if).toBe("needs.ci-scope.outputs.scope == 'docs-only'");
   const independent = [
     'docs-scope-gate',
+    'netlify-scope-gate',
     'critical-coverage-shards',
     'quality-static-groups',
     'clinical-sync-release-gate',

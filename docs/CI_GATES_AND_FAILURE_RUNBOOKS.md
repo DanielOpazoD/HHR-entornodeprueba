@@ -52,7 +52,7 @@ orienta la cobertura requerida (acreditable por CI del SHA final sin repetirla l
 
 Durante la edición bastan pruebas focalizadas (`npm run test:changed` o `npx vitest run <ruta>`)
 y `npm run check:changed` antes de subir. La clasificación remota `docs-only` / `functions-only` /
-`tooling-only` / `full` se decide en CI; no forzar ni omitir checks.
+`netlify-only` / `tooling-only` / `full` se decide en CI; no forzar ni omitir checks.
 
 ### Checklist de cierre
 
@@ -201,12 +201,13 @@ clasificador y su configuración desde el SHA base confiable, compara contra el 
 inmutable del candidato y falla de forma conservadora: un error, una ruta ambigua o
 una combinación no permitida ejecuta la ruta `full`.
 
-| Alcance          | Cambios admitidos                                                                                                                                                            | Validación blocking                                                                                                                                            |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs-only`      | `docs/**` salvo `docs/api/**`, `src/**/README.md` o Markdown raíz expresamente permitido (`scripts/config/ci-change-scope.json`)                                             | `check:docs-drift`, `check:operational-runbooks` y `ci-summary`                                                                                                |
-| `functions-only` | Fuente bajo `functions/**` y scripts de verificación permitidos; excluye `functions/package.json` y `functions/package-lock.json`                                            | tests de Functions, despliegue, borrado y regiones; contratos serverless; runtime PDF clínico; `ci-summary`                                                    |
-| `tooling-only`   | Controles listados en `toolingOnly.controls` de `scripts/config/ci-change-scope.json` (sin consumidores externos) y pruebas en `src/tests/scripts/**` o `src/tests/build/**` | `eslint` y `prettier` en archivos modificados, `npm run check:quality`, `npm run typecheck`, `npx vitest run src/tests/scripts src/tests/build` y `ci-summary` |
-| `full`           | Código de aplicación, dependencias, configuración, reglas, scripts fuera de la lista permitida, cambios mixtos o cualquier fallback                                          | matriz completa de calidad, shards, sincronización, reglas, E2E, build, rendimiento y readiness                                                                |
+| Alcance          | Cambios admitidos                                                                                                                                                            | Validación blocking                                                                                                                                             |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs-only`      | `docs/**` salvo `docs/api/**`, `src/**/README.md` o Markdown raíz expresamente permitido (`scripts/config/ci-change-scope.json`)                                             | `check:docs-drift`, `check:operational-runbooks` y `ci-summary`                                                                                                 |
+| `functions-only` | Fuente bajo `functions/**` y scripts de verificación permitidos; excluye `functions/package.json` y `functions/package-lock.json`                                            | tests de Functions, despliegue, borrado y regiones; contratos serverless; runtime PDF clínico; `ci-summary`                                                     |
+| `netlify-only`   | Fuente bajo `netlify/functions/**`, pruebas bajo `src/tests/netlify/**` y gobernanza de autenticación Netlify (`netlifySensitiveFunctionAuthGovernanceStatic.test.ts`)       | `eslint` y `prettier` en archivos modificados, `npm run typecheck`, suites Netlify/auth/paridad, bundle y contratos serverless, límites de capas y `ci-summary` |
+| `tooling-only`   | Controles listados en `toolingOnly.controls` de `scripts/config/ci-change-scope.json` (sin consumidores externos) y pruebas en `src/tests/scripts/**` o `src/tests/build/**` | `eslint` y `prettier` en archivos modificados, `npm run check:quality`, `npm run typecheck`, `npx vitest run src/tests/scripts src/tests/build` y `ci-summary`  |
+| `full`           | Código de aplicación, dependencias, configuración, reglas, scripts fuera de la lista permitida, cambios mixtos o cualquier fallback                                          | matriz completa de calidad, shards, sincronización, reglas, E2E, build, rendimiento y readiness                                                                 |
 
 Borrados, renombres, enlaces simbólicos, más de 50 archivos, documentación API generada y cambios en
 `package.json`/lockfiles siempre usan `full`; los eventos `push` también, salvo el caso
@@ -771,7 +772,7 @@ falla, los carriles igual arrancan y fallan en su primer paso (`Require the shar
 production bundle`): un carril saltado se vería verde en la lista de checks, y
 `ci-summary` exige que `preview-smoke-lanes` termine en `success`. Localmente,
 `npm run ci:preview-smoke:built` sigue ejecutando el pack completo en serie. `ci-summary` exige
-`build-budget`, `preview-smoke-lanes` y `final-confidence-and-readiness`; los cambios `docs-only`, `functions-only` y `tooling-only` conservan
+`build-budget`, `preview-smoke-lanes` y `final-confidence-and-readiness`; los cambios `docs-only`, `functions-only`, `netlify-only` y `tooling-only` conservan
 sus controles propios.
 
 Motivo medido: en el run 39661114009 el smoke ocupaba 735 s dentro de
