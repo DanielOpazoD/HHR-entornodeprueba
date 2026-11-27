@@ -40,9 +40,9 @@ Un error invalida el lote completo. No se registra el contenido clínico en logs
 
 El tiempo de la fuente conserva el offset. `censusDate` usa la convención nocturna
 existente `hhr-night-v1` en Pacific/Easter: desde 00:00 inclusive hasta antes de 12:00
-(madrugada del turno noche y horario diferido de matronas de 08:00 a 11:59) pertenece
-al día anterior (`X-1`). Esto es atribución de la evaluación, no elegibilidad del paciente.
-El contexto de cama pertenece a la primera captura; no prueba la cama al evaluar.
+(madrugada del turno noche y horario diferido de 08:00 a 11:59 de matronas o enfermería)
+pertenece al día anterior (`X-1`). Esto es atribución de la evaluación, no elegibilidad del
+paciente. El contexto de cama pertenece a la primera captura; no prueba la cama al evaluar.
 
 Se exige identificador de evaluación de origen. El HAR validado lo contiene; los
 clientes sin identificador deben informar la limitación y no fabricar uno a partir

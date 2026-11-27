@@ -280,5 +280,35 @@ describe('buildImportedCudyr', () => {
     });
     expect(owningDay?.history?.map(entry => entry.category)).toEqual(['D3', 'C2', 'C3']);
     expect(buildImportedCudyr(input, '2026-11-26')).toBeNull();
+
+    const deferredByNurse = buildImportedCudyr(
+      {
+        crdValue: 'C2',
+        crdDateTime: '2026-11-26T10:15:00-05:00',
+        author: 'Enfermero Sintético',
+        authorRole: 'Enfermería',
+        source: 'gestion_camas',
+      },
+      '2026-11-25'
+    );
+    expect(deferredByNurse).toMatchObject({
+      category: 'C2',
+      recordedDate: '2026-11-25',
+      recordedAt: '2026-11-26T10:15:00-05:00',
+      author: 'Enfermero Sintético',
+      authorRole: 'Enfermería',
+    });
+    expect(
+      buildImportedCudyr(
+        {
+          crdValue: 'C2',
+          crdDateTime: '2026-11-26T10:15:00-05:00',
+          author: 'Enfermero Sintético',
+          authorRole: 'Enfermería',
+          source: 'gestion_camas',
+        },
+        '2026-11-26'
+      )
+    ).toBeNull();
   });
 });
