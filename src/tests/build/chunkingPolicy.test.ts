@@ -305,14 +305,12 @@ describe('chunkingPolicy', () => {
       'src/components/layout/Navbar.tsx',
       'src/components/layout/NavbarMenu.tsx',
       'src/components/layout/UserMenu.tsx',
+      'src/context/AuthContext.tsx',
     ]) {
       const source = readSource(file);
-      expect(source, file).not.toMatch(/from ['"]@\/context\/AuthContext['"]/);
+      expect(source, file).not.toMatch(/from ['"]@\/context\/AuthProvider['"]/);
       expect(source, file).not.toMatch(/from ['"]@\/hooks\/useAuthState['"]/);
     }
-
-    const authCoreSource = readSource('src/context/authContextCore.ts');
-    expect(authCoreSource).not.toContain('useAuthState');
 
     const censusPublicSource = readSource('src/features/census/public.ts');
     expect(censusPublicSource).not.toContain('censusStaffHeaderController');

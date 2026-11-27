@@ -7,7 +7,7 @@ import React, { useRef, useState } from 'react';
 import { BellRing, CircleHelp, WifiOff } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { reloadMoaHelp } from './navbar/moaHelpRecovery';
-import { useAuth } from '@/context/authContextCore';
+import { useAuth } from '@/context/AuthContext';
 import { NavbarMenu } from './NavbarMenu';
 import { NavbarTabs } from './NavbarTabs';
 import { UserMenu } from './UserMenu';

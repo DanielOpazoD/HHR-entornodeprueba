@@ -69,6 +69,8 @@ describe('AuthContext', () => {
 
 // The session provider must be usable without importing application presentation.
 it('keeps handoff presentation out of the session provider', () => {
-  const source = readFileSync('src/context/AuthContext.tsx', 'utf8');
-  expect(source).not.toMatch(/@\/components\//);
+  for (const file of ['src/context/AuthContext.tsx', 'src/context/AuthProvider.tsx']) {
+    const source = readFileSync(file, 'utf8');
+    expect(source, file).not.toMatch(/@\/components\//);
+  }
 });

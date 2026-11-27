@@ -566,8 +566,9 @@ dos arrastres innecesarios en `app-bootstrap`: (1) el cromo de arranque y la bar
 reexportaba dos controladores solo usados dentro de `features/census` (`censusStaffHeaderController`
 y `censusEmailRecipientsController`).
 
-Al separar el contexto base sin proveedor en `src/context/authContextCore.ts`, cambiar `UserRole`
-a `import type` desde `src/types/authRoleTypes.ts` y retirar esos dos reexports internos:
+Al separar `AuthProvider` en `src/context/AuthProvider.tsx` (dejando en `AuthContext.tsx` solo el
+contexto y sus hooks livianos), cambiar `UserRole` a `import type` desde `src/types/authRoleTypes.ts`
+y retirar esos dos reexports internos:
 
 - `app-bootstrap`: **247.904 → 205.102 B** (−42.802 B / −17,3 %).
 - JS estático pre-login total (8 archivos desde `dist/index.html`): **985.888 → 943.094 B** (−42.794 B / −4,3 %).

@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useAudit, type AuditLoggers } from '@/hooks/useAudit';
-import { useAuth, type AuthUser } from '@/context/authContextCore';
+import { useAuth, type AuthUser } from '@/context/AuthContext';
 import { ANONYMOUS_AUDIT_ACTOR } from '@/domain/audit/auditActorPolicy';
 
 export { ANONYMOUS_AUDIT_ACTOR };

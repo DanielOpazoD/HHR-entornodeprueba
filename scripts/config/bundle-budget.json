@@ -22,7 +22,7 @@
     {
       "label": "app-bootstrap",
       "pattern": "^app-bootstrap-.*\\.js$",
-      "_comment": "Dedicated pre-login startup budget added after isolating AuthContext core and removing census-internal exports from features/census/public.ts: measured 205102 B (down from 247904 B, -42802 B / -17.3%). Blocks regressions before the login screen paints.",
+      "_comment": "Dedicated pre-login startup budget added after separating AuthProvider from AuthContext and removing census-internal exports from features/census/public.ts: measured 205102 B (down from 247904 B, -42802 B / -17.3%). Blocks regressions before the login screen paints.",
       "maxBytes": 230000,
       "severity": "error"
     },

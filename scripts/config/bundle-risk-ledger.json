@@ -84,7 +84,7 @@
       "loadReason": "Static pre-login runtime shared by the entry point before authentication resolves; auth provider hooks and census-internal controllers must stay outside this chunk.",
       "thresholdLabel": "230,000 bytes startup chunk budget",
       "startupBudgetLabel": "app-bootstrap",
-      "releasePosture": "Dedicated blocking pre-login ceiling added after isolating AuthContext core and trimming census-internal public exports (247,904 B -> 205,102 B).",
+      "releasePosture": "Dedicated blocking pre-login ceiling added after separating AuthProvider from AuthContext and trimming census-internal public exports (247,904 B -> 205,102 B).",
       "guardrails": [
         "check:bundle-budget",
         "check:chunk-graph",

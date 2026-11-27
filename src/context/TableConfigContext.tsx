@@ -22,7 +22,7 @@ import {
   setFirestoreEnabled as setTableConfigFirestoreEnabled,
   subscribeToTableConfig,
 } from '@/services/storage/tableConfigService';
-import { useAuth } from './authContextCore';
+import { useAuth } from './AuthContext';
 import { tableConfigLogger } from '@/services/storage/storageLoggers';
 
 // ============================================================================

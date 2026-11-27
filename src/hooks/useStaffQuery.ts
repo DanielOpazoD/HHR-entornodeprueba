@@ -10,7 +10,7 @@ import { replaceEqualDeep, useQuery, useMutation, useQueryClient } from '@tansta
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { queryKeys } from '../config/queryClient';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
-import { useAuth } from '@/context/authContextCore';
+import { useAuth } from '@/context/AuthContext';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { useEloisaStaff } from './useEloisaStaff';
 import {

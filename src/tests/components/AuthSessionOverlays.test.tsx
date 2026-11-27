@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { AuthProvider } from '@/context/AuthContext';
+import { AuthProvider } from '@/context/AuthProvider';
 import { AuthSessionOverlays } from '@/components/layout/AuthSessionOverlays';
 import { resolveNormalizedAuthOperationalState } from '@/services/auth/authOperationalState';
 import { useNursingHandoffLogout } from '@/hooks/useNursingHandoffLogout';
@@ -9,6 +9,7 @@ import { setSessionGeneration } from '@/services/session/sessionStorageTransitio
 import type { AuthUser } from '@/types/authRoleTypes';
 
 vi.unmock('@/context/AuthContext');
+vi.unmock('@/context/AuthProvider');
 const mocks = vi.hoisted(() => ({
   attempt: vi.fn(),
   resume: vi.fn(),

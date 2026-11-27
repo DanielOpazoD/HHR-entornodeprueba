@@ -9,6 +9,8 @@ import type { AuthUser } from '@/types/authRoleTypes';
 vi.unmock('@/hooks/useAuthState');
 vi.unmock('@/context/AuthContext');
 vi.unmock('../../context/AuthContext');
+vi.unmock('@/context/AuthProvider');
+vi.unmock('../../context/AuthProvider');
 
 vi.mock('@/services/session/sessionScopedStorageService', () => ({
   clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {

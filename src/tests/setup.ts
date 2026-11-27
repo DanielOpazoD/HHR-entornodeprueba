@@ -467,6 +467,10 @@ vi.mock('@/context/AuthContext', async () => ({
   useCanEdit: () => true,
 }));
 
+vi.mock('@/context/AuthProvider', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock AuditContext
 const mockAuditContextValue = {
   logPatientAdmission: vi.fn(),

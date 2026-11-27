@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAuth } from '@/context/authContextCore';
+import { useAuth } from '@/context/AuthContext';
 import { NAVIGATION_CONFIG, ModuleType } from '@/constants/navigationConfig';
 import {
   canAccessAppModuleRoute,

@@ -2,7 +2,7 @@ import React from 'react';
 import type { AuthContextType } from '@/context/AuthContext';
 import type { CensusContextType } from '@/context/CensusContext';
 import { useCensusContext } from '@/context/CensusContext';
-import { useAuth } from '@/context/authContextCore';
+import { useAuth } from '@/context/AuthContext';
 import { useDailyRecordData, useDailyRecordSync } from '@/context/DailyRecordContext';
 import type { DailyRecordContextType } from '@/context/dailyRecordContextContracts';
 import { useExportManager, type UseExportManagerReturn } from '@/hooks/useExportManager';
