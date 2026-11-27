@@ -1,8 +1,7 @@
 import React from 'react';
-import { Share2 } from 'lucide-react';
+import { Baby, Share2 } from 'lucide-react';
 import { getTimeRoundedToStep } from '@/utils/dateUtils';
 import { BaseModal } from '@/components/shared/BaseModal';
-import { TransferClinicalCribNotice } from '@/features/census/components/movements/transfer/TransferClinicalCribNotice';
 import { TransferEvacuationSection } from '@/features/census/components/movements/transfer/TransferEvacuationSection';
 import { TransferReceivingSection } from '@/features/census/components/movements/transfer/TransferReceivingSection';
 import { MovementDateTimeField } from '@/features/census/components/movements/shared/MovementDateTimeField';
@@ -79,7 +78,17 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         )}
 
         {!isEditing && hasClinicalCrib && (
-          <TransferClinicalCribNotice clinicalCribName={clinicalCribName} />
+          <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-lg flex items-start gap-2 animate-fade-in mb-2">
+            <Baby className="text-blue-500 mt-0.5 shrink-0" size={14} />
+            <div className="space-y-0.5">
+              <p className="text-[9px] font-bold text-blue-900 uppercase tracking-tight">
+                Cuna RN detectada
+              </p>
+              <p className="text-[10px] text-blue-800/80 leading-tight">
+                Se generará un traslado adicional para {clinicalCribName || 'RN'}.
+              </p>
+            </div>
+          </div>
         )}
 
         <div className="space-y-4">
