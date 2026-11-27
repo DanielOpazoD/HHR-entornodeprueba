@@ -298,6 +298,27 @@ describe('chunkingPolicy', () => {
     }
   });
 
+  it('keeps pre-login bootstrap chrome off AuthProvider and trims census-internal public exports', () => {
+    for (const file of [
+      'src/app-shell/bootstrap/BootstrapCensusChrome.tsx',
+      'src/app-shell/bootstrap/useAppBootstrapState.ts',
+      'src/components/layout/Navbar.tsx',
+      'src/components/layout/NavbarMenu.tsx',
+      'src/components/layout/UserMenu.tsx',
+    ]) {
+      const source = readSource(file);
+      expect(source, file).not.toMatch(/from ['"]@\/context\/AuthContext['"]/);
+      expect(source, file).not.toMatch(/from ['"]@\/hooks\/useAuthState['"]/);
+    }
+
+    const authCoreSource = readSource('src/context/authContextCore.ts');
+    expect(authCoreSource).not.toContain('useAuthState');
+
+    const censusPublicSource = readSource('src/features/census/public.ts');
+    expect(censusPublicSource).not.toContain('censusStaffHeaderController');
+    expect(censusPublicSource).not.toContain('censusEmailRecipientsController');
+  });
+
   it('keeps authenticated shell providers off the broad context barrel', () => {
     const guardedFiles = [
       'src/components/AppProviders.tsx',

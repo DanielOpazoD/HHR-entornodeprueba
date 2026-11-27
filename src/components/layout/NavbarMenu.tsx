@@ -9,7 +9,7 @@ import clsx from 'clsx';
 import { ModuleType, NavItemConfig } from '@/constants/navigationConfig';
 import { useNavbarNavigation } from '@/hooks/useNavbarNavigation';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/authContextCore';
 import {
   canConfigurePrescriptions,
   canViewPrescriptions,

@@ -19,12 +19,3 @@ export type {
   SelectedPatientDetail,
   UseGlobalPatientSearchReturn,
 } from './components/global-search/globalSearchContracts';
-export {
-  resolveAdmissionsCountForRecord,
-  resolveStaffDetailsState,
-  resolveStaffIndicatorsState,
-  resolveMovementSummaryState,
-  resolveStaffSelectorsClassName,
-  resolveStaffSelectorsState,
-} from './controllers/censusStaffHeaderController';
-export * from '@/application/census/controllers/censusEmailRecipientsController';

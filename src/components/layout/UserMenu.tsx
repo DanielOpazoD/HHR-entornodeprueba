@@ -11,8 +11,8 @@ import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary';
 // UserMenuPanel intentionally stays on raw lazy() behind GlobalErrorBoundary fallbackComponent={logoutFallback}
 // so nurses on shared workstations can always sign out even if the menu chunk fails.
 const UserMenuPanel = lazy(() => import('./UserMenuPanel'));
-import { UserRole } from '@/hooks/useAuthState';
-import type { AuthContextType } from '@/context/AuthContext';
+import type { UserRole } from '@/types/authRoleTypes';
+import type { AuthContextType } from '@/context/authContextCore';
 import { getRoleDisplayLabel } from '@/shared/access/operationalAccessPolicy';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
 

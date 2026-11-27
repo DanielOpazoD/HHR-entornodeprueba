@@ -98,6 +98,37 @@ const entryFiles = entryScriptMatches.map(match => {
   };
 });
 
+const collectPreLoginStaticJsAssets = initialEntries => {
+  const visited = new Map();
+  const queue = [...initialEntries];
+
+  for (const asset of queue) {
+    if (visited.has(asset.filePath)) continue;
+    visited.set(asset.filePath, asset);
+
+    const content = fs.readFileSync(asset.filePath, 'utf8');
+    const assetDir = path.dirname(asset.filePath);
+    for (const match of content.matchAll(/(?:from|import)\s*["'](\.[^"']+\.js)["']/g)) {
+      const resolvedPath = path.resolve(assetDir, match[1]);
+      if (!visited.has(resolvedPath) && fs.existsSync(resolvedPath)) {
+        queue.push({
+          name: path.basename(resolvedPath),
+          filePath: resolvedPath,
+          size: fs.statSync(resolvedPath).size,
+        });
+      }
+    }
+  }
+
+  return [...visited.values()];
+};
+
+const preLoginStaticJsAssets = collectPreLoginStaticJsAssets(entryFiles);
+const preLoginStaticJsTotalBytes = preLoginStaticJsAssets.reduce(
+  (total, asset) => total + asset.size,
+  0
+);
+
 const jsAssets = fs
   .readdirSync(assetsDir, { withFileTypes: true })
   .filter(entry => entry.isFile() && entry.name.endsWith('.js'))
@@ -341,6 +372,9 @@ console.warn(
 );
 console.warn(
   `[bundle-budget] Precache payload: ${toKb(precacheTotalBytes)} (${precacheAssets.length} files, limit ${toKb(precacheMaxBytes)})`
+);
+console.warn(
+  `[bundle-budget] Pre-login static JS: ${toKb(preLoginStaticJsTotalBytes)} (${preLoginStaticJsAssets.length} files)`
 );
 entryFiles.forEach(entryFile => {
   console.warn(`[bundle-budget] Entry asset: ${entryFile.name} (${toKb(entryFile.size)})`);

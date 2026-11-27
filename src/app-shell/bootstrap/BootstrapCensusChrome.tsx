@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { DateStrip } from '@/components/layout/DateStrip';
 import { Navbar } from '@/components/layout/Navbar';
 import { ViewLoader } from '@/components/ui/ViewLoader';
-import { AuthContext, type AuthContextType, type UserRole } from '@/context/AuthContext';
+import { AuthContext, type AuthContextType, type UserRole } from '@/context/authContextCore';
 import { UIProvider } from '@/context/UIContext';
 import type { ModuleType } from '@/constants/navigationConfig';
 import { CensusOperationalStateBanner, resolveCensusOperationalState } from '@/features/census';

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { DailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/authContextCore';
 import { isAdminAppRole } from '@/shared/access/operationalAccessPolicy';
 import { nurseEditingWindowClosesAt } from '@/utils/clinicalWallClock';
 import {

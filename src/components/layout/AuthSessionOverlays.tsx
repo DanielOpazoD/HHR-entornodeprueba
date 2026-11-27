@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/authContextCore';
 
 const NursingHandoffLogoutDialog = lazyWithRetry(() => import('./NursingHandoffLogoutDialog'));
 const NursingHandoffSessionNotice = lazyWithRetry(() => import('./NursingHandoffSessionNotice'));

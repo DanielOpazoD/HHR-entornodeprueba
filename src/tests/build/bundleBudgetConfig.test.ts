@@ -101,7 +101,12 @@ describe('bundle budget config', () => {
   it('keeps startup chunk budgets blocking and below the generic chunk ceiling', () => {
     const config = readBundleBudgetConfig();
 
-    for (const label of ['entry-app', 'firebase-core', 'app-authenticated-shell']) {
+    for (const label of [
+      'entry-app',
+      'app-bootstrap',
+      'firebase-core',
+      'app-authenticated-shell',
+    ]) {
       const budget = config.startupChunkBudgets.find(entry => entry.label === label);
       expect(budget, label).toMatchObject({ severity: 'error' });
       expectPositiveByteCeiling(budget?.maxBytes, label);

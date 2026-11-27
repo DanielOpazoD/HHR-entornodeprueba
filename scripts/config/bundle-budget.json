@@ -20,6 +20,13 @@
       "severity": "error"
     },
     {
+      "label": "app-bootstrap",
+      "pattern": "^app-bootstrap-.*\\.js$",
+      "_comment": "Dedicated pre-login startup budget added after isolating AuthContext core and removing census-internal exports from features/census/public.ts: measured 205102 B (down from 247904 B, -42802 B / -17.3%). Blocks regressions before the login screen paints.",
+      "maxBytes": 230000,
+      "severity": "error"
+    },
+    {
       "label": "firebase-core",
       "pattern": "^vendor-firebase-core-.*\\.js$",
       "_comment": "Raised from 320000 to 350000. The chunk sat at 91% of the older ceiling with Firebase SDK 12; minor Firebase patch releases were landing on the edge of the budget. Upstream-controlled size, so give explicit headroom. Revisit if utilization exceeds 93%.",

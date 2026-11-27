@@ -7,7 +7,7 @@
  * Roles: 'viewer' (read-only) | 'editor' (full access) | 'admin' (full access + admin features)
  */
 
-import React, { createContext, useContext, ReactNode, useMemo } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 import { useAuthState } from '@/hooks/useAuthState';
 import { useAuthClaimRefreshScheduler } from '@/hooks/useAuthClaimRefreshScheduler';
 import type { UserRole, AuthUser } from '@/types/authRoleTypes';
@@ -18,15 +18,14 @@ import {
   type AuthContextType,
 } from '@/context/authContextController';
 import { resolveNormalizedAuthOperationalState } from '@/services/auth/authOperationalState';
+import { AuthContext, useAuth, useCanEdit } from './authContextCore';
 
-export { buildAuthContextValue };
+export { AuthContext, buildAuthContextValue, useAuth, useCanEdit };
 export type { AuthContextType };
 
 // ============================================================================
-// Context
+// Provider
 // ============================================================================
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -92,29 +91,4 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-// ============================================================================
-// Hooks
-// ============================================================================
-
-/**
- * Hook to access authentication context.
- * Must be used within an AuthProvider.
- */
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-/**
- * Convenience hook to check if user can edit.
- * @returns true if user has edit permissions
- */
-export const useCanEdit = (): boolean => {
-  const { isEditor } = useAuth();
-  return isEditor;
 };

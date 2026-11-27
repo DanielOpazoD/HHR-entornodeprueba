@@ -10,13 +10,14 @@ Este ledger gobierna los chunks que hoy explican el warning de tamaño de Vite o
 
 ## Current surfaces
 
-| Surface                   | Owner                             | Threshold                           | Current signal                                                                              | Release posture                                                          | Guardrail                                                                      |
-| ------------------------- | --------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `vendor-heic2any`         | prescriptions/runtime             | 1,450,000 bytes chunk budget        | ~1,320 KB, async only for HEIC/HEIF prescription photos                                     | Not a release blocker while it stays out of precache and below threshold | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
-| `vendor-pdfjs`            | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime                                                   | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
-| `pdfjs-worker`            | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                                                              | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                         |
-| `vendor-pdf-lib`          | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling                                          | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin` |
-| `app-authenticated-shell` | app-shell/census runtime          | 328,000 bytes startup chunk budget  | Bajado 2026-11-26 (310 KB + ~5,8 % tras diferir correo del censo); repetir al superar ~97 % | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`     |
+| Surface                   | Owner                             | Threshold                           | Current signal                                                                                        | Release posture                                                          | Guardrail                                                                                    |
+| ------------------------- | --------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `vendor-heic2any`         | prescriptions/runtime             | 1,450,000 bytes chunk budget        | ~1,320 KB, async only for HEIC/HEIF prescription photos                                               | Not a release blocker while it stays out of precache and below threshold | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`                       |
+| `vendor-pdfjs`            | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime                                                             | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`                       |
+| `pdfjs-worker`            | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                                                                        | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                                       |
+| `vendor-pdf-lib`          | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling                                                    | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin`               |
+| `app-bootstrap`           | app-shell/bootstrap               | 230,000 bytes startup chunk budget  | Agregado 2026-11-26 (205 KB tras aislar núcleo de `AuthContext` y limpiar exports internos del censo) | Not a release blocker while pre-login imports stay clean                 | `chunkingPolicy.test`, `bundleBudgetConfig.test`, `check:bundle-budget`, `check:chunk-graph` |
+| `app-authenticated-shell` | app-shell/census runtime          | 328,000 bytes startup chunk budget  | Bajado 2026-11-26 (310 KB + ~5,8 % tras diferir correo del censo); repetir al superar ~97 %           | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`                   |
 
 ## Trigger policy
 
@@ -553,6 +554,36 @@ importan la cola de sincronización al arrancar.
 
 Reversión: quitar el reclamo de `chunkingPolicy.ts`, restaurar la regla `date-strip-controls` y
 el tope anterior. Evidencia: carpeta W19/BOOT del programa de calidad.
+
+## Presupuesto pre-login y recorte de `app-bootstrap` (2026-11-26)
+
+Owner: app-shell/bootstrap. Antes de este cambio `app-bootstrap` no tenía techo propio en
+`startupChunkBudgets` y el control de presupuesto solo mostraba el entry script (78,5 KB) sin el
+cierre estático completo que baja el navegador antes de iniciar sesión. El grafo estático mostró
+dos arrastres innecesarios en `app-bootstrap`: (1) el cromo de arranque y la barra importaban
+`AuthContext` / `useAuth` desde `AuthContext.tsx` (junto con `AuthProvider` y `useAuthState`) y
+`UserMenu.tsx` importaba `UserRole` como valor desde `useAuthState`; (2) `features/census/public.ts`
+reexportaba dos controladores solo usados dentro de `features/census` (`censusStaffHeaderController`
+y `censusEmailRecipientsController`).
+
+Al separar el contexto base sin proveedor en `src/context/authContextCore.ts`, cambiar `UserRole`
+a `import type` desde `src/types/authRoleTypes.ts` y retirar esos dos reexports internos:
+
+- `app-bootstrap`: **247.904 → 205.102 B** (−42.802 B / −17,3 %).
+- JS estático pre-login total (8 archivos desde `dist/index.html`): **985.888 → 943.094 B** (−42.794 B / −4,3 %).
+- `app-authenticated-shell`: 294.561 → 304.491 B (bajo su tope de 328.000 B, sin cambios de límite).
+- `check-bundle-budget.mjs` ahora reporta el cierre estático pre-login (`Pre-login static JS`) y
+  `startupChunkBudgets` fija un techo bloqueante dedicado para `app-bootstrap` en **230.000 B**
+  (89,2 % de uso medido).
+- Ensayo de arranque del censo con 30 muestras por escenario (`npm run test:e2e:census-performance`
+  en Chromium 158, macOS arm64): ambos escenarios pasan holgadamente los presupuestos (2.000 ms
+  visible / 5.000 ms registro) con `warm_reload` p50 121,4 → 126,6 ms / p95 184,6 → 142,4 ms y
+  `cold_context` p50 163,4 → 175,0 ms / p95 178,4 → 261,6 ms (rango de ruido local sin regresión
+  funcional ni cambio de ruta autenticada).
+
+Reversión: restaurar imports a `AuthContext.tsx`, reexportar ambos controladores en
+`features/census/public.ts` y retirar la entrada `app-bootstrap` de `bundle-budget.json` y
+`bundle-risk-ledger.json`.
 
 ## Historia del tope de precarga
 

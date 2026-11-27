@@ -73,9 +73,52 @@ describe('bundle budget messages', () => {
       '[bundle-budget] OK\n' +
         '[bundle-budget] Entry budget: 620.3 KB | Chunk budget: 1953.1 KB\n' +
         '[bundle-budget] Precache payload: 1.0 KB (1 files, limit 1953.1 KB)\n' +
+        '[bundle-budget] Pre-login static JS: 1.0 KB (1 files)\n' +
         '[bundle-budget] Entry asset: entry.js (1.0 KB)\n' +
         '[bundle-budget] Largest chunk: entry.js (1.0 KB)\n'
     );
+  });
+
+  it('reports transitive pre-login static JS bytes while excluding dynamic imports', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bundle-budget-prelogin-'));
+    roots.push(root);
+    fs.mkdirSync(path.join(root, 'scripts/config'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'dist/assets'), { recursive: true });
+    const config = {
+      entryMaxBytes: 2000000,
+      chunkMaxBytes: 2000000,
+      precacheMaxBytes: 2000000,
+      forbiddenAssetPatterns: ['never-match'],
+      startupChunkBudgets: [],
+      chunkPatternBudgets: [],
+      assetPatternBudgets: [],
+    };
+    fs.writeFileSync(path.join(root, 'scripts/config/bundle-budget.json'), JSON.stringify(config));
+    fs.writeFileSync(
+      path.join(root, 'dist/index.html'),
+      '<script type="module" src="/assets/entry.js"></script>'
+    );
+    const padTo = (content: string, totalBytes: number) =>
+      content + ' '.repeat(Math.max(0, totalBytes - Buffer.byteLength(content)));
+    fs.writeFileSync(
+      path.join(root, 'dist/assets/entry.js'),
+      padTo('import{a}from"./boot.js";import("./lazy.js");', 1024)
+    );
+    fs.writeFileSync(
+      path.join(root, 'dist/assets/boot.js'),
+      padTo('import"./vendor.js";export const a=1;', 2048)
+    );
+    fs.writeFileSync(path.join(root, 'dist/assets/vendor.js'), padTo('console.log(1);', 4096));
+    fs.writeFileSync(path.join(root, 'dist/assets/lazy.js'), padTo('export const b=2;', 8192));
+    fs.writeFileSync(path.join(root, 'dist/service-worker.js'), '{"url":"assets/entry.js"}');
+
+    const result = spawnSync(process.execPath, [path.resolve('scripts/check-bundle-budget.mjs')], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('[bundle-budget] Pre-login static JS: 7.0 KB (3 files)');
   });
 
   it.each(categories)('accepts equality for %s', category => {

@@ -78,6 +78,21 @@
       "nextAction": "Separate generation/viewer imports only if the PDF family grows past the current dedicated ceiling."
     },
     {
+      "id": "app-bootstrap",
+      "owner": "app-shell/bootstrap",
+      "workflow": "Pre-login static bootstrap runtime",
+      "loadReason": "Static pre-login runtime shared by the entry point before authentication resolves; auth provider hooks and census-internal controllers must stay outside this chunk.",
+      "thresholdLabel": "230,000 bytes startup chunk budget",
+      "startupBudgetLabel": "app-bootstrap",
+      "releasePosture": "Dedicated blocking pre-login ceiling added after isolating AuthContext core and trimming census-internal public exports (247,904 B -> 205,102 B).",
+      "guardrails": [
+        "check:bundle-budget",
+        "check:chunk-graph",
+        "src/tests/build/chunkingPolicy.test.ts"
+      ],
+      "nextAction": "Keep pre-login static JS visible in check:bundle-budget and keep AuthProvider/census-internal helpers out of app-bootstrap."
+    },
+    {
       "id": "app-authenticated-shell",
       "owner": "app-shell/census runtime",
       "workflow": "Authenticated census shell",
