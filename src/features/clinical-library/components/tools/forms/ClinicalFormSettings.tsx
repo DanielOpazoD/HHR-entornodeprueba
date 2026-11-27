@@ -9,11 +9,12 @@ import {
 import type { ClinicalFormDefinition } from '../../../domain/forms/clinicalFormTypes';
 import { matchesClinicalFormField } from './ClinicalFormFields';
 import { isSuppressedClinicalFormField } from '../../../domain/forms/clinicalFormFieldPolicy';
-import { downloadBlob } from '@/utils/downloadBlob';
-
-export const downloadClinicalFormJson = (text: string, name: string) => {
-  downloadBlob(new Blob([text], { type: 'application/json' }), name);
-};
+import { ToolJsonFileInput } from '../ToolJsonFileInput';
+import {
+  CLINICAL_TOOL_PREFERENCES_MAX_BYTES,
+  downloadToolJsonFile,
+  readBoundedToolJsonFile,
+} from '../toolDraftFiles';
 
 interface Props {
   form: ClinicalFormDefinition;
@@ -47,9 +48,10 @@ export const ClinicalFormSettings: React.FC<Props> = ({
     if (!file) return;
     const attempt = ++sequence.current;
     try {
-      if (file.size > 100_000) throw new Error('El archivo de preferencias es demasiado grande.');
-      const text = await file.text().catch(() => {
-        throw new Error('No se pudo leer el archivo de preferencias. Vuelve a intentarlo.');
+      const text = await readBoundedToolJsonFile(file, {
+        maxBytes: CLINICAL_TOOL_PREFERENCES_MAX_BYTES,
+        tooLargeMessage: 'El archivo de preferencias es demasiado grande.',
+        readErrorMessage: 'No se pudo leer el archivo de preferencias. Vuelve a intentarlo.',
       });
       if (attempt === sequence.current) onChange(parseClinicalFormPreferences(text, form));
     } catch (error) {
@@ -75,7 +77,7 @@ export const ClinicalFormSettings: React.FC<Props> = ({
           title="Exportar preferencias"
           aria-label="Exportar preferencias"
           onClick={() =>
-            downloadClinicalFormJson(
+            downloadToolJsonFile(
               serializeClinicalFormPreferences(preferences),
               `${form.id}-preferencias.json`
             )
@@ -92,15 +94,11 @@ export const ClinicalFormSettings: React.FC<Props> = ({
         >
           <Upload size={16} />
         </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".json,application/json"
-          aria-label="Archivo de preferencias del formulario"
-          className="hidden"
-          onChange={event => {
-            void importFile(event.target.files?.[0]);
-            event.target.value = '';
+        <ToolJsonFileInput
+          inputRef={inputRef}
+          ariaLabel="Archivo de preferencias del formulario"
+          onFileSelected={file => {
+            void importFile(file);
           }}
         />
       </div>

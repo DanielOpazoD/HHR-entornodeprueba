@@ -16,8 +16,11 @@ import type {
   ClinicalFormPatientOption,
 } from '../../../domain/forms/clinicalFormTypes';
 import { ToolFrame } from '../ToolFrame';
+import { ToolJsonFileInput } from '../ToolJsonFileInput';
+import { ToolReplaceConfirmDialog } from '../ToolReplaceConfirmDialog';
+import { downloadToolJsonFile } from '../toolDraftFiles';
 import { ClinicalFormFields } from './ClinicalFormFields';
-import { ClinicalFormSettings, downloadClinicalFormJson } from './ClinicalFormSettings';
+import { ClinicalFormSettings } from './ClinicalFormSettings';
 import { useClinicalFormDraft } from './useClinicalFormDraft';
 import {
   useClinicalFormPdf,
@@ -228,7 +231,7 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
               className="clinical-form-icon"
               disabled={pdf.busy}
               onClick={() =>
-                downloadClinicalFormJson(
+                downloadToolJsonFile(
                   exportClinicalFormDraft(formId, draft.values),
                   `${formId}-borrador.json`
                 )
@@ -260,40 +263,29 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
             </button>
           </div>
         </div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".json,application/json"
-          className="hidden"
-          aria-label="Archivo de borrador del formulario"
-          onChange={event => {
-            const file = event.target.files?.[0];
-            if (file) void draft.importFile(file);
-            event.target.value = '';
+        <ToolJsonFileInput
+          inputRef={inputRef}
+          ariaLabel="Archivo de borrador del formulario"
+          onFileSelected={file => {
+            void draft.importFile(file);
           }}
         />
         {draft.replacement && (
-          <section
-            role="alertdialog"
-            aria-labelledby="clinical-form-replace-title"
-            aria-describedby="clinical-form-replace-description"
-            className="clinical-form-review"
-          >
-            <strong id="clinical-form-replace-title">Reemplazar los datos actuales</strong>
-            <p id="clinical-form-replace-description">
-              {form.internalOnly
+          <ToolReplaceConfirmDialog
+            idPrefix="clinical-form"
+            title="Reemplazar los datos actuales"
+            description={
+              form.internalOnly
                 ? 'El borrador que importes reemplazará los datos actuales.'
-                : 'Se vaciarán los datos anteriores antes de cargar el nuevo paciente o borrador.'}
-            </p>
-            <div className="clinical-form-actions">
-              <button type="button" autoFocus onClick={draft.cancelReplacement}>
-                Conservar formulario
-              </button>
-              <button type="button" onClick={draft.confirmReplacement}>
-                Reemplazar datos
-              </button>
-            </div>
-          </section>
+                : 'Se vaciarán los datos anteriores antes de cargar el nuevo paciente o borrador.'
+            }
+            confirmLabel="Reemplazar datos"
+            onKeep={draft.cancelReplacement}
+            onConfirm={draft.confirmReplacement}
+            containerClassName="clinical-form-review"
+            titleClassName="font-bold"
+            actionsClassName="clinical-form-actions"
+          />
         )}
         {draft.sourceMissing && (
           <div role="alert" className="clinical-form-review">
