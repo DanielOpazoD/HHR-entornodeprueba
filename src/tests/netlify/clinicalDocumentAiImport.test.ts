@@ -51,6 +51,28 @@ describe('clinical-document-ai-import netlify function', () => {
     process.env = originalEnv;
   });
 
+  it('answers OPTIONS preflight for allowed origins and rejects disallowed origins', async () => {
+    const allowed = await handler({
+      httpMethod: 'OPTIONS',
+      headers: { origin: 'https://app.example.com' },
+      body: null,
+    });
+    const allowedHeaders = allowed.headers as Record<string, string>;
+    expect(allowed.statusCode).toBe(200);
+    expect(allowed.body).toBe('');
+    expect(allowedHeaders['Content-Length']).toBe('0');
+    expect(allowedHeaders['Access-Control-Allow-Origin']).toBe('https://app.example.com');
+
+    const rejected = await handler({
+      httpMethod: 'OPTIONS',
+      headers: { origin: 'https://evil.example.com' },
+      body: null,
+    });
+    const rejectedHeaders = rejected.headers as Record<string, string>;
+    expect(rejected.statusCode).toBe(403);
+    expect(rejectedHeaders['Access-Control-Allow-Origin']).toBeUndefined();
+  });
+
   it('returns available false when no provider is configured', async () => {
     resolveClinicalAIProviderConfigMock.mockReturnValue(null);
 

@@ -11,6 +11,7 @@ import {
 } from '../../src/shared/contracts/serverless';
 import { SERVERLESS_CLINICAL_DOCUMENT_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 import {
+  buildCorsPreflightResponse,
   buildJsonResponse,
   buildTooManyRequestsResponse,
   getClientIp,
@@ -114,14 +115,7 @@ export const createClinicalAttachmentNameSuggestionHandler = (
     }
 
     if (event.httpMethod === 'OPTIONS') {
-      return {
-        statusCode: 200,
-        headers: {
-          ...buildJsonResponse(200, {}, { requestOrigin }).headers,
-          'Content-Length': '0',
-        },
-        body: '',
-      };
+      return buildCorsPreflightResponse(requestOrigin);
     }
 
     if (event.httpMethod !== 'POST') {
