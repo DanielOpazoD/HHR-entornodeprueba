@@ -322,4 +322,91 @@ describe('Rayen extension release dependency graph', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('No se permite <base> en extension/print-pdf.html');
   });
+
+  it('ignores string and comment mentions of importScripts while rejecting bracketed calls in runtime-loader', () => {
+    const root = createPackageFixture();
+    const backgroundPath = path.join(root, 'extension/background.js');
+    fs.appendFileSync(
+      backgroundPath,
+      "\nconst diagnosticNote = \"importScripts('decoy.js');\";\n// importScripts('comment-decoy.js');\n",
+      'utf8'
+    );
+    const runtimeLoaderPath = path.join(root, 'extension/runtime-loader.js');
+    fs.appendFileSync(
+      runtimeLoaderPath,
+      '\nconst loaderDoc = "importScripts(\'string-decoy.js\')";\n',
+      'utf8'
+    );
+
+    const cleanResult = runChecker(root);
+    expect(cleanResult.status, cleanResult.stderr).toBe(0);
+
+    fs.appendFileSync(runtimeLoaderPath, "\nglobalThis['importScripts']('late.js');\n", 'utf8');
+    const rejectedResult = runChecker(root);
+    expect(rejectedResult.status).toBe(1);
+    expect(rejectedResult.stderr).toContain(
+      'runtime-loader.js no puede ejecutar importScripts() después de instalar el service worker MV3.'
+    );
+  });
+
+  it('rejects non-literal importScripts arguments and importScripts calls declared after statements', () => {
+    const root = createPackageFixture();
+    const backgroundPath = path.join(root, 'extension/background.js');
+    const background = fs.readFileSync(backgroundPath, 'utf8');
+    fs.writeFileSync(
+      backgroundPath,
+      background.replace("'runtime-loader.js',", "'runtime-' + 'loader.js',"),
+      'utf8'
+    );
+
+    const dynamicArgResult = runChecker(root);
+    expect(dynamicArgResult.status).toBe(1);
+    expect(dynamicArgResult.stderr).toContain(
+      'background service worker debe declarar importScripts() sólo con rutas literales locales.'
+    );
+
+    fs.writeFileSync(
+      backgroundPath,
+      background.replace('importScripts(', 'const beforeStartup = 1;\nimportScripts('),
+      'utf8'
+    );
+    const afterDeclResult = runChecker(root);
+    expect(afterDeclResult.status).toBe(1);
+    expect(afterDeclResult.stderr).toContain(
+      'importScripts() debe ejecutarse antes de las declaraciones del service worker MV3.'
+    );
+  });
+
+  it('rejects commented INJECT_VERSION and non-literal protocol version expressions', () => {
+    const root = createPackageFixture();
+    const injectPath = path.join(root, 'extension/inject-fichamedico.js');
+    fs.writeFileSync(
+      injectPath,
+      fs
+        .readFileSync(injectPath, 'utf8')
+        .replace(
+          /const INJECT_VERSION = '([^']+)';/,
+          "// const INJECT_VERSION = '$1';\nconst INJECT_VERSION = '$1' + '';"
+        ),
+      'utf8'
+    );
+    const backgroundPath = path.join(root, 'extension/background.js');
+    fs.writeFileSync(
+      backgroundPath,
+      fs
+        .readFileSync(backgroundPath, 'utf8')
+        .replace(
+          /const EXTENSION_PROTOCOL_VERSION = \d+;/,
+          'const EXTENSION_PROTOCOL_VERSION = 4 + 1;'
+        ),
+      'utf8'
+    );
+
+    const result = runChecker(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("inject-fichamedico.js declara INJECT_VERSION='ausente'");
+    expect(result.stderr).toContain(
+      'background.js no declara EXTENSION_PROTOCOL_VERSION como entero literal.'
+    );
+  });
 });
