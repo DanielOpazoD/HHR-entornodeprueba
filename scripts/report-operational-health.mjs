@@ -45,6 +45,7 @@ const authBootstrapBudgets = await importRuntimeModule('src/services/auth/authBo
 const indexedDbRecoveryBudgets = await importRuntimeModule(
   'src/services/storage/indexeddb/indexedDbRecoveryBudgets.ts'
 );
+const versionConstants = await importRuntimeModule('src/constants/version.ts');
 const repositoryFiles = [
   'src/services/repositories/dailyRecordRepositoryReadService.ts',
   'src/services/repositories/dailyRecordRepositoryInitializationService.ts',
@@ -190,9 +191,6 @@ const syncConfig = {
   runtimeThresholds: { ...syncQueueBudgets.SYNC_QUEUE_RUNTIME_THRESHOLDS },
 };
 
-const versionContent = read('src/constants/version.ts');
-const currentVersionMatch = versionContent.match(/CURRENT_SCHEMA_VERSION\s*=\s*(\d+)/);
-const legacyVersionMatch = versionContent.match(/LEGACY_SCHEMA_VERSION\s*=\s*(\d+)/);
 const thresholds = collectThresholds();
 const systemHealthBudgets = extractObjectNumbers(
   systemHealthBudgetContent,
@@ -281,8 +279,8 @@ const summary = {
     gitState,
   }),
   schema: {
-    current: currentVersionMatch ? Number(currentVersionMatch[1]) : null,
-    legacy: legacyVersionMatch ? Number(legacyVersionMatch[1]) : null,
+    current: versionConstants.CURRENT_SCHEMA_VERSION,
+    legacy: versionConstants.LEGACY_SCHEMA_VERSION,
   },
   syncQueue: syncConfig,
   systemHealth: {
