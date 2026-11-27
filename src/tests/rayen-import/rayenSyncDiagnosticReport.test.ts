@@ -118,4 +118,52 @@ describe('explicit clinical diagnostic export', () => {
     expect(missing.issues?.[0].diagnostic?.patientName).toBeUndefined();
     expect(JSON.stringify(missing)).not.toContain('RAW_SECRET');
   });
+
+  it('exports clinical cudyrRecovery details, cause and resolved bed for wildcard episode issues', () => {
+    const record = asStoredDailyRecordShape({
+      date: '2026-10-27',
+      beds: {
+        H5C2: {
+          patientName: 'Paciente Sintética',
+          rut: '11.111.111-1',
+          clinicalEpisodeId: 'synthetic-ep-1',
+        },
+      },
+    });
+    const coverage = buildRayenSyncCoverage(
+      1,
+      [
+        {
+          bedId: '*',
+          clinicalEpisodeId: 'synthetic-ep-1',
+          source: 'cudyr',
+          reason: 'source_unavailable',
+          cause: 'invalid_response',
+          cudyrRecovery: { kind: 'attribution_unreliable', targetDate: '2026-10-26' },
+          message: 'attribution_unreliable',
+        },
+      ],
+      '2026-10-27T22:03:00Z',
+      record
+    );
+    const report = buildRayenSyncDiagnosticReport([
+      {
+        ...event,
+        sourceDate: '2026-10-27',
+        structuralReview: undefined,
+        coverage,
+      },
+    ]);
+    expect(report.attempts[0].issues[0]).toMatchObject({
+      stage: 'clinical',
+      code: 'HHR-SYNC-1/cudyr/source_unavailable',
+      cause: 'invalid_response',
+      cudyrRecovery: { kind: 'attribution_unreliable', targetDate: '2026-10-26' },
+      bedId: 'H5C2',
+      clinicalEpisodeId: 'synthetic-ep-1',
+      patientName: 'Paciente Sintética',
+      sourceClinicalDay: '2026-10-26',
+      detail: 'attribution_unreliable',
+    });
+  });
 });

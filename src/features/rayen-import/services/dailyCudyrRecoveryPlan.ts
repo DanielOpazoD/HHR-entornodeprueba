@@ -5,6 +5,7 @@ import {
   cudyrDocumentKey,
   cudyrFullNameKey,
   cudyrIdentity,
+  cudyrNameKey,
 } from '@/domain/cudyr/cudyrSourceIdentity';
 import { buildImportedCudyr } from '@/domain/evaluationScales/importedCudyr';
 import {
@@ -112,6 +113,31 @@ export type DailyCudyrGapResolution =
   // the CUDYR views show it as «Sin registro», and that is where a person can act on it.
   | { kind: 'not_recorded' };
 
+const NEONATAL_NAME_PREFIX = /^(?:R\.?\s*N\.?|RECIEN\s+NACID[OA])(?:\s|$)/;
+const NAME_FILLER_TOKENS = new Set(['DE', 'DEL', 'LA', 'LAS', 'LO', 'LOS', 'Y']);
+
+const isNeonatalName = (name: string): boolean => NEONATAL_NAME_PREFIX.test(cudyrNameKey(name));
+
+const significantNameTokens = (name: string): Set<string> =>
+  new Set(
+    cudyrNameKey(name)
+      .replace(NEONATAL_NAME_PREFIX, '')
+      .split(/[^A-Z0-9Ñ]+/)
+      .filter(token => token.length >= 2 && !NAME_FILLER_TOKENS.has(token))
+  );
+
+/**
+ * In Eloísa's monthly CUDYR report, a newborn without its own RUN appears under the mother's RUN
+ * as a separate «RN ...» row. Exclude that sibling newborn row only when the target is not a
+ * newborn and the row carries an RN prefix sharing at least one maternal name/surname token.
+ */
+const isAssociatedNewbornDocumentaryRow = (rowName: string, motherName: string): boolean => {
+  if (isNeonatalName(motherName) || !isNeonatalName(rowName)) return false;
+  const motherTokens = significantNameTokens(motherName);
+  const newbornTokens = significantNameTokens(rowName);
+  return [...newbornTokens].some(token => motherTokens.has(token));
+};
+
 const hasKnownReadmission = (records: readonly DailyRecord[], patient: PatientData): boolean =>
   records.some(record =>
     patients(record).some(
@@ -188,10 +214,23 @@ export const recoverDailyCudyrGap = (
   )
     return { kind: 'attribution_unreliable' };
   // A repeated documentary row may represent a readmission; do not pick the latest/first row.
-  const rows = source.report.patients.filter(p => cudyrDocumentKey(p.document) === document);
-  if (rows.length === 0) return withoutCategory();
-  if (rows.some(row => cudyrIdentity(row.document, row.patientName) !== identity))
+  const sameDocumentRows = source.report.patients.filter(
+    p => cudyrDocumentKey(p.document) === document
+  );
+  if (sameDocumentRows.length === 0) return withoutCategory();
+  const rows = sameDocumentRows.filter(
+    row => cudyrIdentity(row.document, row.patientName) === identity
+  );
+  const nonMatchingRows = sameDocumentRows.filter(
+    row => cudyrIdentity(row.document, row.patientName) !== identity
+  );
+  if (
+    nonMatchingRows.some(
+      row => !isAssociatedNewbornDocumentaryRow(row.patientName, patient.patientName)
+    )
+  )
     return { kind: 'attribution_unreliable' };
+  if (rows.length === 0) return withoutCategory();
   // A readmission may repeat the row. With one episode that night, only one row can answer for it.
   const answering = rows.filter(row =>
     row.days.some(d => d.sourceDate === sourceDate && d.state === 'category')

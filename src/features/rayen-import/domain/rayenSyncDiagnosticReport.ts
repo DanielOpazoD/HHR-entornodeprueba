@@ -82,11 +82,18 @@ export const buildRayenSyncDiagnosticReport = (history: RayenSyncEvent[]) => ({
         stage: 'clinical',
         code: `HHR-SYNC-1/${issue.source}/${issue.reason}`,
         reason: issue.reason,
+        cause: issue.cause ?? null,
+        cudyrRecovery: issue.cudyrRecovery
+          ? { kind: issue.cudyrRecovery.kind, targetDate: issue.cudyrRecovery.targetDate }
+          : null,
         disposition: 'Lectura o persistencia no confirmada',
         ...context(issue.diagnostic),
         source: issue.source,
         bedId: issue.diagnostic?.bedId || issue.bedId || null,
         censusDate: issue.diagnostic?.censusDate || event.sourceDate || null,
+        sourceClinicalDay:
+          issue.diagnostic?.sourceClinicalDay || issue.cudyrRecovery?.targetDate || null,
+        detail: issue.diagnostic?.detail || issue.cudyrRecovery?.kind || null,
       })),
     ],
     performance: buildRayenSyncSessionReport([event]),
