@@ -25,6 +25,7 @@ export const REQUIRED_PR_JOBS = [
   'clinical-sync-release-gate',
   'rules-emulator',
   'emulator-ui',
+  'accounts-emulator',
   'e2e-critical lane 1',
   'e2e-critical lane 2',
   'e2e-critical lane 3',

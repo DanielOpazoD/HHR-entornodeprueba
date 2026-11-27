@@ -28,6 +28,8 @@ describe('CI change scope governance', () => {
       'clinical-sync-release-gate',
       'unit-risk-shards',
       'rules-emulator',
+      'emulator-ui',
+      'accounts-emulator',
       'e2e-critical-lanes',
       'census-startup-performance',
     ];

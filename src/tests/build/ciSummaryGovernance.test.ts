@@ -15,6 +15,7 @@ type Gate =
   | 'clinical-sync-release-gate'
   | 'rules-emulator'
   | 'emulator-ui'
+  | 'accounts-emulator'
   | 'e2e-critical-lanes'
   | 'build'
   | 'preview-smoke-lanes'
@@ -35,6 +36,7 @@ const gates: readonly Gate[] = [
   'clinical-sync-release-gate',
   'rules-emulator',
   'emulator-ui',
+  'accounts-emulator',
   'e2e-critical-lanes',
   'build',
   'preview-smoke-lanes',
@@ -53,6 +55,7 @@ const expectedEnvironment = {
   CLINICAL_SYNC_RESULT: "${{ needs['clinical-sync-release-gate'].result }}",
   RULES_EMULATOR_RESULT: "${{ needs['rules-emulator'].result }}",
   EMULATOR_UI_RESULT: "${{ needs['emulator-ui'].result }}",
+  ACCOUNTS_EMULATOR_RESULT: "${{ needs['accounts-emulator'].result }}",
   E2E_CRITICAL_RESULT: "${{ needs['e2e-critical-lanes'].result }}",
   BUILD_RESULT: '${{ needs.build.result }}',
   PREVIEW_SMOKE_RESULT: "${{ needs['preview-smoke-lanes'].result }}",
@@ -178,7 +181,7 @@ describe('CI summary governance', () => {
   describe.each<Exclude<Scope, 'full'>>(['docs-only', 'functions-only', 'tooling-only', 'reused'])(
     '%s scope',
     scope => {
-      it('accepts successful prerequisites and all eleven gates skipped', () => {
+      it('accepts successful prerequisites and all twelve gates skipped', () => {
         const execution = runSummary({ scope, gateResult: 'skipped' });
         expect(execution.status).toBe(0);
         expect(execution.stdout.trim().split('\n').sort()).toEqual(

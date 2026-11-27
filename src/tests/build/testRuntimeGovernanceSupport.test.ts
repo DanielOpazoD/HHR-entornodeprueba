@@ -139,6 +139,7 @@ describe('test runtime governance support', () => {
         'clinical-sync-release-gate',
         'rules-emulator',
         'emulator-ui',
+        'accounts-emulator',
         'e2e-critical',
       ])
     );

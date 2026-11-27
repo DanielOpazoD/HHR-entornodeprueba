@@ -48,6 +48,15 @@
       "reason": "Offline saving and recovery through the real UI protect production writes."
     },
     {
+      "id": "accounts-emulator",
+      "label": "Individual accounts Auth, Firestore and Storage emulator",
+      "workflow": ".github/workflows/ci-cd.yml",
+      "job": "accounts-emulator",
+      "script": "test:accounts:emulator:ci",
+      "maxMinutes": 3,
+      "reason": "Individual account login and Storage revocation contracts run in parallel with rules and UI emulator suites."
+    },
+    {
       "id": "e2e-critical",
       "label": "Critical browser flows",
       "workflow": ".github/workflows/ci-cd.yml",

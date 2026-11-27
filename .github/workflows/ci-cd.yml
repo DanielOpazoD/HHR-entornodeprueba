@@ -543,12 +543,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Prepare Chromium for individual account browser flow
-        uses: ./.github/actions/setup-ci-chromium
-        timeout-minutes: 15
-
-      - name: Validate individual accounts with Auth, Firestore and Storage emulators
-        run: npm run test:accounts:emulator:ci
+      # Individual account browser/emulator checks run in accounts-emulator, in parallel.
 
   # Split from rules-emulator so the two halves of the emulator family run side by side.
   emulator-ui:
@@ -578,6 +573,36 @@ jobs:
         env:
           CI: true
           RUN_FIRESTORE_EMULATOR_TESTS: 1
+
+  # Split from rules-emulator so individual account browser/emulator checks run in parallel.
+  accounts-emulator:
+    name: accounts-emulator
+    runs-on: ubuntu-24.04
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
+
+      - name: Setup Java (Firestore emulator)
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Prepare verified Firestore emulator artifact
+        uses: ./.github/actions/setup-ci-firestore-emulator
+
+      - name: Prepare Chromium for individual account browser flow
+        uses: ./.github/actions/setup-ci-chromium
+        timeout-minutes: 15
+
+      - name: Validate individual accounts with Auth, Firestore and Storage emulators
+        run: npm run test:accounts:emulator:ci
 
   e2e-critical-lanes:
     name: e2e-critical lane ${{ matrix.lane }}
@@ -1207,6 +1232,7 @@ jobs:
         clinical-sync-release-gate,
         rules-emulator,
         emulator-ui,
+        accounts-emulator,
         e2e-critical-lanes,
         build,
         preview-smoke-lanes,
@@ -1225,6 +1251,7 @@ jobs:
       CLINICAL_SYNC_RESULT: ${{ needs['clinical-sync-release-gate'].result }}
       RULES_EMULATOR_RESULT: ${{ needs['rules-emulator'].result }}
       EMULATOR_UI_RESULT: ${{ needs['emulator-ui'].result }}
+      ACCOUNTS_EMULATOR_RESULT: ${{ needs['accounts-emulator'].result }}
       E2E_CRITICAL_RESULT: ${{ needs['e2e-critical-lanes'].result }}
       BUILD_RESULT: ${{ needs.build.result }}
       PREVIEW_SMOKE_RESULT: ${{ needs['preview-smoke-lanes'].result }}
@@ -1278,6 +1305,7 @@ jobs:
             "clinical-sync-release-gate:$CLINICAL_SYNC_RESULT" \
             "rules-emulator:$RULES_EMULATOR_RESULT" \
             "emulator-ui:$EMULATOR_UI_RESULT" \
+            "accounts-emulator:$ACCOUNTS_EMULATOR_RESULT" \
             "e2e-critical-lanes:$E2E_CRITICAL_RESULT" \
             "build:$BUILD_RESULT" \
             "preview-smoke-lanes:$PREVIEW_SMOKE_RESULT" \
