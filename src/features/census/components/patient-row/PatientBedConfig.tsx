@@ -102,6 +102,7 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
           verification={data.dischargeVerification}
           patientName={data.patientName}
           patientRun={data.rut}
+          patientDocumentType={data.documentType}
           clinicalEpisodeId={data.clinicalEpisodeId || data.dischargeVerification?.encounterId}
           admissionDate={data.admissionDate}
           censusDate={currentDateString}

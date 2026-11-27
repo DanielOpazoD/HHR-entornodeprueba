@@ -168,6 +168,7 @@ export const previousCensusEgresoCandidates = (
       {
         run: lookupRun,
         ...(!patient.rut ? { personalRun: '' } : {}),
+        ...(patient.documentType === 'Pasaporte' ? { documentType: 'Pasaporte' as const } : {}),
         encounterId,
         dischargeDay,
         patientName: patient.patientName ?? '',

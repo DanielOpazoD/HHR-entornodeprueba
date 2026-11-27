@@ -1,5 +1,11 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
-import { hasNonRutLetter, hasPassportShapeBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
+import {
+  hasNonRutLetter,
+  hasPassportShapeBeforeLetterRule,
+  isSameForeignDocument,
+  isValidRut,
+  normalizeRut,
+} from '@/utils/rutUtils';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
@@ -188,11 +194,16 @@ const enrichFromGestionCamas = async (
   const extractText = dependencies.extractText ?? extractPdfTextFromBuffer;
   await Promise.all(
     targets.map(async ({ key, row, target }, index) => {
+      const targetIsPassport = 'documentType' in target && target.documentType === 'Pasaporte';
       const lookup = target.encounterId
         ? lookupResults.find(
             result =>
               String(result.encounterId ?? '').trim() === target.encounterId &&
-              normalizeRut(result.run) === normalizeRut(target.run)
+              (targetIsPassport
+                ? isSameForeignDocument(result.run, target.run) ||
+                  (!hasNonRutLetter(result.run ?? '') &&
+                    normalizeRut(result.run) === normalizeRut(target.run))
+                : normalizeRut(result.run) === normalizeRut(target.run))
           )
         : lookupResults[index];
       const encounterId = String(lookup?.encounterId ?? '').trim();
@@ -210,9 +221,13 @@ const enrichFromGestionCamas = async (
       try {
         const report = await dependencies.fetchStatisticalDischarge(encounterId);
         if (!report.base64 || report.error) return;
+        const allowForeignDocument = targetIsPassport || !isValidRut(row.run);
         const evidence = parseStatisticalDischargeEvidence(
           await extractText(decodePdfBase64(report.base64)),
-          { allowMaternalIdentifier: 'fromClinicalCrib' in target && target.fromClinicalCrib }
+          {
+            allowMaternalIdentifier: 'fromClinicalCrib' in target && target.fromClinicalCrib,
+            allowForeignDocument,
+          }
         );
         if (
           'personalRun' in target &&
@@ -220,10 +235,16 @@ const enrichFromGestionCamas = async (
           evidence?.identifierKind !== 'maternal'
         )
           return;
+        // A passport patient is never verified by a Chilean 1.RUN PDF (ID-01).
+        if (targetIsPassport && evidence && evidence.identifierKind !== 'foreign-document') return;
+        const evidenceDocumentMatches = evidence
+          ? evidence.identifierKind === 'foreign-document'
+            ? isSameForeignDocument(evidence.run, row.run)
+            : evidence.run === normalizeRut(row.run)
+          : false;
         if (
           evidence &&
-          (evidence.run !== normalizeRut(row.run) ||
-            censusDay(evidence.dischargeAt) !== target.dischargeDay)
+          (!evidenceDocumentMatches || censusDay(evidence.dischargeAt) !== target.dischargeDay)
         ) {
           return;
         }

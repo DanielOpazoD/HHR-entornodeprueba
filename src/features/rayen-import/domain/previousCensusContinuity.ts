@@ -10,6 +10,7 @@ export const previousCensusDate = (day: string): string => addCalendarDays(day, 
 type Subject = {
   clinicalEpisodeId?: string;
   rut?: string;
+  documentType?: PatientData['documentType'];
   neonatalMaternalRut?: string;
   patientName?: string;
   admissionDate?: string;

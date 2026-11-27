@@ -307,4 +307,72 @@ describe('hospitalization document identity', () => {
       }
     }
   );
+
+  it('sends numeric Pasaporte as patientDocument without querying it as a Chilean RUN (ID-01)', async () => {
+    for (const [doc, clinicalEpisodeId] of [
+      ['887766554', '910700'],
+      ['887766554', undefined],
+      ['123456785', '910700'],
+    ] as const) {
+      vi.mocked(window.postMessage).mockClear();
+      const pending = requestRayenHospitalizationDocument(
+        {
+          patientRun: doc,
+          patientDocumentType: 'Pasaporte',
+          clinicalEpisodeId,
+          documentType: 'epicrisis',
+        },
+        1
+      );
+      expect(window.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          operation: 'download',
+          documentType: 'epicrisis',
+          patientRun: '',
+          patientDocument: doc,
+          patientDocumentType: 'Pasaporte',
+          encId: clinicalEpisodeId,
+        }),
+        window.location.origin
+      );
+      await vi.runAllTimersAsync();
+      await pending;
+      vi.setSystemTime(1000);
+    }
+  });
+
+  it('accepts Eloisa foreign identifierType codes 3, 9, 10 and 11 in episode responses', async () => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    const pending = requestRayenHospitalizationEpisodes({
+      patientRun: '887766554',
+      patientDocumentType: 'Pasaporte',
+      clinicalEpisodeId: '910700',
+    });
+    const { outgoing } = await captureOutgoingRequest(pending);
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
+        data: {
+          type: RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE,
+          reqId: outgoing.reqId,
+          ok: true,
+          episodes: [
+            { encId: '910700', startDate: '2026-10-25', endDate: '2026-10-27', identifierType: 3 },
+            { encId: '910701', startDate: '2026-09-01', endDate: '2026-09-03', identifierType: 9 },
+            { encId: '910702', startDate: '2026-08-01', endDate: '2026-08-03', identifierType: 10 },
+          ],
+        },
+      })
+    );
+    await expect(pending).resolves.toMatchObject({
+      ok: true,
+      episodes: [
+        { encId: '910700', identifierType: 3 },
+        { encId: '910701', identifierType: 9 },
+        { encId: '910702', identifierType: 10 },
+      ],
+    });
+  });
 });

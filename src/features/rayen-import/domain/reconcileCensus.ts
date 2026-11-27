@@ -158,9 +158,14 @@ export const reconcileCensus = (
   );
   const retainedClosedCribs: typeof activeMapped = [];
   const trackClinicalClosure = (bedId: string, patient: PatientData, encounter: RayenEncounter) => {
+    const documentType =
+      patient.documentType === 'Pasaporte' || encounter.documentType === 'Pasaporte'
+        ? ('Pasaporte' as const)
+        : undefined;
     diff.pendingAdministrativeDischarges.push({
       bedId,
       rut: patient.rut,
+      ...(documentType ? { documentType } : {}),
       patientName: patient.patientName,
       signal: 'clinical-closure',
       encounterId: encounter.encounterId,

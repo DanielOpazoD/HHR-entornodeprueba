@@ -11,6 +11,7 @@ interface PatientHospitalizationReportsDialogProps {
   onClose: () => void;
   patientName: string;
   patientRun: string;
+  patientDocumentType?: 'RUT' | 'Pasaporte';
   currentEpisodeId?: string;
   admissionDate?: string;
   censusDate?: string;
@@ -20,18 +21,28 @@ const formatDate = (value?: string): string => (value ? formatClinicalDayMonthYe
 
 export const PatientHospitalizationReportsDialog: React.FC<
   PatientHospitalizationReportsDialogProps
-> = ({ isOpen, onClose, patientName, patientRun, currentEpisodeId, admissionDate, censusDate }) => {
+> = ({
+  isOpen,
+  onClose,
+  patientName,
+  patientRun,
+  patientDocumentType,
+  currentEpisodeId,
+  admissionDate,
+  censusDate,
+}) => {
   const reports = usePatientHospitalizationReports();
   const { load, download, isLoading, error, episodes, downloadingKey } = reports;
   const context = useMemo(
     () => ({
       patientName,
       patientRun,
+      ...(patientDocumentType ? { patientDocumentType } : {}),
       clinicalEpisodeId: currentEpisodeId,
       admissionDate,
       censusDate,
     }),
-    [admissionDate, censusDate, currentEpisodeId, patientName, patientRun]
+    [admissionDate, censusDate, currentEpisodeId, patientDocumentType, patientName, patientRun]
   );
 
   useEffect(() => {

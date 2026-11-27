@@ -172,3 +172,72 @@ it('reads the maternal identifier only when explicitly enabled for an exact newb
     )
   ).toBeNull();
 });
+
+const foreignNumericReport = report.replace(
+  '1.RUN:\n1 0 0 0 1 0 6 - 4',
+  `IDENTIFICACIÓN F=Femenino
+5 5 6 SEXO F
+4. Número de Pasaporte
+5. Número de Documento identificador país de origen
+1.RUN:
+-
+N° de Pasaporte u otro documento
+1. Masculino
+8 8 7 7 6 6 5 5 4 54 IDENTIDAD DE GÉNERO
+2. Femenina`
+);
+
+it('reads DEIS Field 5 foreign documents (codes 4, 5, 6) only when allowForeignDocument is enabled', () => {
+  expect(parseStatisticalDischargeEvidence(foreignNumericReport)).toBeNull();
+  expect(
+    parseStatisticalDischargeEvidence(foreignNumericReport, { allowMaternalIdentifier: true })
+  ).toBeNull();
+
+  for (const fieldCode of ['4', '5', '6']) {
+    const variant = foreignNumericReport.replace('5 5 6 SEXO', `5 ${fieldCode} 6 SEXO`);
+    expect(
+      parseStatisticalDischargeEvidence(variant, { allowForeignDocument: true })
+    ).toMatchObject({
+      run: '887766554',
+      identifierKind: 'foreign-document',
+      admissionAt: '2026-07-24T16:41:00',
+      dischargeAt: '2026-07-25T14:28:00',
+    });
+  }
+
+  const alphanumeric = foreignNumericReport.replace('8 8 7 7 6 6 5 5 4 54', 'A B 1 2 3 4 5 6 7 54');
+  expect(
+    parseStatisticalDischargeEvidence(alphanumeric, { allowForeignDocument: true })
+  ).toMatchObject({
+    run: 'AB1234567',
+    identifierKind: 'foreign-document',
+  });
+
+  // Never reads Field 5 code 2 (maternal RUN) as a foreign document.
+  expect(
+    parseStatisticalDischargeEvidence(foreignNumericReport.replace('5 5 6 SEXO', '5 2 6 SEXO'), {
+      allowForeignDocument: true,
+    })
+  ).toBeNull();
+
+  // Compact layout where 24 INGRESO and 25 1er TRASLADO follow Field 5 within 4 lines.
+  const compactForeignReport = `
+Informe Estadístico de Egreso Hospitalario
+5 5 6 SEXO F
+1.RUN:
+-
+N° de Pasaporte u otro documento
+8 8 7 7 6 6 5 5 4 54 IDENTIDAD DE GÉNERO
+24 INGRESO 1 6 - 4 1 2 4 - 0 7 - 2 6 Área Médico Quirúrgico Cuidados Medios 4 0 4
+25 1er TRASLADO - - -
+29 EGRESO 1 4 - 2 8 2 5 - 0 7 - 2 6
+`;
+  expect(
+    parseStatisticalDischargeEvidence(compactForeignReport, { allowForeignDocument: true })
+  ).toMatchObject({
+    run: '887766554',
+    identifierKind: 'foreign-document',
+    admissionAt: '2026-07-24T16:41:00',
+    dischargeAt: '2026-07-25T14:28:00',
+  });
+});

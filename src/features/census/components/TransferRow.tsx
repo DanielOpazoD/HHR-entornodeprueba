@@ -100,6 +100,7 @@ export const TransferRow: React.FC<TransferRowProps> = React.memo(
             onClose={() => setShowHospitalizationReports(false)}
             patientName={item.patientName}
             patientRun={item.rut}
+            patientDocumentType={item.originalData?.documentType}
             currentEpisodeId={item.clinicalEpisodeId}
             admissionDate={resolveMovementHistoricalAdmissionDate(item)}
             censusDate={item.movementDate || recordDate}

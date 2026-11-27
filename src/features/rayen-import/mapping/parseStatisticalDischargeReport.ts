@@ -1,4 +1,4 @@
-import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { isValidRut, normalizeForeignDocument, normalizeRut } from '@/utils/rutUtils';
 import { buildSortableLocalTimestamp } from './localTimestamp';
 
 import type {
@@ -80,10 +80,39 @@ const maternalReportRun = (text: string): string => {
   return values.length === 1 ? (values[0] ?? '') : '';
 };
 
+const DEIS_NEXT_SECTION_LINE =
+  /^(?:8\s+EDAD|9\s+UNIDAD|10\s+FECHA|11\s+PA[IÍ]S|12\s+NACIONALIDAD|13\s+PUEBLO|14\s+DOMICILIO|24\s+INGRESO|25\s+1er|26\s+2[°oº]|27\s+3er|28\s+4[°oº]|29\s+EGRESO|30\s+D[IÍ]AS)\b/i;
+
+const DEIS_FORM_LEGEND_LINE =
+  /^\d+[.)]\s|\b(?:EDAD|UNIDAD|MEDIDA|IDENTIDAD|MASCULINO|FEMENINA|TRANSG[EÉ]NERO|BINARIE|REVELADO|OTRA|A[ÑN]OS|MESES|D[IÍ]AS|HORAS|PA[IÍ]S|ORIGEN|INGRESO|TRASLADO|EGRESO|ESTAD[IÍ]A|VIVO|FALLECIDO|SEXO|PASAPORTE|DOCUMENTO|DOMICILIO|COMUNA|PREVISI[OÓ]N|FECHA)\b/i;
+
+/**
+ * Extracts DEIS Field 5 alternate document identifiers (4 = Pasaporte, 5 = Documento país de
+ * origen, 6 = FONASA) printed under «N° de Pasaporte u otro documento». Never matches Field 5
+ * code 1 (RUN) or code 2 (RUN materno), preserving ID-01 separation.
+ */
+const foreignReportDocument = (text: string): string => {
+  const lines = text.split(/\r?\n/).map(line => line.replace(/\s+/g, ' ').trim());
+  if (!lines.some(line => /^5\s+[456](?:\s|$)/.test(line))) return '';
+  const at = lines.findIndex(line => /N[°oº]\s+de Pasaporte u otro documento/i.test(line));
+  if (at < 0) return '';
+  const values: string[] = [];
+  for (const line of lines.slice(at + 1, at + 5)) {
+    if (DEIS_NEXT_SECTION_LINE.test(line)) break;
+    const stripped = line.replace(/\s*54\s+IDENTIDAD.*$/i, '').trim();
+    if (!stripped || DEIS_FORM_LEGEND_LINE.test(stripped)) continue;
+    const candidate = normalizeForeignDocument(stripped);
+    if (/^[A-Z0-9]{4,24}$/.test(candidate) && /\d/.test(candidate)) {
+      values.push(candidate);
+    }
+  }
+  return values.length === 1 ? (values[0] ?? '') : '';
+};
+
 /** Parses only the temporal and unit evidence needed for historical census reconstruction. */
 export const parseStatisticalDischargeEvidence = (
   text: string,
-  options: { allowMaternalIdentifier?: boolean } = {}
+  options: { allowMaternalIdentifier?: boolean; allowForeignDocument?: boolean } = {}
 ): StatisticalDischargeEvidence | null => {
   const lines = String(text || '').split(/\r?\n/);
   const admission = lines
@@ -94,7 +123,18 @@ export const parseStatisticalDischargeEvidence = (
     .map(line => movementFromLine(line, /^29\s+EGRESO\b/i, false))
     .find((value): value is NonNullable<typeof value> => value !== null);
   const personalRun = reportRun(text);
-  const run = personalRun || (options.allowMaternalIdentifier ? maternalReportRun(text) : '');
+  const maternalRun =
+    !personalRun && options.allowMaternalIdentifier ? maternalReportRun(text) : '';
+  const foreignDocument =
+    !personalRun && !maternalRun && options.allowForeignDocument ? foreignReportDocument(text) : '';
+  const run = personalRun || maternalRun || foreignDocument;
+  const identifierKind = personalRun
+    ? undefined
+    : maternalRun
+      ? ('maternal' as const)
+      : foreignDocument
+        ? ('foreign-document' as const)
+        : undefined;
   if (!run || !admission || !discharge || discharge.changedAt < admission.changedAt) return null;
 
   const transferMarker = /^(?:25\s+1er|26\s+2[°o]|27\s+3er|28\s+4[°o])\s+TRASLADO\s*\*?/i;
@@ -131,7 +171,7 @@ export const parseStatisticalDischargeEvidence = (
 
   return {
     run,
-    ...(!personalRun ? { identifierKind: 'maternal' as const } : {}),
+    ...(identifierKind ? { identifierKind } : {}),
     admissionAt: admission.changedAt,
     admissionUnit: admission.unit,
     dischargeAt: discharge.changedAt,

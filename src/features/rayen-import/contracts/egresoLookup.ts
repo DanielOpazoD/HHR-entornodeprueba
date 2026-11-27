@@ -39,6 +39,8 @@ export interface EgresoLookupTarget {
   encounterId: string;
   /** Rapa Nui nursing-census day (including the following dawn), not the calendar discharge date. */
   dischargeDay?: string;
+  /** Explicit document classification so passports query foreign Eloísa identifiers, never RUN (ID-01). */
+  documentType?: 'RUT' | 'Pasaporte';
 }
 
 /** Result of looking up one RUN in gestión de camas. */

@@ -1,5 +1,5 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameForeignDocument, isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
@@ -66,11 +66,15 @@ const exactVerifiedDischargeAt = async (
   proof?: IndividualDischargeProof
 ): Promise<string | null> => {
   const egreso = result?.egreso;
+  const isPassport = occupant.encounter.documentType === 'Pasaporte';
+  const lookupDocumentMatches = isPassport
+    ? isSameForeignDocument(result?.run, occupant.encounter.run)
+    : normalizeRut(result?.run) === normalizeRut(occupant.encounter.run);
   if (
     !egreso ||
     result?.error ||
     result?.encounterId !== occupant.encounter.encounterId ||
-    normalizeRut(result?.run) !== normalizeRut(occupant.encounter.run) ||
+    !lookupDocumentMatches ||
     egreso.hasAdministrativeDischarge === false ||
     String(egreso.id ?? occupant.encounter.encounterId) !== occupant.encounter.encounterId
   )
@@ -80,16 +84,22 @@ const exactVerifiedDischargeAt = async (
   );
   if (!dischargeAt || egreso.hasAdministrativeDischarge === true) return dischargeAt;
   // Sparse lookup metadata is not proof of discharge. Require the exact official PDF,
-  // its RUN, complete interval, and agreement with the lookup timestamp to the printed minute.
+  // its document identity, complete interval, and agreement with the lookup timestamp to the printed minute.
   if (!proof?.fetchDischargeReport) return null;
   try {
     const report = await proof.fetchDischargeReport(occupant.encounter.encounterId);
     if (!report.base64 || report.error) return null;
     const evidence = parseStatisticalDischargeEvidence(
-      await (proof.extractText ?? extractPdfTextFromBuffer)(decodePdfBase64(report.base64))
+      await (proof.extractText ?? extractPdfTextFromBuffer)(decodePdfBase64(report.base64)),
+      { allowForeignDocument: isPassport || !isValidRut(occupant.encounter.run) }
     );
-    return evidence?.run === normalizeRut(occupant.encounter.run) &&
-      evidence.dischargeAt.slice(0, 16) === dischargeAt.slice(0, 16)
+    if (!evidence) return null;
+    if (isPassport && evidence.identifierKind !== 'foreign-document') return null;
+    const documentMatches =
+      evidence.identifierKind === 'foreign-document'
+        ? isSameForeignDocument(evidence.run, occupant.encounter.run)
+        : evidence.run === normalizeRut(occupant.encounter.run);
+    return documentMatches && evidence.dischargeAt.slice(0, 16) === dischargeAt.slice(0, 16)
       ? dischargeAt
       : null;
   } catch {
@@ -111,7 +121,11 @@ export const verifyLocalOccupantsByExactEgreso = async (
     item =>
       !item.isClinicalCrib &&
       /^\d+$/.test(item.encounter.encounterId) &&
-      Boolean(normalizeRut(item.encounter.run))
+      Boolean(
+        item.encounter.documentType === 'Pasaporte'
+          ? isSameForeignDocument(item.encounter.run, item.encounter.run)
+          : normalizeRut(item.encounter.run)
+      )
   );
   if (eligible.length === 0) return { verified: [], unresolved: occupants };
 
@@ -121,6 +135,9 @@ export const verifyLocalOccupantsByExactEgreso = async (
       eligible.map(item => ({
         run: item.encounter.run,
         encounterId: item.encounter.encounterId,
+        ...(item.encounter.documentType === 'Pasaporte'
+          ? { documentType: 'Pasaporte' as const }
+          : {}),
       }))
     );
   } catch {

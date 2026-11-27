@@ -162,6 +162,7 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
             onClose={() => setShowHospitalizationReports(false)}
             patientName={item.patientName}
             patientRun={item.rut}
+            patientDocumentType={item.originalData?.documentType}
             currentEpisodeId={item.clinicalEpisodeId}
             admissionDate={resolveCmaHistoricalAdmissionDate(item)}
             censusDate={recordDate}

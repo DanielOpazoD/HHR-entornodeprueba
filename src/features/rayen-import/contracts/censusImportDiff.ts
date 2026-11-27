@@ -177,6 +177,7 @@ export interface PreviousDayEdit {
 export interface PendingAdministrativeDischargeEntry {
   bedId: string;
   rut: string;
+  documentType?: 'RUT' | 'Pasaporte';
   patientName: string;
   /** Signal observed in Ficha Médico. It is informative and never vacates the HHR bed. */
   signal: 'clinical-closure' | 'missing-from-ficha';
