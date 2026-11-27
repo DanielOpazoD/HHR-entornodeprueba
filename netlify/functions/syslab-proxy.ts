@@ -22,34 +22,35 @@ import { safeErrorMessage } from './lib/safe-error-message';
  *   - pdf:     GET  /api/exams/pdf?link=<url>  (returns raw PDF bytes)
  */
 
-import { createHash } from 'node:crypto';
-import { readResponseWithinLimit } from './lib/bounded-response';
 import { getFirebaseServer } from './lib/firebase-server';
 import { authorizeRoleRequest, extractBearerToken } from './lib/firebase-auth';
 import { invokeWithTelemetry } from './lib/observability';
 import { SERVERLESS_ALL_LOGIN_ROLES } from '../../src/shared/access/serverlessRoleAccess';
 import {
   buildJsonResponse,
-  buildTextResponse,
   buildTooManyRequestsResponse,
   getClientIp,
   getRequestOrigin,
   isOriginAllowed,
   isRateLimited,
-  parseJsonBody,
   type NetlifyEventLike,
 } from './lib/http';
+import {
+  handleDetails,
+  handleHealth,
+  handlePdf,
+  handleSearch,
+} from './lib/syslab-proxy/classicActions';
+import {
+  buildSyslabJobOwner,
+  handleJobAction,
+  isJobProgressReadAction,
+  JOB_ACTIONS,
+} from './lib/syslab-proxy/jobActions';
+import { getProxyUrl, isTimeoutError, NO_STORE_HEADERS } from './lib/syslab-proxy/upstream';
 
-const TIMEOUT_MS = 50_000; // Leave room for the gateway response within the platform budget.
 const TELEMETRY_TIMEOUT_MS = 55_000;
 const TELEMETRY_MAX_ATTEMPTS = 1;
-const MAX_JSON_RESPONSE_BYTES = 4 * 1024 * 1024;
-const MAX_REQUEST_BODY_BYTES = 65_536;
-const MAX_LAB_LINK_LENGTH = 8192;
-const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
-const ALLOWED_JOB_STATUSES = new Set([200, 202, 400, 401, 404, 409, 429, 503]);
-const ALLOWED_LAB_LINK_PROTOCOLS = new Set(['https:', 'http:', 'hhr-syslab-remote:']);
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 const SYSLAB_ALLOWED_ROLES = SERVERLESS_ALL_LOGIN_ROLES;
 
 interface SyslabProxyDependencies {
@@ -57,305 +58,6 @@ interface SyslabProxyDependencies {
   authorizeRoleRequest: typeof authorizeRoleRequest;
   extractBearerToken: typeof extractBearerToken;
 }
-
-const getProxyUrl = (): string | null => {
-  const raw =
-    process.env.SYSLAB_PROXY_URL?.replace(/\/+$/, '') ||
-    process.env.VITE_SYSLAB_API_URL?.replace(/\/+$/, '') ||
-    null;
-  if (!raw) return null;
-
-  try {
-    const parsed = new URL(raw);
-    if (parsed.username || parsed.password || parsed.search || parsed.hash) {
-      return null;
-    }
-    if (parsed.protocol === 'https:') {
-      return parsed.href.replace(/\/+$/, '');
-    }
-    if (parsed.protocol === 'http:' && LOOPBACK_HOSTS.has(parsed.hostname)) {
-      return parsed.href.replace(/\/+$/, '');
-    }
-    return null;
-  } catch {
-    return null;
-  }
-};
-
-const isAllowedLabLink = (value: string): boolean => {
-  if (!value || value.length > MAX_LAB_LINK_LENGTH) return false;
-  try {
-    const parsed = new URL(value);
-    return ALLOWED_LAB_LINK_PROTOCOLS.has(parsed.protocol);
-  } catch {
-    return false;
-  }
-};
-
-const readBoundedJson = async (response: Response): Promise<unknown> => {
-  if (response.body || typeof response.arrayBuffer === 'function') {
-    const bytes = await readResponseWithinLimit(response, MAX_JSON_RESPONSE_BYTES);
-    if (!bytes) {
-      throw new Error('Upstream laboratory response exceeded size limit.');
-    }
-    return JSON.parse(bytes.toString('utf8')) as unknown;
-  }
-  return (await response.json()) as unknown;
-};
-
-const isTimeoutError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) return false;
-  const code = (error as { code?: unknown }).code;
-  return error.name === 'AbortError' || error.name === 'TimeoutError' || code === 'ETIMEDOUT';
-};
-
-const proxyFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  return fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      Authorization: `Bearer ${process.env.SYSLAB_API_TOKEN || ''}`,
-      'ngrok-skip-browser-warning': 'true',
-      'User-Agent': 'HHR-Netlify-Function',
-    },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-    redirect: 'error',
-  });
-};
-
-/* ── Health check ──────────────────────────────────────────────────── */
-
-const handleHealth = async (proxyUrl: string, requestOrigin?: string) => {
-  try {
-    const response = await proxyFetch(`${proxyUrl}/health`, { method: 'GET' });
-    if (!response.ok) {
-      return buildJsonResponse(
-        200,
-        { success: false, connected: false, status: response.status },
-        { requestOrigin, headers: NO_STORE_HEADERS }
-      );
-    }
-
-    const health = await readBoundedJson(response);
-    const connected =
-      typeof health === 'object' &&
-      health !== null &&
-      'connected' in health &&
-      health.connected === true;
-    return buildJsonResponse(
-      200,
-      { success: connected, connected, status: response.status },
-      { requestOrigin, headers: NO_STORE_HEADERS }
-    );
-  } catch {
-    return buildJsonResponse(
-      200,
-      {
-        success: false,
-        connected: false,
-        error: 'El servidor de laboratorio no está disponible. Comprueba el Mac mini.',
-      },
-      { requestOrigin, headers: NO_STORE_HEADERS }
-    );
-  }
-};
-
-/* ── Search exams by RUT ─────────────────────────────────────────────── */
-
-const handleSearch = async (proxyUrl: string, params: URLSearchParams, requestOrigin?: string) => {
-  const rut = params.get('rut')?.trim();
-  if (!rut || rut.length > 32) {
-    return buildJsonResponse(
-      400,
-      { error: 'RUT es requerido' },
-      { requestOrigin, headers: NO_STORE_HEADERS }
-    );
-  }
-
-  const url = `${proxyUrl}/api/exams?rut=${encodeURIComponent(rut)}`;
-  const response = await proxyFetch(url);
-  const data = await readBoundedJson(response);
-
-  return buildJsonResponse(response.status === 200 ? 200 : 502, data, {
-    requestOrigin,
-    headers: NO_STORE_HEADERS,
-  });
-};
-
-/* ── Fetch exam details (PDF parsing) ────────────────────────────────── */
-
-const handleDetails = async (
-  proxyUrl: string,
-  body: string | null | undefined,
-  requestOrigin?: string
-) => {
-  if ((body?.length || 0) > MAX_REQUEST_BODY_BYTES) {
-    return buildJsonResponse(
-      400,
-      { error: 'Solicitud inválida.' },
-      { requestOrigin, headers: NO_STORE_HEADERS }
-    );
-  }
-
-  const parsed = parseJsonBody<{ links: string[] }>(body);
-  if (!parsed.ok) {
-    return buildJsonResponse(
-      400,
-      { error: parsed.error },
-      { requestOrigin, headers: NO_STORE_HEADERS }
-    );
-  }
-
-  const { links } = parsed.value;
-  if (
-    !Array.isArray(links) ||
-    links.length === 0 ||
-    links.length > 3 ||
-    links.some(link => typeof link !== 'string' || !isAllowedLabLink(link))
-  ) {
-    return buildJsonResponse(
-      400,
-      { error: 'Se requiere un array de links' },
-      { requestOrigin, headers: NO_STORE_HEADERS }
-    );
-  }
-
-  const url = `${proxyUrl}/api/exams/details`;
-  const response = await proxyFetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ links }),
-  });
-  const data = await readBoundedJson(response);
-
-  return buildJsonResponse(response.status === 200 ? 200 : 502, data, {
-    requestOrigin,
-    headers: NO_STORE_HEADERS,
-  });
-};
-
-/* ── Proxy PDF for inline viewing ────────────────────────────────────── */
-
-const handlePdf = async (proxyUrl: string, params: URLSearchParams, requestOrigin?: string) => {
-  const link = params.get('link');
-  if (!link || !isAllowedLabLink(link)) {
-    return buildJsonResponse(
-      400,
-      { error: 'link es requerido' },
-      { requestOrigin, headers: NO_STORE_HEADERS }
-    );
-  }
-
-  const url = `${proxyUrl}/api/exams/pdf?link=${encodeURIComponent(link)}`;
-  const response = await proxyFetch(url);
-
-  if (!response.ok) {
-    return buildTextResponse(502, 'Error al obtener el PDF del servidor de laboratorio', {
-      requestOrigin,
-    });
-  }
-
-  const bytes = await readResponseWithinLimit(response, 4 * 1024 * 1024);
-  if (!bytes || bytes.subarray(0, 4).toString() !== '%PDF') {
-    return buildTextResponse(502, 'El servidor no entregó un PDF válido de laboratorio.', {
-      requestOrigin,
-    });
-  }
-  const base64 = bytes.toString('base64');
-
-  return {
-    statusCode: 200,
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Cache-Control': 'no-store',
-    },
-    body: base64,
-    isBase64Encoded: true,
-  };
-};
-
-const JOB_ACTIONS = new Set([
-  'job-create',
-  'job-status',
-  'job-result',
-  'job-cancel',
-  'job-retry',
-  'census-state',
-  'census-review',
-]);
-
-const handleJobAction = async (
-  proxyUrl: string,
-  action: string,
-  params: URLSearchParams,
-  event: NetlifyEventLike,
-  owner: string,
-  requestOrigin?: string
-) => {
-  const read = action === 'job-status' || action === 'job-result';
-  if (event.httpMethod !== (read ? 'GET' : 'POST')) {
-    return buildJsonResponse(
-      405,
-      { error: 'Método no permitido.' },
-      { requestOrigin, headers: NO_STORE_HEADERS }
-    );
-  }
-  if (!read && (event.isBase64Encoded || (event.body?.length || 0) > MAX_REQUEST_BODY_BYTES)) {
-    return buildJsonResponse(
-      400,
-      { error: 'Solicitud no válida.' },
-      { requestOrigin, headers: NO_STORE_HEADERS }
-    );
-  }
-  let path: string;
-  let payload: unknown;
-  if (read || action === 'job-cancel' || action === 'job-retry') {
-    const id = params.get('id') || '';
-    if (!/^[a-f0-9-]{36}$/i.test(id))
-      return buildJsonResponse(
-        400,
-        { error: 'Trabajo no válido.' },
-        { requestOrigin, headers: NO_STORE_HEADERS }
-      );
-    const rawOffset = params.get('offset') ?? '0';
-    if (action === 'job-result' && !/^\d{1,6}$/.test(rawOffset)) {
-      return buildJsonResponse(
-        400,
-        { error: 'Desplazamiento no válido.' },
-        { requestOrigin, headers: NO_STORE_HEADERS }
-      );
-    }
-    path = `/api/jobs/${id}${action === 'job-result' ? `/result?offset=${encodeURIComponent(rawOffset)}` : read ? '' : action === 'job-cancel' ? '/cancel' : '/retry'}`;
-  } else {
-    const parsed = parseJsonBody<Record<string, unknown>>(event.body);
-    if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') {
-      return buildJsonResponse(
-        400,
-        { error: 'Solicitud no válida.' },
-        { requestOrigin, headers: NO_STORE_HEADERS }
-      );
-    }
-    payload = parsed.value;
-    if (action === 'job-create') {
-      const kind = parsed.value.kind;
-      if (kind !== 'details' && kind !== 'census')
-        return buildJsonResponse(
-          400,
-          { error: 'Tipo no válido.' },
-          { requestOrigin, headers: NO_STORE_HEADERS }
-        );
-      path = `/api/jobs/${kind}`;
-    } else path = action === 'census-state' ? '/api/census/state' : '/api/census/review';
-  }
-  const response = await proxyFetch(proxyUrl + path, {
-    method: read ? 'GET' : 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-HHR-Lab-Owner': owner },
-    ...(!read ? { body: JSON.stringify(payload || {}) } : {}),
-  });
-  const body = await readBoundedJson(response);
-  const status = ALLOWED_JOB_STATUSES.has(response.status) ? response.status : 502;
-  return buildJsonResponse(status, body, { requestOrigin, headers: NO_STORE_HEADERS });
-};
 
 /* ── Handler ─────────────────────────────────────────────────────────── */
 
@@ -379,8 +81,7 @@ export const createSyslabProxyHandler = (
 
     const params = new URLSearchParams(event.rawQuery || '');
     const action = params.get('action');
-    const isJobRead =
-      action === 'job-status' || action === 'job-result' || action === 'census-state';
+    const isJobRead = isJobProgressReadAction(action);
     // Progress polling has its own bounded budget; it must not exhaust clinical searches.
     const clientIp = getClientIp(event);
     if (
@@ -442,21 +143,18 @@ export const createSyslabProxyHandler = (
 
     try {
       if (action && JOB_ACTIONS.has(action)) {
-        if (!actor.token?.sub || !actor.token?.aud)
+        if (!actor.token?.sub || !actor.token?.aud) {
           return buildJsonResponse(
             401,
             { error: 'Sesión de operador requerida.' },
             { requestOrigin, headers: NO_STORE_HEADERS }
           );
-        const owner = createHash('sha256')
-          .update(
-            JSON.stringify([
-              actor.token.aud,
-              actor.token.sub,
-              process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa',
-            ])
-          )
-          .digest('hex');
+        }
+        const owner = buildSyslabJobOwner(
+          actor.token.aud,
+          actor.token.sub,
+          process.env.ACTIVE_HOSPITAL_ID || 'hanga_roa'
+        );
         return await handleJobAction(proxyUrl, action, params, event, owner, requestOrigin);
       }
       if (action !== 'health' && action !== 'search' && action !== 'details' && action !== 'pdf') {
