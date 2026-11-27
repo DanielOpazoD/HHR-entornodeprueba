@@ -5,7 +5,7 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import { TransferClinicalCribNotice } from '@/features/census/components/movements/transfer/TransferClinicalCribNotice';
 import { TransferEvacuationSection } from '@/features/census/components/movements/transfer/TransferEvacuationSection';
 import { TransferReceivingSection } from '@/features/census/components/movements/transfer/TransferReceivingSection';
-import { TransferTimeField } from '@/features/census/components/movements/transfer/TransferTimeField';
+import { MovementDateTimeField } from '@/features/census/components/movements/shared/MovementDateTimeField';
 import { MovementFinalStateNotice } from '@/features/census/components/movements/shared/MovementFinalStateNotice';
 import { useTransferModalForm } from '@/features/census/components/movements/useTransferModalForm';
 import type { TransferModalProps } from '@/features/census/types/censusActionModalContracts';
@@ -104,18 +104,20 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             onReceivingCenterOtherChange={setReceivingCenterOther}
           />
 
-          <TransferTimeField
+          <MovementDateTimeField
+            label={isEditing ? 'Fecha y Hora de Traslado' : 'Hora de Traslado'}
             showDateInput={isEditing}
             dateValue={transferDate}
-            value={transferTime}
+            timeValue={transferTime}
             minDate={movementBounds.minDate}
             maxDate={movementBounds.maxDate}
             nextDay={movementBounds.nextDay}
             nextDayMaxTime={movementBounds.nextDayMaxTime}
             timeError={errors.time}
             dateTimeError={errors.dateTime}
+            tone="blue"
             onDateChange={setTransferDate}
-            onChange={setTransferTime}
+            onTimeChange={setTransferTime}
           />
 
           {isEditing && (
