@@ -30,17 +30,23 @@ describe('InitialLoadingScreen', () => {
   it('renders the calm startup preparation panel on cold boot for the root route', () => {
     window.localStorage.setItem('hhr_login_background_mode', 'day');
 
-    render(<InitialLoadingScreen pathname="/" />);
+    const { container } = render(<InitialLoadingScreen pathname="/" />);
 
     expect(screen.getByTestId('login-loading-shell')).toBeInTheDocument();
     expect(screen.getByTestId('login-loading-shell')).toHaveAttribute(
       'data-background-mode',
       'day'
     );
+    expect(screen.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
     expect(screen.getByRole('status')).toHaveTextContent('Preparando pantalla de acceso');
     expect(screen.queryByText(/Validando tu acceso/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Usuario')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Ingresar$/ })).not.toBeInTheDocument();
     expect(screen.queryByTestId('initial-loading-spinner')).not.toBeInTheDocument();
+    expect(container.querySelector('summary')).toBeNull();
+    expect(container.querySelector('.animate-pulse')).toBeNull();
+    expect(container.querySelector('.animate-spin')).toBeNull();
   });
 
   it('renders the active validation panel when explicitly validating access', () => {
@@ -52,10 +58,10 @@ describe('InitialLoadingScreen', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Validando tu acceso');
   });
 
-  it('preserves the night login background during startup refresh', () => {
+  it('preserves the night login background and calm startup preparation during refresh', () => {
     window.localStorage.setItem('hhr_login_background_mode', 'night');
 
-    render(<InitialLoadingScreen pathname="/" />);
+    const { container } = render(<InitialLoadingScreen pathname="/" />);
 
     expect(screen.getByTestId('login-loading-shell')).toHaveAttribute(
       'data-background-mode',
@@ -65,6 +71,15 @@ describe('InitialLoadingScreen', () => {
       'data-background-image',
       '/images/login/hhr-login-night.webp'
     );
+    expect(screen.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent('Preparando pantalla de acceso');
+    expect(screen.queryByLabelText('Usuario')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Ingresar$/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Validando tu acceso/)).not.toBeInTheDocument();
+    expect(container.querySelector('summary')).toBeNull();
+    expect(container.querySelector('.animate-pulse')).toBeNull();
+    expect(container.querySelector('.animate-spin')).toBeNull();
   });
 
   it('renders the default loading screen for non-census routes', () => {
