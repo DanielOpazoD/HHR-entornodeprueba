@@ -33,6 +33,16 @@ describe('check-clinical-mutation-audit-policy', () => {
     it('returns null when the union is absent', () => {
       expect(parseAuditActions('export type Something = string;')).toBeNull();
     });
+
+    it('ignores quotes and semicolons inside comments within the union', () => {
+      const src = [
+        'export type AuditAction =',
+        "  // legacy note: keep 'NOT_AN_ACTION'; see docs",
+        "  | 'PATIENT_ADMITTED'",
+        "  | 'VIEW_PATIENT';",
+      ].join('\n');
+      expect(parseAuditActions(src)).toEqual(['PATIENT_ADMITTED', 'VIEW_PATIENT']);
+    });
   });
 
   describe('evaluateAuditPolicy', () => {
@@ -169,6 +179,21 @@ describe('check-clinical-mutation-audit-policy', () => {
         'type W = typeof executeWriteAuditEvent;\n' +
         'let w: Parameters<typeof executeWriteAuditEvent>[0];';
       expect(detectIgnoredAuditOutcomes(src)).toEqual([]);
+    });
+
+    it('catches ASI statements and single-line conditionals while ignoring comments and strings', () => {
+      const src = [
+        '// executeWriteAuditEvent({ action: "COMMENT" })',
+        'const label = "executeWriteAuditEvent(x)";',
+        'async function f(ok: boolean) {',
+        '  doWork()',
+        '  await executeWriteAuditEvent({ action: "ASI" })',
+        '  if (ok) executeWriteAuditEvent({ action: "IF_BODY" });',
+        '  const cb = () => void executeWriteAuditEvent({ action: "VOID_ARROW" });',
+        '  return cb;',
+        '}',
+      ].join('\n');
+      expect(detectIgnoredAuditOutcomes(src)).toEqual([{ line: 5 }, { line: 6 }, { line: 7 }]);
     });
   });
 

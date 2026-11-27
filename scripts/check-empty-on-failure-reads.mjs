@@ -36,14 +36,7 @@ const AREAS = [
   'src/services/user-profile/userAvatarProfileService.ts',
   'src/services/user-profile/userSignatureService.ts',
 ];
-const EMPTY_RETURN = /\breturn\s+(?:\[\]|null|\{\}|new (?:Map|Set)\(\))\s*;/;
-const DECLARATION = [
-  /^\s*(?:export\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/,
-  /^\s*(?:export\s+)?(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\(|function\b|[A-Za-z_$][\w$]*\s*=>|<)/,
-  /^\s*(?:(?:public|private|protected|static|async|override)\s+)*([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\([^)]*\)\s*(?::\s*[^{]+)?\{\s*$/,
-  /^\s*([A-Za-z_$][\w$]*)\s*:\s*(?:async\s*)?(?:\(|function\b)/,
-];
-const KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', 'return']);
+const ALLOW_COMMENT = /^\s*\/\/ empty-on-failure-allow optional-capability: [^\S\r\n]*\S.*$/;
 
 const toPosix = value => value.split(path.sep).join('/');
 
@@ -61,22 +54,117 @@ const walk = (root, relativeDir) => {
   return files;
 };
 
-const indentOf = line => line.match(/^\s*/)[0].length;
+const readPropertyName = name => {
+  if (!name) return null;
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return name.text;
+  }
+  return null;
+};
 
-/** Name of the closest enclosing declaration, by indentation, above `lineIndex`. */
-const enclosingName = (lines, lineIndex) => {
-  let indent = indentOf(lines[lineIndex]);
-  for (let index = lineIndex - 1; index >= 0; index -= 1) {
-    const line = lines[index];
-    // Blank lines, deeper lines and the closing lines of a multi-line signature are not parents.
-    if (!line.trim() || indentOf(line) >= indent || /^[)\]}>]/.test(line.trim())) continue;
-    indent = indentOf(line);
-    for (const pattern of DECLARATION) {
-      const name = line.match(pattern)?.[1];
-      if (name && !KEYWORDS.has(name)) return name;
+const isFunctionLike = node =>
+  Boolean(node && (ts.isArrowFunction(node) || ts.isFunctionExpression(node)));
+
+const unwrapExpression = node => {
+  let current = node;
+  while (
+    current &&
+    (ts.isParenthesizedExpression(current) ||
+      ts.isAsExpression(current) ||
+      ts.isSatisfiesExpression(current) ||
+      ts.isTypeAssertionExpression(current) ||
+      ts.isNonNullExpression(current))
+  ) {
+    current = current.expression;
+  }
+  return current;
+};
+
+/** Name of the closest enclosing named declaration via AST parent traversal. */
+const enclosingDeclarationName = node => {
+  let current = node.parent;
+  while (current) {
+    if (ts.isFunctionDeclaration(current) && current.name) {
+      return current.name.text;
     }
+    if (
+      (ts.isMethodDeclaration(current) ||
+        ts.isGetAccessorDeclaration(current) ||
+        ts.isSetAccessorDeclaration(current)) &&
+      current.name
+    ) {
+      const name = readPropertyName(current.name);
+      if (name) return name;
+    }
+    if (
+      ts.isVariableDeclaration(current) &&
+      ts.isIdentifier(current.name) &&
+      isFunctionLike(unwrapExpression(current.initializer))
+    ) {
+      return current.name.text;
+    }
+    if (ts.isPropertyAssignment(current) && isFunctionLike(unwrapExpression(current.initializer))) {
+      const name = readPropertyName(current.name);
+      if (name) return name;
+    }
+    if (ts.isFunctionExpression(current) && current.name) {
+      return current.name.text;
+    }
+    current = current.parent;
   }
   return '(module)';
+};
+
+const isEmptyReturnExpression = node => {
+  const expr = unwrapExpression(node);
+  if (!expr) return false;
+  if (expr.kind === ts.SyntaxKind.NullKeyword) return true;
+  if (ts.isArrayLiteralExpression(expr) && expr.elements.length === 0) return true;
+  if (ts.isObjectLiteralExpression(expr) && expr.properties.length === 0) return true;
+  if (
+    ts.isNewExpression(expr) &&
+    ts.isIdentifier(expr.expression) &&
+    (expr.expression.text === 'Map' || expr.expression.text === 'Set') &&
+    (!expr.arguments || expr.arguments.length === 0)
+  ) {
+    return true;
+  }
+  return false;
+};
+
+const hasAdjacentAllowComment = (returnNode, tree, lines) => {
+  const { line, character } = tree.getLineAndCharacterOfPosition(returnNode.getStart(tree));
+  const prefix = (lines[line] ?? '').slice(0, character);
+  const previousLine = line > 0 ? (lines[line - 1] ?? '') : '';
+  return /^\s*$/.test(prefix) && ALLOW_COMMENT.test(previousLine);
+};
+
+const inspectCatchBlock = (block, tree, lines) => {
+  let hasThrow = false;
+  let hasUnreasonedEmptyReturn = false;
+
+  const visitStatement = node => {
+    if (hasThrow) return;
+    if (ts.isThrowStatement(node)) {
+      hasThrow = true;
+      return;
+    }
+    if (
+      ts.isReturnStatement(node) &&
+      isEmptyReturnExpression(node.expression) &&
+      !hasAdjacentAllowComment(node, tree, lines)
+    ) {
+      hasUnreasonedEmptyReturn = true;
+    }
+    // Nested functions/classes and inner catches own their own control flow.
+    if (ts.isFunctionLike(node) || ts.isClassLike(node) || ts.isCatchClause(node)) {
+      return;
+    }
+    ts.forEachChild(node, visitStatement);
+  };
+
+  for (const statement of block.statements) visitStatement(statement);
+  return !hasThrow && hasUnreasonedEmptyReturn;
 };
 
 const findEntries = root => {
@@ -84,15 +172,15 @@ const findEntries = root => {
   for (const file of AREAS.flatMap(area => walk(root, area))) {
     const source = fs.readFileSync(path.join(root, file), 'utf8');
     const lines = source.split('\n');
-    // Subscription error callbacks are reads too: emitting [] after onError masks failure.
+    // Subscription error callbacks and catch blocks are reads too: turning failure into an empty
+    // result masks failure. Both are walked on the same TypeScript AST so comments and strings
+    // can never confuse brace boundaries or throw/return checks.
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
     const visit = node => {
       if (ts.isCallExpression(node) && node.expression.getText(tree) === 'onSnapshot') {
         // Firestore accepts options, next/error/complete callbacks, or an observer object.
         // A trailing completion callback and an omitted error callback are not read failures.
         const second = node.arguments[1];
-        const isFunction = value =>
-          value && (ts.isArrowFunction(value) || ts.isFunctionExpression(value));
         const errorOf = observer =>
           ts.isObjectLiteralExpression(observer)
             ? observer.properties.find(property => property.name?.getText(tree) === 'error')
@@ -111,10 +199,10 @@ const findEntries = root => {
           ? ts.isPropertyAssignment(errorProperty)
             ? errorProperty.initializer
             : errorProperty
-          : isFunction(next)
+          : isFunctionLike(next)
             ? node.arguments[nextIndex + 1]
             : undefined;
-        if (handler && (isFunction(handler) || ts.isMethodDeclaration(handler))) {
+        if (handler && (isFunctionLike(handler) || ts.isMethodDeclaration(handler))) {
           const emitsEmpty = child => {
             if (
               ts.isCallExpression(child) &&
@@ -125,46 +213,20 @@ const findEntries = root => {
                   arg.kind === ts.SyntaxKind.NullKeyword
               )
             ) {
-              const lineIndex = source.slice(0, node.getStart(tree)).split('\n').length - 1;
-              entries.push(`${file}::${enclosingName(lines, lineIndex)}`);
+              entries.push(`${file}::${enclosingDeclarationName(node)}`);
             }
             ts.forEachChild(child, emitsEmpty);
           };
           emitsEmpty(handler.body);
         }
+      } else if (ts.isCatchClause(node)) {
+        if (inspectCatchBlock(node.block, tree, lines)) {
+          entries.push(`${file}::${enclosingDeclarationName(node)}`);
+        }
       }
       ts.forEachChild(node, visit);
     };
     visit(tree);
-    for (const match of source.matchAll(/\bcatch\s*(?:\([^)]*\))?\s*\{/g)) {
-      let depth = 1;
-      let end = match.index + match[0].length;
-      for (; end < source.length && depth > 0; end += 1) {
-        if (source[end] === '{') depth += 1;
-        else if (source[end] === '}') depth -= 1;
-      }
-      const body = source.slice(match.index + match[0].length, end - 1);
-      const code = body.replace(/^[ \t]*\/\/ empty-on-failure-allow[^\r\n]*/gm, comment =>
-        ' '.repeat(comment.length)
-      );
-      if (/\bthrow\b/.test(code)) continue;
-      const unreasonedReturns = [...code.matchAll(new RegExp(EMPTY_RETURN.source, 'g'))].some(
-        emptyReturn => {
-          const precedingLines = body.slice(0, emptyReturn.index).split('\n');
-          const returnLinePrefix = precedingLines.pop();
-          const previousLine = precedingLines.pop() ?? '';
-          return (
-            !/^\s*$/.test(returnLinePrefix) ||
-            !/^\s*\/\/ empty-on-failure-allow optional-capability: [^\S\r\n]*\S.*$/.test(
-              previousLine
-            )
-          );
-        }
-      );
-      if (!unreasonedReturns) continue;
-      const lineIndex = source.slice(0, match.index).split('\n').length - 1;
-      entries.push(`${file}::${enclosingName(lines, lineIndex)}`);
-    }
   }
   return entries.sort();
 };
