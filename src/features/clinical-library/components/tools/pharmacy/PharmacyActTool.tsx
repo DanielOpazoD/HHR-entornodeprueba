@@ -19,6 +19,7 @@ import type {
 } from '../../../domain/pharmacy/pharmacyTypes';
 import { ToolFrame, type ToolComponentProps } from '../ToolFrame';
 import { TOOL_INPUT_CLASS, TextField } from '../ToolField';
+import { useToolDirtyGuard } from '../useToolDirtyGuard';
 import { PharmacyMedicationLine } from './PharmacyMedicationLine';
 import { loadPharmacyProfessional, savePharmacyProfessional } from './pharmacyProfessionalProfile';
 import { usePharmacyActPdf } from './usePharmacyActPdf';
@@ -64,19 +65,8 @@ const PharmacyActEditor: React.FC<PharmacyActEditorProps> = ({
   const meta = ACTS[kind];
   const assetBase = `/docs/biblioteca/farmacia/${meta.filename}`;
 
-  useEffect(() => {
-    onDirtyChange?.(dirty);
-  }, [dirty, onDirtyChange]);
+  useToolDirtyGuard(dirty, onDirtyChange);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
-  useEffect(() => {
-    if (!dirty) return;
-    const preventUnload = (event: BeforeUnloadEvent): void => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    window.addEventListener('beforeunload', preventUnload);
-    return () => window.removeEventListener('beforeunload', preventUnload);
-  }, [dirty]);
 
   const update = (next: PharmacyActDraft): void => {
     setDraft(next);

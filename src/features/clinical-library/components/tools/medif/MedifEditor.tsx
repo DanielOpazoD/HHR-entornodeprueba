@@ -17,16 +17,20 @@ import {
 } from '../../../domain/medifPreferences';
 import { ToolFrame } from '../ToolFrame';
 import { TOOL_INPUT_CLASS } from '../ToolField';
+import { ToolJsonFileInput } from '../ToolJsonFileInput';
+import { ToolReplaceConfirmDialog } from '../ToolReplaceConfirmDialog';
+import {
+  CLINICAL_TOOL_DRAFT_MAX_BYTES,
+  downloadToolJsonFile,
+  readBoundedToolJsonFile,
+} from '../toolDraftFiles';
+import { useToolDirtyGuard } from '../useToolDirtyGuard';
 import { MedifFormSection } from './MedifFormSection';
 import { applyMedifHabitualAnswers } from '../../../domain/medifHabitualAnswers';
 import { MedifPreferencesPanel } from './MedifPreferencesPanel';
 import { MedifVariableIndex } from './MedifVariableIndex';
 import { MedifTabs, type MedifTabId } from './MedifNavigation';
-import {
-  downloadMedifJson,
-  MEDIF_SECONDARY_BUTTON,
-  type MedifEditorProps,
-} from './medifEditorTypes';
+import { MEDIF_SECONDARY_BUTTON, type MedifEditorProps } from './medifEditorTypes';
 
 import {
   MEDIF_FORM_BLOCKS,
@@ -88,18 +92,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
     [exportContext]
   );
 
-  useEffect(() => {
-    onDirtyChange?.(dirty);
-  }, [dirty, onDirtyChange]);
-  useEffect(() => {
-    if (!dirty) return;
-    const preventUnload = (event: BeforeUnloadEvent): void => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    window.addEventListener('beforeunload', preventUnload);
-    return () => window.removeEventListener('beforeunload', preventUnload);
-  }, [dirty]);
+  useToolDirtyGuard(dirty, onDirtyChange);
 
   const replaceDraft = (next: Replacement): void => {
     importSequence.current += 1;
@@ -147,8 +140,11 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
     if (!file) return;
     const sequence = ++importSequence.current;
     try {
-      if (file.size > 1_000_000) throw new Error('El borrador es demasiado grande.');
-      const text = await file.text();
+      const text = await readBoundedToolJsonFile(file, {
+        maxBytes: CLINICAL_TOOL_DRAFT_MAX_BYTES,
+        tooLargeMessage: 'El borrador es demasiado grande.',
+        readErrorMessage: 'No se pudo cargar el borrador.',
+      });
       if (sequence !== importSequence.current) return;
       const imported = importMedifDraft(text);
       requestReplacement({
@@ -247,7 +243,7 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
             aria-label="Guardar borrador"
             title="Guardar borrador"
             disabled={busy}
-            onClick={() => downloadMedifJson(exportMedifDraft(values), 'medif-borrador.json')}
+            onClick={() => downloadToolJsonFile(exportMedifDraft(values), 'medif-borrador.json')}
           >
             <Save size={15} aria-hidden="true" />
           </button>
@@ -278,50 +274,34 @@ export const MedifEditor: React.FC<MedifEditorProps> = ({
           </button>
         </div>
       </div>
-      <input
-        ref={draftInput}
-        type="file"
-        accept=".json,application/json"
-        aria-label="Archivo de borrador MEDIF"
-        className="hidden"
-        onChange={event => {
-          void importDraft(event.target.files?.[0]);
-          event.target.value = '';
+      <ToolJsonFileInput
+        inputRef={draftInput}
+        ariaLabel="Archivo de borrador MEDIF"
+        onFileSelected={file => {
+          void importDraft(file);
         }}
       />
       {replacement && (
-        <div
-          role="alertdialog"
-          aria-labelledby="medif-replace-title"
-          aria-describedby="medif-replace-description"
-          className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4"
-        >
-          <h4 id="medif-replace-title" className="text-[13px] font-bold text-amber-900">
-            Reemplazar el formulario actual
-          </h4>
-          <p id="medif-replace-description" className="mt-1 text-[12px] text-amber-800">
-            Se borrarán todos los datos actuales para cargar{' '}
-            {replacement.key ? 'el paciente seleccionado' : 'el ingreso manual o borrador'}. Guarda
-            el borrador primero si quieres conservarlo.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              autoFocus
-              onClick={() => setReplacement(null)}
-              className={MEDIF_SECONDARY_BUTTON}
-            >
-              Conservar formulario
-            </button>
-            <button
-              type="button"
-              onClick={() => replaceDraft(replacement)}
-              className="medif-replace-button rounded-md bg-amber-700 px-3 py-2 text-[11px] font-semibold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2"
-            >
-              Reemplazar todos los datos
-            </button>
-          </div>
-        </div>
+        <ToolReplaceConfirmDialog
+          idPrefix="medif"
+          title="Reemplazar el formulario actual"
+          description={
+            <>
+              Se borrarán todos los datos actuales para cargar{' '}
+              {replacement.key ? 'el paciente seleccionado' : 'el ingreso manual o borrador'}.
+              Guarda el borrador primero si quieres conservarlo.
+            </>
+          }
+          confirmLabel="Reemplazar todos los datos"
+          onKeep={() => setReplacement(null)}
+          onConfirm={() => replaceDraft(replacement)}
+          containerClassName="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4"
+          titleClassName="text-[13px] font-bold text-amber-900"
+          descriptionClassName="mt-1 text-[12px] text-amber-800"
+          actionsClassName="mt-3 flex flex-wrap gap-2"
+          keepButtonClassName={MEDIF_SECONDARY_BUTTON}
+          confirmButtonClassName="medif-replace-button rounded-md bg-amber-700 px-3 py-2 text-[11px] font-semibold text-white hover:bg-amber-800 focus-visible:outline focus-visible:outline-2"
+        />
       )}
 
       <div id="medif-settings" hidden={!settingsOpen}>

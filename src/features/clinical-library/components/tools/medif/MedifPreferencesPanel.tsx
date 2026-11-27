@@ -17,7 +17,13 @@ import {
   type MedifPreferences,
 } from '../../../domain/medifPreferences';
 import { TOOL_INPUT_CLASS } from '../ToolField';
-import { downloadMedifJson, MEDIF_SECONDARY_BUTTON } from './medifEditorTypes';
+import { ToolJsonFileInput } from '../ToolJsonFileInput';
+import {
+  CLINICAL_TOOL_PREFERENCES_MAX_BYTES,
+  downloadToolJsonFile,
+  readBoundedToolJsonFile,
+} from '../toolDraftFiles';
+import { MEDIF_SECONDARY_BUTTON } from './medifEditorTypes';
 
 interface Props {
   preferences: MedifPreferences;
@@ -63,8 +69,11 @@ export const MedifPreferencesPanel: React.FC<Props> = ({
     if (!file) return;
     const generation = ++importGeneration.current;
     try {
-      if (file.size > 100_000) throw new Error('El archivo de preferencias es demasiado grande.');
-      const text = await file.text();
+      const text = await readBoundedToolJsonFile(file, {
+        maxBytes: CLINICAL_TOOL_PREFERENCES_MAX_BYTES,
+        tooLargeMessage: 'El archivo de preferencias es demasiado grande.',
+        readErrorMessage: 'No se pudieron importar las preferencias.',
+      });
       if (generation !== importGeneration.current) return;
       onChange(importMedifPreferences(text));
       setNotice('Preferencias importadas.');
@@ -89,7 +98,7 @@ export const MedifPreferencesPanel: React.FC<Props> = ({
           type="button"
           className={MEDIF_SECONDARY_BUTTON}
           onClick={() =>
-            downloadMedifJson(exportMedifPreferences(preferences), 'medif-preferencias.json')
+            downloadToolJsonFile(exportMedifPreferences(preferences), 'medif-preferencias.json')
           }
         >
           <Download size={13} aria-hidden="true" /> Exportar preferencias
@@ -115,15 +124,11 @@ export const MedifPreferencesPanel: React.FC<Props> = ({
         >
           Restaurar selección MEDIF
         </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".json,application/json"
-          aria-label="Archivo de preferencias"
-          className="hidden"
-          onChange={event => {
-            void importFile(event.target.files?.[0]);
-            event.target.value = '';
+        <ToolJsonFileInput
+          inputRef={inputRef}
+          ariaLabel="Archivo de preferencias"
+          onFileSelected={file => {
+            void importFile(file);
           }}
         />
       </div>

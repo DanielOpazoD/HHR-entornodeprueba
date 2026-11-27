@@ -15,6 +15,8 @@ import type {
   ClinicalFormValue,
   ClinicalFormValues,
 } from '../../../domain/forms/clinicalFormTypes';
+import { CLINICAL_TOOL_DRAFT_MAX_BYTES, readBoundedToolJsonFile } from '../toolDraftFiles';
+import { useToolDirtyGuard } from '../useToolDirtyGuard';
 
 interface Replacement {
   values: ClinicalFormValues;
@@ -66,18 +68,7 @@ export const useClinicalFormDraft = (
       : [];
   const sourceChanged = sourceChanges.length > 0;
 
-  useEffect(() => {
-    onDirtyChange?.(dirty);
-  }, [dirty, onDirtyChange]);
-  useEffect(() => {
-    if (!dirty) return;
-    const prevent = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    window.addEventListener('beforeunload', prevent);
-    return () => window.removeEventListener('beforeunload', prevent);
-  }, [dirty]);
+  useToolDirtyGuard(dirty, onDirtyChange);
   useEffect(
     () => () => {
       importSequence.current += 1;
@@ -131,9 +122,10 @@ export const useClinicalFormDraft = (
   const importFile = async (file: File) => {
     const sequence = ++importSequence.current;
     try {
-      if (file.size > 1_000_000) throw new Error('El borrador es demasiado grande.');
-      const text = await file.text().catch(() => {
-        throw new Error('No se pudo leer el archivo de borrador. Vuelve a intentarlo.');
+      const text = await readBoundedToolJsonFile(file, {
+        maxBytes: CLINICAL_TOOL_DRAFT_MAX_BYTES,
+        tooLargeMessage: 'El borrador es demasiado grande.',
+        readErrorMessage: 'No se pudo leer el archivo de borrador. Vuelve a intentarlo.',
       });
       if (sequence !== importSequence.current) return;
       const imported = importClinicalFormDraft(text);
