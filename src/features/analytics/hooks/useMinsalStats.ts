@@ -6,7 +6,6 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
-import { fetchRecordsRangeSorted, syncRecordsRange } from '@/services/records/recordQueryService';
 import {
   fetchAnalyticsSpecialtyReclassifications,
   saveAnalyticsSpecialtyReclassification,
@@ -16,20 +15,23 @@ import {
   calculateMinsalStats as calculateMinsalStatsLocal,
   filterRecordsByDateRange,
   generateDailyTrend,
-  getDateRangeFromPreset,
 } from '@/features/analytics/services/minsalStatsCalculator';
 import { resolveDisplayedMinsalStats } from '@/features/analytics/controllers/minsalAnalyticsPresentationController';
 import {
   buildVerifiedReclassificationsStamp,
   filterReclassificationsForRange,
-  getCalendarDaysInRange,
-  mergeRecordsByDateDesc,
-  REMOTE_RANGE_SYNC_INTERVAL_MS,
+  isReclassificationsQueryVerified,
+  isRemoteStatsQueryVerified,
+  isRemoteStatsSnapshotStale,
   resolveMinsalDisplayError,
   resolveReclassificationsError,
   resolveRemoteStatsWarning,
-  type RemoteStatsSnapshot,
+  resolveSafeMinsalDateRange,
 } from '@/features/analytics/controllers/minsalStatsVerificationController';
+import {
+  fetchRemoteMinsalStatsSnapshot,
+  loadMinsalRangeRecords,
+} from '@/features/analytics/controllers/minsalStatsQueryController';
 import {
   buildAnalyticsDataQualityIssues,
   buildMinsalComparisonSummary,
@@ -47,7 +49,6 @@ import {
   SpecialtyReclassification,
 } from '@/features/analytics/types/minsalTypes';
 import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
-import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import {
   DAILY_RECORD_STORE_CHANGED_EVENT,
   type DailyRecordStoreChangedEventDetail,
@@ -95,19 +96,7 @@ export function useMinsalStats(
     [calculationOptions.specialtyGroupingMode]
   );
 
-  const { startDate, endDate } = useMemo(() => {
-    try {
-      return getDateRangeFromPreset(
-        dateRange.preset,
-        dateRange.startDate,
-        dateRange.endDate,
-        dateRange.currentYearMonth
-      );
-    } catch {
-      const today = getTodayISO();
-      return { startDate: today, endDate: today };
-    }
-  }, [dateRange]);
+  const { startDate, endDate } = useMemo(() => resolveSafeMinsalDateRange(dateRange), [dateRange]);
   const { previousPeriodStart, previousPeriodEnd } = useMemo(
     () => resolvePreviousMinsalPeriod(startDate, endDate),
     [startDate, endDate]
@@ -151,33 +140,12 @@ export function useMinsalStats(
 
   const recordsQuery = useQuery({
     queryKey: localRecordsQueryKey,
-    queryFn: async (): Promise<DailyRecord[]> => {
-      const localRecords = await fetchRecordsRangeSorted(previousPeriodStart, endDate);
-      const expectedDays = getCalendarDaysInRange(previousPeriodStart, endDate);
-
-      if (localRecords.length >= expectedDays) {
-        return localRecords;
-      }
-
-      const rangeKey = `${previousPeriodStart}:${endDate}`;
-      const lastSyncAt = lastRemoteRangeSyncRef.current.get(rangeKey);
-      if (lastSyncAt !== undefined && Date.now() - lastSyncAt < REMOTE_RANGE_SYNC_INTERVAL_MS) {
-        return localRecords;
-      }
-      lastRemoteRangeSyncRef.current.set(rangeKey, Date.now());
-      try {
-        const syncedRecords = await syncRecordsRange(previousPeriodStart, endDate);
-        if (syncedRecords.length === 0) {
-          return localRecords;
-        }
-
-        return mergeRecordsByDateDesc(localRecords, syncedRecords);
-      } catch (error) {
-        // A failed attempt must not make a retry accept the local range as a completed sync.
-        lastRemoteRangeSyncRef.current.delete(rangeKey);
-        throw error;
-      }
-    },
+    queryFn: () =>
+      loadMinsalRangeRecords({
+        previousPeriodStart,
+        endDate,
+        lastRemoteRangeSyncByKey: lastRemoteRangeSyncRef.current,
+      }),
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     // Every local change in the range already invalidates this query, so a tab return only
@@ -263,14 +231,15 @@ export function useMinsalStats(
     [reclassificationsQuery.error, reclassificationsQuery.isPaused]
   );
 
-  const isReclassificationsVerified =
-    reclassificationsQuery.status === 'success' &&
-    !reclassificationsQuery.error &&
-    !reclassificationsQuery.isFetching &&
-    !reclassificationsQuery.isPaused &&
-    !isReclassificationsInvalidated &&
-    reclassificationsQuery.failureCount === 0 &&
-    !isSavingReclassification;
+  const isReclassificationsVerified = isReclassificationsQueryVerified({
+    status: reclassificationsQuery.status,
+    error: reclassificationsQuery.error,
+    isFetching: reclassificationsQuery.isFetching,
+    isPaused: reclassificationsQuery.isPaused,
+    isInvalidated: isReclassificationsInvalidated,
+    failureCount: reclassificationsQuery.failureCount,
+    isSavingReclassification,
+  });
 
   const currentVerifiedStamp = useMemo(
     () =>
@@ -313,38 +282,16 @@ export function useMinsalStats(
     // Waiting once for the initial reclassification read avoids fetching an unverified aggregate
     // while keeping the query key and enabled flag stable across retries and refreshes.
     enabled: shouldUseRemoteStats && hasReclassificationsSettledOnce,
-    queryFn: async (): Promise<RemoteStatsSnapshot> => {
-      const reclassState =
-        queryClient.getQueryState<SpecialtyReclassification[]>(reclassificationsQueryKey);
-      const isPendingSave =
-        queryClient.isMutating({ mutationKey: saveReclassificationMutationKey }) > 0;
-      const reclassificationsStamp =
-        !isPendingSave &&
-        reclassState &&
-        reclassState.status === 'success' &&
-        !reclassState.error &&
-        !reclassState.isInvalidated &&
-        reclassState.dataUpdateCount > 0
-          ? buildVerifiedReclassificationsStamp(
-              reclassState.dataUpdateCount,
-              reclassState.dataUpdatedAt,
-              filterReclassificationsForRange(reclassState.data ?? [], startDate, endDate)
-            )
-          : null;
-      const functions = await defaultFunctionsRuntime.getFunctions();
-      const { httpsCallable } = await import('firebase/functions');
-      const calculateStats = httpsCallable(functions, 'calculateMinsalStats');
-      const result = await calculateStats({
+    queryFn: () =>
+      fetchRemoteMinsalStatsSnapshot({
+        queryClient,
+        reclassificationsQueryKey,
+        saveReclassificationMutationKey,
         hospitalId,
         startDate,
         endDate,
-        options: safeRemoteOptions,
-      });
-      return {
-        stats: result.data as MinsalStatistics,
-        reclassificationsStamp,
-      };
-    },
+        safeRemoteOptions,
+      }),
     staleTime: 5 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
     retry: 1,
@@ -358,50 +305,48 @@ export function useMinsalStats(
     [allPeriodReclassifications, calculationOptions]
   );
 
-  const trendData = useMemo(() => {
-    if (currentRangeRecords.length === 0) return [];
-    return generateDailyTrend(currentRangeRecords);
-  }, [currentRangeRecords]);
+  const trendData = useMemo(
+    () => (currentRangeRecords.length === 0 ? [] : generateDailyTrend(currentRangeRecords)),
+    [currentRangeRecords]
+  );
 
-  const localRangeStats = useMemo(() => {
-    if (currentRangeRecords.length === 0) {
-      return null;
-    }
-    return calculateMinsalStatsLocal(
-      currentRangeRecords,
-      startDate,
-      endDate,
-      effectiveCalculationOptions
-    );
-  }, [currentRangeRecords, startDate, endDate, effectiveCalculationOptions]);
+  const localRangeStats = useMemo(
+    () =>
+      currentRangeRecords.length === 0
+        ? null
+        : calculateMinsalStatsLocal(
+            currentRangeRecords,
+            startDate,
+            endDate,
+            effectiveCalculationOptions
+          ),
+    [currentRangeRecords, startDate, endDate, effectiveCalculationOptions]
+  );
 
-  const previousLocalStats = useMemo(() => {
-    if (previousRangeRecords.length === 0) {
-      return null;
-    }
-    return calculateMinsalStatsLocal(
-      previousRangeRecords,
-      previousPeriodStart,
-      previousPeriodEnd,
-      effectiveCalculationOptions
-    );
-  }, [effectiveCalculationOptions, previousPeriodEnd, previousPeriodStart, previousRangeRecords]);
+  const previousLocalStats = useMemo(
+    () =>
+      previousRangeRecords.length === 0
+        ? null
+        : calculateMinsalStatsLocal(
+            previousRangeRecords,
+            previousPeriodStart,
+            previousPeriodEnd,
+            effectiveCalculationOptions
+          ),
+    [effectiveCalculationOptions, previousPeriodEnd, previousPeriodStart, previousRangeRecords]
+  );
 
-  const localFallbackStats = useMemo(() => {
-    if (!remoteStatsQuery.isError) {
-      return null;
-    }
-    return localRangeStats;
-  }, [remoteStatsQuery.isError, localRangeStats]);
-
+  const localFallbackStats = remoteStatsQuery.isError ? localRangeStats : null;
   const remoteStats = remoteStatsQuery.data?.stats ?? null;
 
-  const stats = useMemo<MinsalStatistics | null>(() => {
-    return resolveDisplayedMinsalStats({
-      localStats: localRangeStats,
-      remoteStats: remoteStats ?? localFallbackStats,
-    });
-  }, [localFallbackStats, localRangeStats, remoteStats]);
+  const stats = useMemo<MinsalStatistics | null>(
+    () =>
+      resolveDisplayedMinsalStats({
+        localStats: localRangeStats,
+        remoteStats: remoteStats ?? localFallbackStats,
+      }),
+    [localFallbackStats, localRangeStats, remoteStats]
+  );
 
   const error = useMemo(
     () =>
@@ -430,11 +375,11 @@ export function useMinsalStats(
   );
 
   const isUsingRemoteStats = !localRangeStats && shouldUseRemoteStats;
-  const isRemoteStatsStampStale =
-    isUsingRemoteStats &&
-    currentVerifiedStamp !== null &&
-    Boolean(remoteStatsQuery.data) &&
-    remoteStatsQuery.data?.reclassificationsStamp !== currentVerifiedStamp;
+  const isRemoteStatsStampStale = isRemoteStatsSnapshotStale({
+    isUsingRemoteStats,
+    currentVerifiedStamp,
+    snapshot: remoteStatsQuery.data,
+  });
 
   const remoteStatsKeyHash = useMemo(
     () => JSON.stringify(remoteStatsQueryKey),
@@ -467,14 +412,15 @@ export function useMinsalStats(
     remoteStatsQueryKey,
   ]);
 
-  const isRemoteStatsVerified =
-    !isUsingRemoteStats ||
-    (remoteStatsQuery.status === 'success' &&
-      !remoteStatsQuery.error &&
-      !remoteStatsQuery.isFetching &&
-      !remoteStatsQuery.isPaused &&
-      !isRemoteStatsStampStale &&
-      remoteStatsQuery.failureCount === 0);
+  const isRemoteStatsVerified = isRemoteStatsQueryVerified({
+    isUsingRemoteStats,
+    status: remoteStatsQuery.status,
+    error: remoteStatsQuery.error,
+    isFetching: remoteStatsQuery.isFetching,
+    isPaused: remoteStatsQuery.isPaused,
+    isStampStale: isRemoteStatsStampStale,
+    failureCount: remoteStatsQuery.failureCount,
+  });
   const remoteStatsWarning = useMemo(
     () =>
       resolveRemoteStatsWarning({
@@ -487,13 +433,10 @@ export function useMinsalStats(
   );
   const canExportExcel = Boolean(stats) && isReclassificationsVerified && isRemoteStatsVerified;
 
-  const comparison = useMemo<MinsalComparisonSummary | null>(() => {
-    if (!stats) {
-      return null;
-    }
-
-    return buildMinsalComparisonSummary(stats, previousLocalStats);
-  }, [previousLocalStats, stats]);
+  const comparison = useMemo<MinsalComparisonSummary | null>(
+    () => (stats ? buildMinsalComparisonSummary(stats, previousLocalStats) : null),
+    [previousLocalStats, stats]
+  );
 
   const dataQualityIssues = useMemo(
     () => buildAnalyticsDataQualityIssues(currentRangeRecords, effectiveCalculationOptions),
@@ -516,21 +459,14 @@ export function useMinsalStats(
 
   const setCustomRange = useCallback(
     (start: string, end: string) => {
-      setDateRange({
-        preset: 'custom',
-        startDate: start,
-        endDate: end,
-      });
+      setDateRange({ preset: 'custom', startDate: start, endDate: end });
     },
     [setDateRange]
   );
 
   const setCurrentYearMonth = useCallback(
     (month: number) => {
-      setDateRange({
-        preset: 'currentMonth',
-        currentYearMonth: month,
-      });
+      setDateRange({ preset: 'currentMonth', currentYearMonth: month });
     },
     [setDateRange]
   );
@@ -541,17 +477,10 @@ export function useMinsalStats(
     manualRefreshKeysRef.current.add(remoteStatsKeyHash);
     try {
       await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: localRecordsQueryKey,
-        }),
-        queryClient.invalidateQueries({
-          queryKey: reclassificationsQueryKey,
-        }),
+        queryClient.invalidateQueries({ queryKey: localRecordsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: reclassificationsQueryKey }),
       ]);
-      await queryClient.invalidateQueries({
-        queryKey: remoteStatsQueryKey,
-        exact: true,
-      });
+      await queryClient.invalidateQueries({ queryKey: remoteStatsQueryKey, exact: true });
     } finally {
       manualRefreshKeysRef.current.delete(remoteStatsKeyHash);
     }

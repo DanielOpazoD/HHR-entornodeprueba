@@ -1,9 +1,12 @@
 import type {
+  DateRangeConfig,
   MinsalStatistics,
   SpecialtyReclassification,
 } from '@/features/analytics/types/minsalTypes';
+import { getDateRangeFromPreset } from '@/features/analytics/services/minsalStatsCalculator';
 import type { DailyRecordMovementState as DailyRecord } from '@/types/domain/dailyRecordSlices';
 import { diffCalendarDays } from '@/utils/clinicalDateUtils';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 
 export interface RemoteStatsSnapshot {
   stats: MinsalStatistics;
@@ -116,3 +119,63 @@ export const resolveMinsalDisplayError = (params: {
   }
   return null;
 };
+
+export const resolveSafeMinsalDateRange = (
+  dateRange: DateRangeConfig
+): { startDate: string; endDate: string } => {
+  try {
+    return getDateRangeFromPreset(
+      dateRange.preset,
+      dateRange.startDate,
+      dateRange.endDate,
+      dateRange.currentYearMonth
+    );
+  } catch {
+    const today = getTodayISO();
+    return { startDate: today, endDate: today };
+  }
+};
+
+export const isReclassificationsQueryVerified = (params: {
+  status: string;
+  error: unknown;
+  isFetching: boolean;
+  isPaused: boolean;
+  isInvalidated: boolean;
+  failureCount: number;
+  isSavingReclassification: boolean;
+}): boolean =>
+  params.status === 'success' &&
+  !params.error &&
+  !params.isFetching &&
+  !params.isPaused &&
+  !params.isInvalidated &&
+  params.failureCount === 0 &&
+  !params.isSavingReclassification;
+
+export const isRemoteStatsSnapshotStale = (params: {
+  isUsingRemoteStats: boolean;
+  currentVerifiedStamp: string | null;
+  snapshot: RemoteStatsSnapshot | undefined;
+}): boolean =>
+  params.isUsingRemoteStats &&
+  params.currentVerifiedStamp !== null &&
+  Boolean(params.snapshot) &&
+  params.snapshot?.reclassificationsStamp !== params.currentVerifiedStamp;
+
+export const isRemoteStatsQueryVerified = (params: {
+  isUsingRemoteStats: boolean;
+  status: string;
+  error: unknown;
+  isFetching: boolean;
+  isPaused: boolean;
+  isStampStale: boolean;
+  failureCount: number;
+}): boolean =>
+  !params.isUsingRemoteStats ||
+  (params.status === 'success' &&
+    !params.error &&
+    !params.isFetching &&
+    !params.isPaused &&
+    !params.isStampStale &&
+    params.failureCount === 0);
