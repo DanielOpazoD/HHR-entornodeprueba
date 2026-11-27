@@ -10,8 +10,9 @@
  * before the bug ships.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import fs from 'fs';
+import { createRequire } from 'node:module';
 import path from 'path';
 
 import {
@@ -19,6 +20,20 @@ import {
   PRESCRIPTION_RETENTION_DAYS_BY_TYPE,
   PRESCRIPTION_TYPES,
 } from '@/features/prescriptions/types/prescriptionTypes';
+
+vi.mock('firebase-functions/v1', () => ({
+  https: {
+    onCall: (handler: unknown) => ({ run: handler }),
+    HttpsError: class HttpsError extends Error {},
+  },
+}));
+
+const requireFromHere = createRequire(import.meta.url);
+const { computeExpiresAt } = requireFromHere(
+  '../../../functions/lib/prescriptionAccessFunctions.js'
+) as {
+  computeExpiresAt: (prescriptionType: string, createdAtIso: string) => string;
+};
 
 const readProjectFile = (relativePath: string): string => {
   const absolutePath = path.resolve(__dirname, '../../../', relativePath);
@@ -37,13 +52,22 @@ describe('Prescription constants TS↔JS drift guard', () => {
   });
 
   it('uses the same default monthly backup review window (30 days) for every type', () => {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const createdAtIso = '2026-05-04T12:00:00.000Z';
+    const expectedIndependentExpiry = '2026-06-03T12:00:00.000Z';
+
     expect(PRESCRIPTION_RETENTION_DAYS).toBe(30);
     for (const type of PRESCRIPTION_TYPES) {
-      expect(PRESCRIPTION_RETENTION_DAYS_BY_TYPE[type]).toBe(30);
+      const clientDays = PRESCRIPTION_RETENTION_DAYS_BY_TYPE[type];
+      expect(clientDays).toBe(30);
+      const clientExpectedIso = new Date(
+        Date.parse(createdAtIso) + clientDays * DAY_MS
+      ).toISOString();
+      const functionExpiry = computeExpiresAt(type, createdAtIso);
+      expect(functionExpiry).toBe(clientExpectedIso);
+      expect(functionExpiry).toBe(expectedIndependentExpiry);
     }
-    expect(accessFunctionsSource).toMatch(
-      /MONTHLY_BACKUP_DAYS_BY_TYPE\s*=\s*\{\s*comun:\s*30,\s*psicotropicos:\s*30,\s*benzodiazepinas:\s*30,?\s*\}/
-    );
+    expect(computeExpiresAt('legacy_unknown', createdAtIso)).toBe(expectedIndependentExpiry);
   });
 
   it('keeps the same PIN length bounds (4–12) on the Cloud Function', () => {

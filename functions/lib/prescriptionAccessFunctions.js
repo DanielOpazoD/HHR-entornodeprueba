@@ -42,11 +42,7 @@ const {
 
 const PRESCRIPTION_TYPES = new Set(['comun', 'psicotropicos', 'benzodiazepinas']);
 const PRESCRIPTION_ASSIGNMENT_SCOPES = new Set(['patient', 'unassigned', 'hospitalized_stock']);
-const MONTHLY_BACKUP_DAYS_BY_TYPE = {
-  comun: 30,
-  psicotropicos: 30,
-  benzodiazepinas: 30,
-};
+const MONTHLY_BACKUP_REVIEW_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const UPLOAD_QUOTA_WINDOW_MS = 60 * 60 * 1000;
 const MAX_PRESCRIPTION_UPLOADS_PER_HOUR = 120;
@@ -58,10 +54,8 @@ const MAX_DIMENSION = 4096;
 
 const generatePrescriptionId = () => `rx_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
 
-const computeExpiresAt = (prescriptionType, createdAtIso) => {
-  const days = MONTHLY_BACKUP_DAYS_BY_TYPE[prescriptionType] ?? 30;
-  return new Date(new Date(createdAtIso).getTime() + days * DAY_MS).toISOString();
-};
+const computeExpiresAt = (_prescriptionType, createdAtIso) =>
+  new Date(new Date(createdAtIso).getTime() + MONTHLY_BACKUP_REVIEW_DAYS * DAY_MS).toISOString();
 
 const positiveInteger = (value, fieldName) => {
   const parsed = Number(value);

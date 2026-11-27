@@ -21,9 +21,11 @@ describe('hashPin / computeExpiresAt', () => {
     expect(await hashPin('1234', salt)).not.toBe(hashPinLegacySha256('1234', salt));
   });
 
-  it('computes the monthly backup review date 30 days after createdAt for known types', () => {
-    const expiry = computeExpiresAt('comun', '2026-05-04T12:00:00.000Z');
-    expect(expiry).toBe('2026-06-03T12:00:00.000Z');
+  it('computes the monthly backup review date 30 days after createdAt across month boundaries and legacy types', () => {
+    for (const type of ['comun', 'psicotropicos', 'benzodiazepinas', 'legacy_type']) {
+      expect(computeExpiresAt(type, '2026-05-04T12:00:00.000Z')).toBe('2026-06-03T12:00:00.000Z');
+      expect(computeExpiresAt(type, '2026-01-31T23:30:00.000Z')).toBe('2026-03-02T23:30:00.000Z');
+    }
   });
 });
 
