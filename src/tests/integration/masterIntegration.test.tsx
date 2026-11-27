@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
-import { usePatientDischarges } from '@/hooks/usePatientDischarges';
-import { usePatientTransfers } from '@/hooks/usePatientTransfers';
+import { usePatientDischarges } from '@/features/census/hooks/usePatientDischarges';
+import { usePatientTransfers } from '@/features/census/hooks/usePatientTransfers';
 import { UIProvider } from '@/context/UIContext';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import React from 'react';

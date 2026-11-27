@@ -8,7 +8,7 @@ import { validateTransferExecutionInput } from '@/shared/census/censusActionVali
 import {
   resolveMovementDateTimeValidationError,
   resolveMovementEditorInitialDate,
-} from '@/application/census/controllers/clinicalShiftCalendarController';
+} from '@/features/census/controllers/clinicalShiftCalendarController';
 import { resolveValidHourMinuteOrFallback } from '@/application/census/controllers/timeInputController';
 
 export interface TransferModalFieldErrors {

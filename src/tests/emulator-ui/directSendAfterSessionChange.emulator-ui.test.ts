@@ -17,10 +17,8 @@ import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositor
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { processSyncQueue } from '@/services/storage/sync';
-import {
-  buildAtomicPatientMovementPatch,
-  resolveAddDischargeMovement,
-} from '@/application/census/public';
+import { buildAtomicPatientMovementPatch } from '@/features/census/controllers/atomicPatientMovementPatchController';
+import { resolveAddDischargeMovement } from '@/features/census/controllers/patientMovementCreationController';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { BEDS } from '@/constants/beds';
 import {

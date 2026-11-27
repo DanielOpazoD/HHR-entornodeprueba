@@ -6,18 +6,19 @@ import { CMAData } from '@/types/domain/movements';
 import { capitalizeWords } from '@/utils/stringUtils';
 import { formatRut, hasNonRutLetter, isValidRut } from '@/utils/rutUtils';
 import { buildClearPatientPatches } from '@/hooks/controllers/bedManagementPatchController';
-import { buildAtomicPatientMovementPatch, buildUndoCmaPatch } from '@/application/census/public';
+import { buildAtomicPatientMovementPatch } from '@/features/census/controllers/atomicPatientMovementPatchController';
+import { buildUndoCmaPatch } from '@/features/census/controllers/cmaUndoPatchUseCase';
 import { tombstoneMovementById } from '@/domain/movements/movementTombstonePolicy';
 import {
   convertCmaToHomeDischargeRecord,
   convertCmaToTransferRecord,
   selectMovementReclassificationSummary,
-} from '@/application/census/movementTypeConversionPolicy';
-import { buildCmaEpisodeMovementFields } from '@/application/census/cmaEpisodeMovementFields';
+} from '@/features/census/controllers/movementTypeConversionPolicy';
+import { buildCmaEpisodeMovementFields } from '@/features/census/controllers/cmaEpisodeMovementFields';
 import { ensurePatientClinicalEpisodeId } from '@/domain/clinical-episode/clinicalEpisodeIdPolicy';
 import { patientMovementRuntimeLogger } from '@/hooks/controllers/hookControllerLoggers';
-import { usePatientMovementAudit } from '@/hooks/usePatientMovementAudit';
-import { useMovementReclassificationExecution } from '@/hooks/useMovementReclassificationExecution';
+import { usePatientMovementAudit } from '@/features/census/hooks/usePatientMovementAudit';
+import { useMovementReclassificationExecution } from '@/features/census/hooks/useMovementReclassificationExecution';
 import {
   buildManualMovementProvenanceSeed,
   buildMovementProvenance,

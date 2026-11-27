@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useCMA } from '@/hooks/useCMA';
+import { useCMA } from '@/features/census/hooks/useCMA';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CMAData } from '@/types/domain/movements';

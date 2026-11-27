@@ -26,9 +26,9 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import {
   buildAtomicPatientMovementPatch,
-  resolveAddDischargeMovement,
   resolveAtomicPatientMovementListKey,
-} from '@/application/census/public';
+} from '@/features/census/controllers/atomicPatientMovementPatchController';
+import { resolveAddDischargeMovement } from '@/features/census/controllers/patientMovementCreationController';
 import { BEDS } from '@/constants/beds';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { FIELD_CHANGED_ELSEWHERE_MESSAGE } from '@/services/storage/syncErrorCatalog';

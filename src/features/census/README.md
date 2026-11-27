@@ -223,7 +223,7 @@ campo, callbacks actualizados y validación de fecha/turno antes de confirmar.
 
 ### Ejecución de movimientos
 
-`src/hooks/usePatientDischarges.ts`, `usePatientTransfers.ts` y `useCMA.ts` usan
+`src/features/census/hooks/usePatientDischarges.ts`, `usePatientTransfers.ts` y `useCMA.ts` usan
 los auxiliares de movimientos de `src/hooks`: registro vigente, feedback, auditoría
 y ejecutores de creación, modificación y deshacer. Las pruebas importan esos mismos
 owners. No se mantienen copias ni reexports locales en esta feature para los tests;

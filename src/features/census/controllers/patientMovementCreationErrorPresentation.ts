@@ -1,4 +1,4 @@
-import { MovementCreationErrorCode } from '@/application/census/controllers/patientMovementCreationController';
+import { MovementCreationErrorCode } from '@/features/census/controllers/patientMovementCreationController';
 
 export type MovementKind = 'discharge' | 'transfer';
 

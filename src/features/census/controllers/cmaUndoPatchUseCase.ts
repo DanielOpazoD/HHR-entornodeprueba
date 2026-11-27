@@ -2,7 +2,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { CMAData } from '@/types/domain/movements';
 import { tombstoneMovementsWhere } from '@/domain/movements/movementTombstonePolicy';
-import { matchesRestoredPatientDestination } from '@/application/census/movementUndoIdentityPolicy';
+import { matchesRestoredPatientDestination } from '@/features/census/controllers/movementUndoIdentityPolicy';
 
 export const buildUndoCmaPatch = (record: DailyRecord, item: CMAData): DailyRecordPatch | null => {
   if (!item.originalBedId || !item.originalData) {

@@ -6,7 +6,7 @@ import {
   resolveDeleteTransferMovement,
   resolveUpdateDischargeMovement,
   resolveUpdateTransferMovement,
-} from '@/application/census/controllers/patientMovementMutationController';
+} from '@/features/census/controllers/patientMovementMutationController';
 
 describe('patientMovementMutationController', () => {
   it('updates discharge fields for matching id', () => {

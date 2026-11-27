@@ -25,7 +25,7 @@ const ALLOWED_SINGLE_FILE_EXCEPTIONS = new Set([
   // Integrity scoring checks preserved movement snapshots to avoid misclassifying valid discharges as erasures.
   'src/utils/integrityGuard.ts',
   // Movement undo hook reads the preserved snapshot solely to restore an undone discharge/transfer.
-  'src/hooks/usePatientMovementUndoExecutor.ts',
+  'src/features/census/hooks/usePatientMovementExecutors.ts',
 ]);
 
 const isAllowedOriginalDataPath = (relativePath: string): boolean =>

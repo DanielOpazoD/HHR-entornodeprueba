@@ -6,7 +6,7 @@ import type {
 } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useAuditContext } from '@/context/AuditContext';
-import { usePatientDischarges } from '@/hooks/usePatientDischarges';
+import { usePatientDischarges } from '@/features/census/hooks/usePatientDischarges';
 import type { PatientData } from '@/types/domain/patient';
 import { DataFactory } from '@/tests/factories/DataFactory';
 

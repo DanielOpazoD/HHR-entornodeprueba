@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { usePatientMovementFeedback } from '@/hooks/usePatientMovementFeedback';
+import { usePatientMovementFeedback } from '@/features/census/hooks/usePatientMovementExecutors';
 
 describe('usePatientMovementFeedback', () => {
   it('routes creation warnings to runtime.warn when available', () => {

@@ -20,11 +20,11 @@ import { asDexieDatabase } from '@/tests/helpers/dexieTestDatabase';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { processSyncQueue } from '@/services/storage/sync';
 import { SESSION_OWNER_KEY } from '@/services/session/sessionOwnerKey';
+import { buildAtomicPatientMovementPatch } from '@/features/census/controllers/atomicPatientMovementPatchController';
 import {
-  buildAtomicPatientMovementPatch,
   resolveAddDischargeMovement,
   resolveAddTransferMovement,
-} from '@/application/census/public';
+} from '@/features/census/controllers/patientMovementCreationController';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
 import { buildClearPatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { BEDS } from '@/constants/beds';

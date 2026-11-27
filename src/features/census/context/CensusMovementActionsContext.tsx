@@ -2,9 +2,9 @@ import React, { createContext, useContext, useMemo } from 'react';
 import type { DailyRecordMovementActions } from '@/context/dailyRecordContextContracts';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useDailyRecordPersistenceActions } from '@/context/useDailyRecordScopedActions';
-import { usePatientDischarges } from '@/hooks/usePatientDischarges';
-import { usePatientTransfers } from '@/hooks/usePatientTransfers';
-import { useCMA } from '@/hooks/useCMA';
+import { usePatientDischarges } from '@/features/census/hooks/usePatientDischarges';
+import { usePatientTransfers } from '@/features/census/hooks/usePatientTransfers';
+import { useCMA } from '@/features/census/hooks/useCMA';
 
 const CensusMovementActionsContext = createContext<DailyRecordMovementActions | undefined>(
   undefined

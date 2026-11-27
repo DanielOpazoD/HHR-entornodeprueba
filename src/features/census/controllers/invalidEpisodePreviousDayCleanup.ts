@@ -7,7 +7,7 @@ import {
   tombstoneMovementsWhere,
   type TombstonableMovement,
 } from '@/domain/movements/movementTombstonePolicy';
-import { buildAtomicPatientMovementPatch } from '@/application/census/atomicPatientMovementPatchController';
+import { buildAtomicPatientMovementPatch } from '@/features/census/controllers/atomicPatientMovementPatchController';
 import { buildClearPatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import { assertDailyRecordWriteAccepted } from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';

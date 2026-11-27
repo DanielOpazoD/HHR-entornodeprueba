@@ -8,7 +8,7 @@ import type { PatientData } from '@/types/domain/patient';
 import {
   resolveAddDischargeMovement,
   resolveAddTransferMovement,
-} from '@/application/census/controllers/patientMovementCreationController';
+} from '@/features/census/controllers/patientMovementCreationController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DischargeData } from '@/types/domain/movements';
 

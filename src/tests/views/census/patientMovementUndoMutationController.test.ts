@@ -4,7 +4,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   resolveApplyUndoDischargeRecord,
   resolveApplyUndoTransferRecord,
-} from '@/application/census/controllers/patientMovementUndoMutationController';
+} from '@/features/census/controllers/patientMovementUndoMutationController';
 
 describe('patientMovementUndoMutationController', () => {
   it('applies undo for discharge by restoring bed and tombstoning discharge entry', () => {

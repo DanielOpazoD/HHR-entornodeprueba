@@ -4,7 +4,7 @@ import type { CMAData } from '@/types/domain/movements';
 
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
 import { type ControllerResult, failWithCode, ok } from '@/shared/contracts/controllerResult';
-export { buildCmaEpisodeMovementFields } from '@/application/census/cmaEpisodeMovementFields';
+export { buildCmaEpisodeMovementFields } from '@/features/census/controllers/cmaEpisodeMovementFields';
 
 export const CMA_INTERVENTION_TYPES = [
   'Cirugía Mayor Ambulatoria',

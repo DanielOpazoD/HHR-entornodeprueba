@@ -9,7 +9,10 @@ import { DischargeTimeField } from '@/features/census/components/movements/disch
 import { DischargeTypeSelector } from '@/features/census/components/movements/discharge/DischargeTypeSelector';
 import { MovementFinalStateNotice } from '@/features/census/components/movements/shared/MovementFinalStateNotice';
 import type { DischargeTarget } from '@/types/movements';
-import { shouldShowBabyStatus, shouldShowMotherStatus } from '@/application/census/public';
+import {
+  shouldShowBabyStatus,
+  shouldShowMotherStatus,
+} from '@/features/census/controllers/dischargeModalController';
 import { useDischargeModalForm } from '@/features/census/components/movements/useDischargeModalForm';
 import type { DischargeModalProps } from '@/features/census/types/censusActionModalContracts';
 

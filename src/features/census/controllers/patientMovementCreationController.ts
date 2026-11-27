@@ -5,24 +5,24 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 import type { DischargeAddCommandPayload, TransferCommandPayload } from '@/types/movements';
 import { ControllerError, ControllerResult, ok } from '@/shared/contracts/controllerResult';
-import { resolveMovementDisplayDate } from '@/application/census/controllers/censusMovementDatePresentationController';
+import { resolveMovementDisplayDate } from '@/features/census/controllers/censusMovementDatePresentationController';
 import {
   resolveOccupiedMovementSource,
   resolveMovementBedDefinition,
   type MovementAuditEntry,
   type MovementCreationErrorCode,
-} from '@/application/census/controllers/patientMovementCreationSharedController';
+} from '@/features/census/controllers/patientMovementCreationSharedController';
 import {
   buildDischargeEntries,
   resolveDischargeUpdatedBed,
-} from '@/application/census/controllers/patientMovementDischargeMutationController';
+} from '@/features/census/controllers/patientMovementDischargeMutationController';
 import {
   buildTransferEntries,
   resolveTransferUpdatedBed,
-} from '@/application/census/controllers/patientMovementTransferMutationController';
+} from '@/features/census/controllers/patientMovementTransferMutationController';
 import type { MovementProvenanceSeed } from '@/application/census/movementProvenancePolicy';
 
-export type { MovementCreationErrorCode } from '@/application/census/controllers/patientMovementCreationSharedController';
+export type { MovementCreationErrorCode } from '@/features/census/controllers/patientMovementCreationSharedController';
 export type MovementCreationError = ControllerError<MovementCreationErrorCode>;
 
 export interface AddDischargeMovementInput {

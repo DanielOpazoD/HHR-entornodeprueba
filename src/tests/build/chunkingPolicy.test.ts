@@ -164,7 +164,7 @@ describe('chunkingPolicy', () => {
     const domainModulesSource = readSource('src/hooks/useDailyRecordDomainModules.ts');
 
     expect(domainModulesSource).not.toMatch(
-      /from ['"]@\/(?:hooks\/(?:useHandoffManagement|usePatientDischarges|usePatientTransfers|useCMA|useShiftStaffManagement)|features\/handoff\/hooks\/useHandoffManagement)['"]/
+      /from ['"]@\/(?:hooks\/(?:useHandoffManagement|usePatientDischarges|usePatientTransfers|useCMA|useShiftStaffManagement)|features\/handoff\/hooks\/useHandoffManagement|features\/census\/hooks\/(?:usePatientDischarges|usePatientTransfers|useCMA))['"]/
     );
   });
 
@@ -392,7 +392,10 @@ describe('chunkingPolicy', () => {
   });
 
   it('keeps census runtime hooks off legacy audit services during startup', () => {
-    const guardedFiles = ['src/hooks/useBedAudit.ts', 'src/hooks/usePatientMovementAudit.ts'];
+    const guardedFiles = [
+      'src/hooks/useBedAudit.ts',
+      'src/features/census/hooks/usePatientMovementAudit.ts',
+    ];
 
     for (const file of guardedFiles) {
       expect(readSource(file), file).not.toMatch(

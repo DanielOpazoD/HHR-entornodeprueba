@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createEmptyPatient } from '@/domain/patient/patientFactory';
-import { buildUndoCmaPatch } from '@/application/census/cmaUndoPatchUseCase';
+import { buildUndoCmaPatch } from '@/features/census/controllers/cmaUndoPatchUseCase';
 import { preparePatchedRecordPersistence } from '@/services/repositories/dailyRecordPatchPersistenceController';
 
 const date = '2026-10-10';

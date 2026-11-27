@@ -28,13 +28,3 @@ export {
   resolveStaffSelectorsState,
 } from './controllers/censusStaffHeaderController';
 export * from '@/application/census/controllers/censusEmailRecipientsController';
-export * from '@/application/census/controllers/dischargeModalController';
-export * from '@/application/census/controllers/patientMovementCreationController';
-export * from '@/application/census/controllers/patientMovementCreationErrorPresentation';
-export * from '@/application/census/controllers/patientMovementMutationController';
-export * from '@/application/census/controllers/patientMovementRuntimeController';
-export * from '@/application/census/controllers/patientMovementSelectionController';
-export * from '@/application/census/controllers/patientMovementUndoController';
-export * from '@/application/census/controllers/patientMovementUndoErrorPresentation';
-export * from '@/application/census/controllers/patientMovementUndoMutationController';
-export * from '@/application/census/controllers/transferModalController';

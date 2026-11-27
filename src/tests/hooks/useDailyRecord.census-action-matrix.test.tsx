@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { useDailyRecord } from '@/hooks/useDailyRecord';
-import { usePatientDischarges } from '@/hooks/usePatientDischarges';
-import { usePatientTransfers } from '@/hooks/usePatientTransfers';
-import { useCMA } from '@/hooks/useCMA';
+import { usePatientDischarges } from '@/features/census/hooks/usePatientDischarges';
+import { usePatientTransfers } from '@/features/census/hooks/usePatientTransfers';
+import { useCMA } from '@/features/census/hooks/useCMA';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { UIProvider } from '@/context/UIContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
