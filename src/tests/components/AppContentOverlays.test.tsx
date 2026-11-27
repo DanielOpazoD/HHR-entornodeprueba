@@ -21,10 +21,6 @@ vi.mock('@/components/reminders/ReminderModal', () => ({
   ReminderModal: () => <div data-testid="reminder-modal">ReminderModal</div>,
 }));
 
-vi.mock('@/components/debug/TestAgent', () => ({
-  TestAgent: () => <div data-testid="test-agent">TestAgent</div>,
-}));
-
 vi.mock('@/components/security/PinLockScreen', () => ({
   PinLockScreen: () => <div data-testid="pin-lock">PinLockScreen</div>,
 }));
@@ -46,7 +42,7 @@ beforeAll(flushLazyBypassComponents);
 
 describe('AppContentOverlays', () => {
   const buildUi = (overrides?: Parameters<typeof createShellUiMock>[0]) =>
-    createShellUiMock({ isTestAgentRunning: true, ...overrides });
+    createShellUiMock(overrides);
 
   const buildRuntime = (showEmailConfig = true) =>
     createShellRuntimeMock({
@@ -64,7 +60,6 @@ describe('AppContentOverlays', () => {
     );
 
     expect(screen.queryByTestId('reminder-modal')).not.toBeInTheDocument();
-    expect(screen.getByTestId('test-agent')).toBeInTheDocument();
     expect(screen.queryByTestId('patient-search-modal')).not.toBeInTheDocument();
     expect(screen.getByTestId('pin-lock')).toBeInTheDocument();
     expect(screen.getByTestId('storage-badge')).toBeInTheDocument();
@@ -79,18 +74,6 @@ describe('AppContentOverlays', () => {
     );
 
     expect(screen.getByTestId('reminder-modal')).toBeInTheDocument();
-  });
-
-  it('loads the test agent only while it is running', () => {
-    render(
-      <AppContentOverlays
-        ui={buildUi({ isTestAgentRunning: false })}
-        runtime={buildRuntime()}
-        overlayViews={overlayViews}
-      />
-    );
-
-    expect(screen.queryByTestId('test-agent')).not.toBeInTheDocument();
   });
 
   it('mounts patient search only when the modal is open', () => {

@@ -95,8 +95,6 @@ describe('useAppContentRuntime', () => {
     showPrintButton: true,
     showBookmarksBar: true,
     setShowBookmarksBar: vi.fn(),
-    isTestAgentRunning: false,
-    setIsTestAgentRunning: vi.fn(),
     selectedShift: 'day',
     setSelectedShift: vi.fn(),
   } as const;

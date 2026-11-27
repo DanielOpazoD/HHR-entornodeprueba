@@ -140,23 +140,6 @@ describe('useAppState', () => {
     });
   });
 
-  describe('Test Agent State', () => {
-    it('should initialize isTestAgentRunning as false', () => {
-      const { result } = renderHook(() => useAppState());
-      expect(result.current.isTestAgentRunning).toBe(false);
-    });
-
-    it('should update test agent running state', () => {
-      const { result } = renderHook(() => useAppState());
-
-      act(() => {
-        result.current.setIsTestAgentRunning(true);
-      });
-
-      expect(result.current.isTestAgentRunning).toBe(true);
-    });
-  });
-
   describe('Derived State: showPrintButton', () => {
     it('should be false for CENSUS module', () => {
       const { result } = renderHook(() => useAppState());

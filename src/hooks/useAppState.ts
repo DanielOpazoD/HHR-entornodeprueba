@@ -41,10 +41,6 @@ export interface UseAppStateReturn {
   bedManagerModal: UseModalReturn;
   patientSearchModal: UseModalReturn;
 
-  // Feature flags
-  isTestAgentRunning: boolean;
-  setIsTestAgentRunning: (v: boolean) => void;
-
   // Shift state (shared between views and global actions)
   selectedShift: 'day' | 'night';
   setSelectedShift: (s: 'day' | 'night') => void;
@@ -82,9 +78,6 @@ export function useAppState(options: UseAppStateOptions = {}): UseAppStateReturn
   const bedManagerModal = useModal();
   const patientSearchModal = useModal();
 
-  // Feature flags
-  const [isTestAgentRunning, setIsTestAgentRunning] = useState(false);
-
   // Bookmarks bar toggle
   const [showBookmarksBar, setShowBookmarksBar] = useState(false);
 
@@ -115,10 +108,6 @@ export function useAppState(options: UseAppStateOptions = {}): UseAppStateReturn
       bedManagerModal,
       patientSearchModal,
 
-      // Feature flags
-      isTestAgentRunning,
-      setIsTestAgentRunning,
-
       // Shift
       selectedShift,
       setSelectedShift,
@@ -135,7 +124,6 @@ export function useAppState(options: UseAppStateOptions = {}): UseAppStateReturn
       censusViewMode,
       bedManagerModal,
       patientSearchModal,
-      isTestAgentRunning,
       selectedShift,
       showPrintButton,
       showBookmarksBar,

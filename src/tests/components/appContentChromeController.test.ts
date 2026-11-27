@@ -130,8 +130,6 @@ const createChromeUi = (overrides: Partial<UseUIStateReturn> = {}): UseUIStateRe
   setCensusViewMode: vi.fn(),
   bedManagerModal: createModalState(),
   patientSearchModal: createModalState(),
-  isTestAgentRunning: false,
-  setIsTestAgentRunning: vi.fn(),
   selectedShift: 'day',
   setSelectedShift: vi.fn(),
   showPrintButton: true,
