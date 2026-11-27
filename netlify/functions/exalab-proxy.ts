@@ -5,6 +5,7 @@ import { authorizeRoleRequest } from './lib/firebase-auth';
 import { safeErrorLog } from './lib/safe-error-message';
 import {
   buildCorsHeaders,
+  buildCorsPreflightResponse,
   buildJsonResponse,
   getHeader,
   getClientIp,
@@ -57,7 +58,11 @@ export const createExalabProxyHandler =
       });
     if (!extensionConnect && !isOriginAllowed(origin))
       return json(403, { success: false, error: 'Origen no autorizado.' });
-    if (event.httpMethod === 'OPTIONS') return json(200, {});
+    if (event.httpMethod === 'OPTIONS') {
+      return buildCorsPreflightResponse(requestOrigin, {
+        extraHeaders: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },
+      });
+    }
     if (!target || event.httpMethod !== target.method)
       return json(400, { success: false, error: 'Acción o método no válido.' });
     if (

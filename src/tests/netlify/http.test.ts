@@ -1,4 +1,6 @@
 // @vitest-environment node
+import fs from 'node:fs';
+import path from 'node:path';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -233,10 +235,11 @@ describe('http utilities', () => {
       expect(headers.Vary).toBe('Origin');
     });
 
-    it('forwards scoped allowedMethods and allowedHeaders options', () => {
+    it('forwards scoped allowedMethods, allowedHeaders, and extraHeaders options', () => {
       const res = buildCorsPreflightResponse('https://app.example.com', {
         allowedHeaders: 'Content-Type',
         allowedMethods: 'POST,OPTIONS',
+        extraHeaders: { 'Cache-Control': 'no-store' },
       });
       const headers = res.headers as Record<string, string>;
       expect(res.statusCode).toBe(200);
@@ -244,6 +247,28 @@ describe('http utilities', () => {
       expect(headers['Content-Length']).toBe('0');
       expect(headers['Access-Control-Allow-Headers']).toBe('Content-Type');
       expect(headers['Access-Control-Allow-Methods']).toBe('POST,OPTIONS');
+      expect(headers['Cache-Control']).toBe('no-store');
+    });
+
+    it('is used by every Netlify HTTP endpoint that handles OPTIONS preflight', () => {
+      const functionsDir = path.resolve(process.cwd(), 'netlify/functions');
+      const functionFiles = fs
+        .readdirSync(functionsDir)
+        .filter(file => file.endsWith('.ts'))
+        .sort();
+
+      const optionsHandlersWithoutHelper: string[] = [];
+      for (const file of functionFiles) {
+        const source = fs.readFileSync(path.join(functionsDir, file), 'utf8');
+        if (
+          source.includes("httpMethod === 'OPTIONS'") &&
+          !source.includes('buildCorsPreflightResponse(')
+        ) {
+          optionsHandlersWithoutHelper.push(file);
+        }
+      }
+
+      expect(optionsHandlersWithoutHelper).toEqual([]);
     });
   });
 
