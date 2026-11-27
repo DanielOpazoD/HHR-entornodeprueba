@@ -120,7 +120,7 @@ it('splits the canonical preview pack into lanes that cover every spec', () => {
     '--grep',
     GRAPHICS_STRESS_TAG,
   ]);
-  const explicitDicomLanes = ['dicom-1', 'dicom-2', 'dicom-3', 'dicom-4'] as const;
+  const explicitDicomLanes = ['dicom-1', 'dicom-2'] as const;
   const allExplicitTitles = explicitDicomLanes.flatMap(lane => DICOM_BALANCED_LANE_TITLES[lane]);
   expect(new Set(allExplicitTitles).size).toBe(allExplicitTitles.length);
 
@@ -137,24 +137,17 @@ it('splits the canonical preview pack into lanes that cover every spec', () => {
     expect(() => new RegExp(args[5])).not.toThrow();
   }
 
-  expect(lanes['dicom-5'].slice(0, 3)).toEqual([
+  expect(lanes['dicom-3'].slice(0, 3)).toEqual([
     DICOM_PREVIEW_SPEC,
     '--fully-parallel',
     '--grep-invert',
   ]);
-  expect(lanes['dicom-5']).toHaveLength(4);
-  expect(() => new RegExp(lanes['dicom-5'][3])).not.toThrow();
+  expect(lanes['dicom-3']).toHaveLength(4);
+  expect(() => new RegExp(lanes['dicom-3'][3])).not.toThrow();
 
-  // Prove exact 1x partitioning across all six DICOM lanes, including any future test
-  // not listed in DICOM_BALANCED_LANE_TITLES (which must fall cleanly into dicom-5).
-  const dicomLaneNames = [
-    'dicom-graphics-stress',
-    'dicom-1',
-    'dicom-2',
-    'dicom-3',
-    'dicom-4',
-    'dicom-5',
-  ] as const;
+  // Prove exact 1x partitioning across all four DICOM lanes, including any future test
+  // not listed in DICOM_BALANCED_LANE_TITLES (which must fall cleanly into dicom-3).
+  const dicomLaneNames = ['dicom-graphics-stress', 'dicom-1', 'dicom-2', 'dicom-3'] as const;
   const matchesLane = (laneName: (typeof dicomLaneNames)[number], fullTitle: string) => {
     const args = lanes[laneName];
     const grepIdx = args.indexOf('--grep');
@@ -188,7 +181,7 @@ it('splits the canonical preview pack into lanes that cover every spec', () => {
         'dicom-viewer.spec.ts DICOM viewer and Salvador annexes newly added future dicom test'
       )
     )
-  ).toEqual(['dicom-5']);
+  ).toEqual(['dicom-3']);
 
   expect(fs.readFileSync(DICOM_PREVIEW_SPEC, 'utf8')).toContain(
     `{ tag: '${GRAPHICS_STRESS_TAG}' }`

@@ -745,7 +745,7 @@ artefacto `dist`. Cada carril de `preview-smoke-lanes` descarga ese mismo bundle
 ejecuta un tramo del pack:
 `app` (censo, biblioteca, panel clínico, historial y arrastre clínico),
 `dicom-graphics-stress` (la prueba etiquetada `@graphics-stress`: el ciclo de estrés
-de WebGL por software) y los cinco tramos `dicom-1` a `dicom-5` del resto del
+de WebGL por software) y los tres tramos `dicom-1` a `dicom-3` del resto del
 visor DICOM. Los carriles se reparten por
 duración observada, no por número de pruebas; se definen en
 `scripts/previewSmokeLaneSupport.mjs`.
