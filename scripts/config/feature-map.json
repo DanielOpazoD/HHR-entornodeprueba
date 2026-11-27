@@ -1173,6 +1173,27 @@
       "rules": ["ID-01", "TIME-02"]
     },
     {
+      "id": "documents.diat-internal",
+      "name": "Formulario interno de accidente del trabajo (DIAT ACHS)",
+      "owner": "src/features/clinical-library",
+      "reach": {
+        "screen": "Documentos → Formularios → «Denuncia Individual de Accidente del Trabajo (DIAT)» → Completar",
+        "controls": [{ "text": "Denuncia Individual de Accidente del Trabajo (DIAT)" }]
+      },
+      "gate": [
+        "src/features/clinical-library/components/tools/ClinicalFormTool.tsx",
+        "src/features/clinical-library/domain/libraryCatalog.ts",
+        "src/features/clinical-library/domain/forms/denuncia-accidente-trabajo-diat.json"
+      ],
+      "tests": [
+        "src/tests/features/clinical-library/ClinicalLibraryDrawer.test.tsx",
+        "src/tests/features/clinical-library/clinicalFormImportFailures.test.tsx",
+        "src/tests/features/clinical-library/clinicalFormPdf.test.ts",
+        "e2e/clinical-library-smoke.spec.ts › completes and downloads an internal DIAT with no patient context"
+      ],
+      "rules": []
+    },
+    {
       "id": "census.upc-pending-round",
       "name": "Navegar y confirmar evaluaciones UPC pendientes del día",
       "owner": "src/features/census",

@@ -22,7 +22,6 @@ vi.mock('@/features/clinical-library/services/sicFormPdf', () => ({
 const Wrapper = ({ uid }: { uid: string }) => (
   <AuthContext.Provider value={{ currentUser: { uid } } as unknown as AuthContextType}>
     <ClinicalFormTool
-      patients={[]}
       formId="solicitud-interconsulta-hhr"
       onFormChange={vi.fn()}
       onBack={vi.fn()}

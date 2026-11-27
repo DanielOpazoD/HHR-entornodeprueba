@@ -10,6 +10,7 @@ import {
   CLINICAL_VARIABLE_CATALOG,
   CLINICAL_VARIABLE_IDS,
   getClinicalForm,
+  PATIENT_CLINICAL_FORMS,
 } from './clinicalFormCatalog';
 import { parseFormDate } from './clinicalFormDates';
 import { isEmptyFormValue } from './clinicalFormPatient';
@@ -21,13 +22,14 @@ import type {
 } from './clinicalFormTypes';
 
 const MAX_TEXT_LENGTH = 12_000;
-const fieldsById = new Map(
-  CLINICAL_FORMS.flatMap(form => form.fields.map(field => [field.id, field] as const))
+const fieldIds = new Set(CLINICAL_FORMS.flatMap(form => form.fields.map(field => field.id)));
+const patientFieldIds = new Set(
+  PATIENT_CLINICAL_FORMS.flatMap(form => form.fields.map(field => field.id))
 );
 
 export const hasClinicalFormData = (values: ClinicalFormValues): boolean =>
   Object.entries(values).some(
-    ([id, value]) => fieldsById.has(id.split('::').at(-1) ?? id) && !isEmptyFormValue(value)
+    ([id, value]) => fieldIds.has(id.split('::').at(-1) ?? id) && !isEmptyFormValue(value)
   );
 
 // Emission dates belong to each document, while patient and episode facts are shared.
@@ -46,12 +48,15 @@ export const storedClinicalFormValues = (
 export const projectedClinicalFormValues = (
   formId: ClinicalFormId,
   values: ClinicalFormValues
-): ClinicalFormValues => ({
-  ...Object.fromEntries(Object.entries(values).filter(([id]) => !id.includes('::'))),
-  [documentVariable]:
-    values[`${formId}::${documentVariable}`] ??
-    (formId === SIC_FORM_ID ? getClinicalCalendarDateISO() : null),
-});
+): ClinicalFormValues => {
+  if (getClinicalForm(formId).internalOnly) return values;
+  return {
+    ...Object.fromEntries(Object.entries(values).filter(([id]) => !id.includes('::'))),
+    [documentVariable]:
+      values[`${formId}::${documentVariable}`] ??
+      (formId === SIC_FORM_ID ? getClinicalCalendarDateISO() : null),
+  };
+};
 export const storedClinicalFormVariableId = (formId: ClinicalFormId, id: string): string =>
   id === documentVariable ? `${formId}::${id}` : id;
 
@@ -104,8 +109,10 @@ export const setClinicalFormValue = (
 export const exportClinicalFormDraft = (
   formId: ClinicalFormId,
   values: ClinicalFormValues
-): string =>
-  JSON.stringify(
+): string => {
+  const form = getClinicalForm(formId);
+  const draftFieldIds = new Set(form.fields.map(field => field.id));
+  return JSON.stringify(
     {
       kind: 'hhr-clinical-form-draft',
       version: 1,
@@ -114,14 +121,14 @@ export const exportClinicalFormDraft = (
         Object.entries(values).filter(
           ([id]) =>
             !isSuppressedClinicalFormVariable(id) &&
-            (CLINICAL_VARIABLE_IDS.has(id) ||
-              getClinicalForm(formId).fields.some(field => field.id === id))
+            (draftFieldIds.has(id) || (!form.internalOnly && CLINICAL_VARIABLE_IDS.has(id)))
         )
       ),
     },
     null,
     2
   );
+};
 
 export const importClinicalFormDraft = (
   text: string
@@ -147,19 +154,27 @@ export const importClinicalFormDraft = (
   ) {
     throw new Error('Este archivo no es un borrador de formularios clínicos compatible.');
   }
+  const form = getClinicalForm(data.formId as ClinicalFormId);
+  const draftFieldIds = form.internalOnly
+    ? new Set(form.fields.map(field => field.id))
+    : patientFieldIds;
   const values: ClinicalFormValues = {};
   for (const [id, value] of Object.entries(data.values)) {
     if (isSuppressedClinicalFormVariable(id)) continue;
     // VMI revision 2 prints patient identification only. Older drafts may still
     // contain observations, alarms or signatures; never restore those values.
     if (data.formId === 'planilla-monitorizacion-ventilatoria' && id.startsWith('vmi_')) continue;
-    if (!fieldsById.has(id) && !CLINICAL_VARIABLE_IDS.has(id))
+    if (!draftFieldIds.has(id) && (form.internalOnly || !CLINICAL_VARIABLE_IDS.has(id)))
       throw new Error('El borrador contiene variables desconocidas.');
     if (value !== null && typeof value !== 'string' && typeof value !== 'boolean')
       throw new Error('Valor de borrador no válido.');
     if (typeof value === 'string' && value.length > MAX_TEXT_LENGTH)
       throw new Error('Un texto del borrador es demasiado largo.');
     values[id] = value;
+  }
+  if (form.internalOnly) {
+    validateClinicalFormValues(form, values, [], false);
+    return { formId: form.id, values };
   }
   for (const variable of CLINICAL_VARIABLE_CATALOG.variables) {
     const value = values[variable.id];
@@ -175,7 +190,9 @@ export const importClinicalFormDraft = (
     }
   }
   // Drafts can retain a partially entered RUT; full identity validation runs before printing.
-  CLINICAL_FORMS.forEach(form => validateClinicalFormValues(form, values, [], false));
+  PATIENT_CLINICAL_FORMS.forEach(candidate =>
+    validateClinicalFormValues(candidate, values, [], false)
+  );
   const rut = values.paciente_rut;
   if (
     !isEmptyFormValue(rut) &&
@@ -192,7 +209,7 @@ export const importClinicalFormDraft = (
       'El RUT y el documento del borrador no coinciden. Revisa el archivo antes de importarlo.'
     );
   }
-  return { formId: getClinicalForm(data.formId as ClinicalFormId).id, values };
+  return { formId: form.id, values };
 };
 
 /** Suppressed variables are deliberately blank and do not block printing. */

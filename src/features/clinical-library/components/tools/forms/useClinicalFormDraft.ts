@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getClinicalForm } from '../../../domain/forms/clinicalFormCatalog';
 import {
   hasClinicalFormData,
   importClinicalFormDraft,
@@ -39,6 +40,7 @@ export const useClinicalFormDraft = (
   onFormChange: (id: ClinicalFormId) => void,
   onDirtyChange?: (dirty: boolean) => void
 ) => {
+  const form = getClinicalForm(formId);
   const [storedValues, setValues] = useState<ClinicalFormValues>({});
   const valuesRef = useRef(storedValues);
   const values = projectedClinicalFormValues(formId, storedValues);
@@ -100,7 +102,7 @@ export const useClinicalFormDraft = (
     else replace(next);
   };
   const selectPatient = (key: string) => {
-    if (key === (source?.key ?? '')) return;
+    if (form.internalOnly || key === (source?.key ?? '')) return;
     const patient = patients.find(item => item.key === key);
     if (key && !patient) return;
     importSequence.current += 1;
@@ -135,6 +137,12 @@ export const useClinicalFormDraft = (
       });
       if (sequence !== importSequence.current) return;
       const imported = importClinicalFormDraft(text);
+      if (
+        imported.formId !== formId &&
+        (form.internalOnly || getClinicalForm(imported.formId).internalOnly)
+      ) {
+        throw new Error('Abre el formulario correspondiente para importar este borrador.');
+      }
       setNotice('');
       request({ ...imported, source: null });
     } catch (error) {

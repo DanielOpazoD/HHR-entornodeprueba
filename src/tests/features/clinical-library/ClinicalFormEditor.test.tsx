@@ -3,7 +3,7 @@ import { downloadBlob } from '@/utils/downloadBlob';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClinicalFormEditor } from '@/features/clinical-library/components/tools/forms/ClinicalFormEditor';
-import { CLINICAL_FORMS } from '@/features/clinical-library/domain/forms/clinicalFormCatalog';
+import { PATIENT_CLINICAL_FORMS } from '@/features/clinical-library/domain/forms/clinicalFormCatalog';
 import type {
   ClinicalFormId,
   ClinicalFormPatientOption,
@@ -145,8 +145,11 @@ describe('clinical forms editor', () => {
 
   it('shares canonical variables across all templates and does not preselect clinical answers', () => {
     mount();
+    expect(
+      within(screen.getByLabelText('Formulario clínico')).queryByRole('option', { name: /DIAT/ })
+    ).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Origen de los datos'), { target: { value: 'ALFA' } });
-    for (const form of CLINICAL_FORMS) {
+    for (const form of PATIENT_CLINICAL_FORMS) {
       fireEvent.change(screen.getByLabelText('Formulario clínico'), { target: { value: form.id } });
       expect(screen.getByRole('heading', { name: form.title })).toBeInTheDocument();
       if (form.fields.some(field => field.id === 'paciente_nombre_completo')) {

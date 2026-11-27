@@ -13,7 +13,10 @@ import {
   type ClinicalFormDefinition,
   type ClinicalFormValues,
 } from '@/features/clinical-library/domain/forms/clinicalFormTypes';
-import { createClinicalFormPdf } from '@/features/clinical-library/services/clinicalFormPdf';
+import {
+  createClinicalFormPdf,
+  targetText,
+} from '@/features/clinical-library/services/clinicalFormPdf';
 import { layoutClinicalFormText } from '@/features/clinical-library/services/clinicalFormPdfLayout';
 
 const template = (form: ClinicalFormDefinition) =>
@@ -52,10 +55,10 @@ const sample = (form: ClinicalFormDefinition): ClinicalFormValues =>
 describe('original clinical form print contracts', () => {
   it('covers every requested template and uses common variables consistently', () => {
     expect(CLINICAL_FORMS.map(form => form.id).sort()).toEqual([...CLINICAL_FORM_IDS].sort());
-    expect(CLINICAL_FORMS.flatMap(form => form.fields).length).toBe(558);
+    expect(CLINICAL_FORMS.flatMap(form => form.fields).length).toBe(613);
     const common = new Set(CLINICAL_VARIABLE_CATALOG.variables.map(variable => variable.id));
     const prefixes =
-      /^(imagen|contraste|consentimiento|laboratorio|transfusion|vdrl|serologia|tbc|traslado|vmi|braden|sic)_/;
+      /^(imagen|contraste|consentimiento|laboratorio|transfusion|vdrl|serologia|tbc|traslado|vmi|braden|sic|diat)_/;
     for (const form of CLINICAL_FORMS) {
       expect(new Set(form.fields.map(field => field.id)).size).toBe(form.fields.length);
       expect(form.catalogVersion).toBe(CLINICAL_VARIABLE_CATALOG.version);
@@ -71,6 +74,19 @@ describe('original clinical form print contracts', () => {
           ).toBe(true);
         }
       }
+    }
+  });
+
+  it('uses the DIAT hour and exactly one A.M. or P.M. mark in each entered time', () => {
+    const form = getClinicalForm('denuncia-accidente-trabajo-diat');
+    expect(form.fields.every(field => field.id.startsWith('diat_'))).toBe(true);
+    const timeFields = form.fields.filter(field => field.kind === 'time');
+    expect(timeFields).toHaveLength(3);
+    for (const { targets } of timeFields) {
+      expect(targets.map(target => targetText(target, '00:05'))).toEqual(['12:05', 'X', '']);
+      expect(targets.map(target => targetText(target, '12:00'))).toEqual(['12:00', '', 'X']);
+      expect(targets.map(target => targetText(target, '18:40'))).toEqual(['06:40', '', 'X']);
+      expect(targets.map(target => targetText(target, null))).toEqual(['', '', '']);
     }
   });
 

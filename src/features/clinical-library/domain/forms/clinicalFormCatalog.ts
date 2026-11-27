@@ -1,3 +1,4 @@
+import diat from './denuncia-accidente-trabajo-diat.json';
 import interconsultation from './solicitud-interconsulta-hhr.json';
 import imaging from './solicitud-imagenologia.json';
 import contrast from './encuesta-contraste.json';
@@ -15,6 +16,7 @@ import type { ClinicalFormDefinition, ClinicalFormId } from './clinicalFormTypes
 
 /** Loaded only when a form editor opens. Blank source assets stay outside the startup bundle. */
 export const CLINICAL_FORMS: ReadonlyArray<ClinicalFormDefinition> = [
+  diat,
   interconsultation,
   laboratory,
   imaging,
@@ -28,6 +30,8 @@ export const CLINICAL_FORMS: ReadonlyArray<ClinicalFormDefinition> = [
   ventilation,
   transfer,
 ] as ClinicalFormDefinition[];
+
+export const PATIENT_CLINICAL_FORMS = CLINICAL_FORMS.filter(form => !form.internalOnly);
 
 export const CLINICAL_VARIABLE_CATALOG = variables;
 export const CLINICAL_VARIABLE_IDS = new Set(variables.variables.map(variable => variable.id));

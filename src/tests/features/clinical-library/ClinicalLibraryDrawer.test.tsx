@@ -103,6 +103,24 @@ describe('ClinicalLibraryDrawer', () => {
     );
   });
 
+  it('opens the internal DIAT by search and protects edits without a patient selector', async () => {
+    renderDrawer();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'DIAT' } });
+    const card = within(screen.getByTestId('library-document-denuncia-accidente-trabajo-diat'));
+    expect(card.getByText('PDF · 2 pág.')).toBeInTheDocument();
+    fireEvent.click(card.getByRole('button', { name: /^Completar/ }));
+    expect(await screen.findByRole('heading', { name: /DIAT/ })).toBeInTheDocument();
+    expect(screen.getByText(/Uso interno del personal/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Origen de los datos')).not.toBeInTheDocument();
+    const worker = screen.getByLabelText('Nombres y apellidos del trabajador/a');
+    expect(worker).toHaveValue('');
+    fireEvent.change(worker, { target: { value: 'TRABAJADOR DE PRUEBA' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a la biblioteca' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Seguir editando' }));
+    expect(worker).toHaveValue('TRABAJADOR DE PRUEBA');
+    expect(worker).toBeVisible();
+  });
+
   it('opens a tool in place, hides the search while inside and returns to the list', () => {
     renderDrawer();
     fireEvent.click(screen.getByTestId('library-tool-infusion'));
