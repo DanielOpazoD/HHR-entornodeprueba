@@ -9,7 +9,7 @@ import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { useUpcClassificationWindowOpener } from './UpcClassificationWindowContext';
-import { resolveUpcCellSubjectIdentity } from './upcPendingOpenGuard';
+import { resolveUpcCellSubjectIdentity } from './upcCellSubjectIdentity';
 
 interface UpcChecklistCellProps extends BaseCellProps {
   currentDateString: string;
