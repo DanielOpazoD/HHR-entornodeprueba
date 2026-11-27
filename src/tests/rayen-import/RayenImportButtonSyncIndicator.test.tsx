@@ -1,6 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
+import { SYNC_TONE, SYNC_TONE_INFO_VARIANT } from '@/features/rayen-import/components/syncTone';
+import {
+  createIdleRayenFillProgress,
+  createRayenImportState,
+  createReadyRayenExtensionHealth,
+} from './rayenImportButtonTestFixtures';
 
 const mocks = vi.hoisted(() => ({
   useDailyRecordData: vi.fn(),
@@ -14,14 +20,12 @@ vi.mock('@/features/rayen-import/hooks/useRayenImport', () => ({
   useRayenImport: () => mocks.useRayenImport(),
 }));
 vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
-  useRayenFillProgress: () => ({ running: false, done: 0, total: 0, errors: 0 }),
+  useRayenFillProgress: () => createIdleRayenFillProgress(),
 }));
 vi.mock('@/features/rayen-import/hooks/useRayenExtensionHealth', () => ({
   useRayenExtensionHealth: () => ({
-    connection: 'ready',
-    canSync: true,
+    ...createReadyRayenExtensionHealth({ report: null }),
     refresh: vi.fn(),
-    report: null,
   }),
 }));
 vi.mock('@/features/rayen-import/components/RayenImportPreviewModal', () => ({
@@ -52,37 +56,24 @@ describe('RayenImportButton sync indicator', () => {
         ],
       },
     });
-    mocks.useRayenImport.mockReturnValue({
-      mode: 'preview',
-      execution: {
-        context: null,
-        pending: null,
-        stage: { type: 'syncing_clinical' },
-        outcome: { structuralConflicts: 0, skippedItems: 0 },
-      },
-      diff: null,
-      isPreviewOpen: false,
-      result: null,
-      error: null,
-      staffingProposal: null,
-      isStaffingProposalBusy: false,
-      staffingProposalError: null,
-      triggerImport: vi.fn(),
-      retryClinicalFill: vi.fn(),
-      confirm: vi.fn(),
-      cancel: vi.fn(),
-      confirmStaffingProposal: vi.fn(),
-      dismissStaffingProposal: vi.fn(),
-    });
+    mocks.useRayenImport.mockReturnValue(
+      createRayenImportState({
+        execution: {
+          context: null,
+          pending: null,
+          stage: { type: 'syncing_clinical' },
+          outcome: { structuralConflicts: 0, skippedItems: 0 },
+        },
+      })
+    );
   });
 
-  it('uses a neutral processing indicator instead of an amber warning while synchronizing', () => {
+  it('uses a neutral processing indicator instead of a warning tone while synchronizing', () => {
     render(<RayenImportButton />);
 
-    expect(screen.getByTestId('rayen-sync-history-indicator')).toHaveClass('bg-slate-300');
-    expect(screen.getByTestId('rayen-sync-history-indicator')).not.toHaveClass(
-      'bg-amber-500',
-      'animate-pulse'
-    );
+    const indicator = screen.getByTestId('rayen-sync-history-indicator');
+    expect(indicator).not.toHaveAttribute('data-tone');
+    expect(indicator).toHaveClass(SYNC_TONE_INFO_VARIANT.idle.dot);
+    expect(indicator).not.toHaveClass(SYNC_TONE.review.dot, SYNC_TONE.action.dot, 'animate-pulse');
   });
 });

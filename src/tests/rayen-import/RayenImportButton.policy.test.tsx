@@ -1,7 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
-import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
+import {
+  createIdleRayenFillProgress,
+  createRayenImportState,
+  createReadyRayenExtensionHealth,
+} from './rayenImportButtonTestFixtures';
 
 const mocks = vi.hoisted(() => ({
   triggerImport: vi.fn(),
@@ -16,28 +20,11 @@ vi.mock('@/features/rayen-import/hooks/useRayenImport', () => ({
   useRayenImport: () => mocks.useRayenImport(),
 }));
 vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
-  useRayenFillProgress: () => ({
-    running: false,
-    done: 0,
-    total: 0,
-    errors: 0,
-    outcome: null,
-    attemptId: null,
-    staffingOutcome: null,
-  }),
+  useRayenFillProgress: () => createIdleRayenFillProgress(),
 }));
 vi.mock('@/features/rayen-import/hooks/useRayenExtensionHealth', () => ({
   useRayenExtensionHealth: () => ({
-    connection: 'ready',
-    report: {
-      version: '0.48.61',
-      protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
-      checkedAt: '2026-07-14T05:00:00.000Z',
-      fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
-      gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
-    },
-    message: 'Extensión Eloísa v0.6.0 operativa.',
-    canSync: true,
+    ...createReadyRayenExtensionHealth(),
     refresh: mocks.refreshHealth,
   }),
 }));
@@ -45,25 +32,8 @@ vi.mock('@/features/rayen-import/components/RayenImportPreviewModal', () => ({
   RayenImportPreviewModal: () => null,
 }));
 
-const importState = (policyStatus: 'ready' | 'loading' | 'unauthorized') => ({
-  mode: 'preview',
-  policyStatus,
-  policyBlockReason: null,
-  execution: null,
-  diff: null,
-  isPreviewOpen: false,
-  result: null,
-  error: null,
-  staffingProposal: null,
-  isStaffingProposalBusy: false,
-  staffingProposalError: null,
-  triggerImport: mocks.triggerImport,
-  retryClinicalFill: vi.fn(),
-  confirm: vi.fn(),
-  cancel: vi.fn(),
-  confirmStaffingProposal: vi.fn(),
-  dismissStaffingProposal: vi.fn(),
-});
+const importState = (policyStatus: 'ready' | 'loading' | 'unauthorized') =>
+  createRayenImportState({ policyStatus, triggerImport: mocks.triggerImport });
 
 describe('RayenImportButton policy readiness', () => {
   beforeEach(() => {

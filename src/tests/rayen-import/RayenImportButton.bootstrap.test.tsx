@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as healthBridge from '@/features/rayen-import/bridge/extensionHealthBridge';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
 import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
+import {
+  createIdleRayenFillProgress,
+  createRayenImportState,
+  createReadyRayenExtensionHealth,
+} from './rayenImportButtonTestFixtures';
 
 const { RAYEN_FILL_STALE_AFTER_MS } = await vi.importActual<
   typeof import('@/features/rayen-import/hooks/useRayenFillStatus')
@@ -50,59 +55,20 @@ vi.mock('@/features/rayen-import/components/RayenImportPreviewModal', () => ({
   RayenImportPreviewModal: () => null,
 }));
 
-/**
- * Estado del hook tal como lo publica en producción: `policyStatus` es explícito siempre, para
- * que ninguna prueba pueda pasar por un valor ausente que finja una política ya confirmada.
- */
-const importState = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
-  mode: 'preview',
-  policyStatus: 'ready',
-  policyBlockReason: null,
-  execution: null,
-  diff: null,
-  isPreviewOpen: false,
-  result: null,
-  error: null,
-  staffingProposal: null,
-  isStaffingProposalBusy: false,
-  staffingProposalError: null,
-  triggerImport: mocks.triggerImport,
-  retryClinicalFill: vi.fn(),
-  confirm: mocks.confirm,
-  cancel: vi.fn(),
-  confirmStaffingProposal: vi.fn(),
-  dismissStaffingProposal: vi.fn(),
-  ...overrides,
-});
+const importState = (overrides: Record<string, unknown> = {}): Record<string, unknown> =>
+  createRayenImportState({
+    triggerImport: mocks.triggerImport,
+    confirm: mocks.confirm,
+    ...overrides,
+  });
 
 describe('RayenImportButton · inicio del día desde Eloísa', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
     mocks.useRayenImport.mockReturnValue(importState());
-    mocks.useRayenFillProgress.mockReturnValue({
-      running: false,
-      done: 0,
-      total: 0,
-      errors: 0,
-      lastCompletedAt: null,
-      outcome: null,
-      attemptId: null,
-      staffingOutcome: null,
-    });
-    const readyHealth = {
-      connection: 'ready',
-      report: {
-        version: '0.48.61',
-        protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
-        capabilities: ['sync-preflight-verification'],
-        checkedAt: '2026-09-09T05:00:00.000Z',
-        fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
-        gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
-      },
-      message: 'Extensión Eloísa v0.6.0 operativa.',
-      canSync: true,
-    };
+    mocks.useRayenFillProgress.mockReturnValue(createIdleRayenFillProgress());
+    const readyHealth = createReadyRayenExtensionHealth();
     mocks.refreshHealth.mockResolvedValue(readyHealth);
     mocks.useRayenExtensionHealth.mockReturnValue({
       ...readyHealth,

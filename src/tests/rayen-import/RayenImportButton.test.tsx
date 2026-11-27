@@ -5,6 +5,11 @@ import {
   RAYEN_EXTENSION_PROTOCOL_VERSION,
   RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
 } from '@/features/rayen-import/bridge/extensionHealthBridge';
+import {
+  createIdleRayenFillProgress,
+  createRayenImportState,
+  createReadyRayenExtensionHealth,
+} from './rayenImportButtonTestFixtures';
 
 const mocks = vi.hoisted(() => ({
   triggerImport: vi.fn(),
@@ -44,49 +49,15 @@ vi.mock('@/features/rayen-import/components/RayenImportPreviewModal', () => ({
 describe('RayenImportButton', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.useRayenImport.mockReturnValue({
-      mode: 'preview',
-      // Explícito siempre: sin política confirmada no hay sincronización posible,
-      // y ningún caso de prueba debe heredar una confirmación que no declaró.
-      policyStatus: 'ready',
-      policyBlockReason: null,
-      execution: null,
-      diff: null,
-      isPreviewOpen: false,
-      result: null,
-      error: null,
-      staffingProposal: null,
-      isStaffingProposalBusy: false,
-      staffingProposalError: null,
-      triggerImport: mocks.triggerImport,
-      retryClinicalFill: mocks.retryClinicalFill,
-      confirm: mocks.confirm,
-      cancel: vi.fn(),
-      confirmStaffingProposal: vi.fn(),
-      dismissStaffingProposal: vi.fn(),
-    });
-    mocks.useRayenFillProgress.mockReturnValue({
-      running: false,
-      done: 0,
-      total: 0,
-      errors: 0,
-      lastCompletedAt: null,
-      outcome: null,
-      attemptId: null,
-      staffingOutcome: null,
-    });
-    const readyHealth = {
-      connection: 'ready',
-      report: {
-        version: '0.48.61',
-        protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
-        checkedAt: '2026-07-14T05:00:00.000Z',
-        fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
-        gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
-      },
-      message: 'Extensión Eloísa v0.6.0 operativa.',
-      canSync: true,
-    };
+    mocks.useRayenImport.mockReturnValue(
+      createRayenImportState({
+        triggerImport: mocks.triggerImport,
+        retryClinicalFill: mocks.retryClinicalFill,
+        confirm: mocks.confirm,
+      })
+    );
+    mocks.useRayenFillProgress.mockReturnValue(createIdleRayenFillProgress());
+    const readyHealth = createReadyRayenExtensionHealth();
     mocks.refreshHealth.mockResolvedValue(readyHealth);
     mocks.useRayenExtensionHealth.mockReturnValue({
       ...readyHealth,
