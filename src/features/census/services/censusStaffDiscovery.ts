@@ -4,6 +4,7 @@ import type { PatientData } from '@/types/domain/patient';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import type { StaffObservation } from '@/services/staff/eloisaStaffIdentity';
 import { collectRecordedStaffNames } from '@/services/staff/dailyRecordStaffing';
+import { evaluationScaleStampInRapaNui } from '../domain/evaluationScaleClock';
 const array = <T>(value: readonly T[] | null | undefined): readonly T[] =>
   Array.isArray(value) ? value : [];
 
@@ -26,12 +27,23 @@ const createStaffCollector = () => {
   const visit = (patient: StaffEvidenceSource | undefined) => {
     if (!patient || typeof patient !== 'object') return;
     const scores = patient.evaluationScores;
-    const evidence = [
+    // Stored Braden/Downton applications keep Eloísa's printed clock (TIME-02); convert to Rapa Nui.
+    const scaleEvidence = [
       scores?.braden,
       scores?.downton,
       ...array(scores?.history),
       scores?.braden?.latestApplication,
       scores?.downton?.latestApplication,
+    ];
+    for (const item of scaleEvidence) {
+      if (!item) continue;
+      append(
+        item.author,
+        item.authorRole,
+        typeof item.recordedAt === 'string' ? evaluationScaleStampInRapaNui(item.recordedAt) : null
+      );
+    }
+    const evidence = [
       scores?.cudyr,
       ...array(scores?.cudyr?.history),
       patient.vitalSigns,
