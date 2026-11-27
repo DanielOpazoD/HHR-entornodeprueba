@@ -60,7 +60,8 @@ export const buildFlowPerformanceReport = root => {
 
   const metrics = report.metrics && typeof report.metrics === 'object' ? report.metrics : {};
   const budgets = report.budgets && typeof report.budgets === 'object' ? report.budgets : {};
-  const breakdown = report.breakdown && typeof report.breakdown === 'object' ? report.breakdown : {};
+  const breakdown =
+    report.breakdown && typeof report.breakdown === 'object' ? report.breakdown : {};
 
   const flows = REQUIRED_FLOWS.map(flow => {
     const actualMs = Number(metrics[flow]);
@@ -162,4 +163,18 @@ export const formatFlowPerformanceMarkdown = report => {
   }
 
   return lines.join('\n').trimEnd();
+};
+
+export const writeFlowPerformanceReportArtifacts = (root, report) => {
+  const jsonOutputPath = path.join(root, FLOW_SUMMARY_JSON_PATH);
+  const mdOutputPath = path.join(root, FLOW_MD_REPORT_PATH);
+
+  fs.mkdirSync(path.dirname(jsonOutputPath), { recursive: true });
+  fs.writeFileSync(jsonOutputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(mdOutputPath, `${formatFlowPerformanceMarkdown(report)}\n`, 'utf8');
+
+  return {
+    jsonOutputPath,
+    mdOutputPath,
+  };
 };

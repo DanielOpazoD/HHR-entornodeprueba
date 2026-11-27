@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 
-import { buildFlowPerformanceReport } from './flowPerformanceBudgetSupport.mjs';
+import {
+  buildFlowPerformanceReport,
+  FLOW_MD_REPORT_PATH,
+  FLOW_SUMMARY_JSON_PATH,
+  writeFlowPerformanceReportArtifacts,
+} from './flowPerformanceBudgetSupport.mjs';
 
 const root = process.cwd();
 const enforceTargets =
@@ -13,7 +18,9 @@ const fail = message => {
 
 const report = buildFlowPerformanceReport(root);
 if (!report) {
-  fail('Missing reports/e2e/flow-performance-budget.json. Run the Playwright flow budget spec first.');
+  fail(
+    'Missing reports/e2e/flow-performance-budget.json. Run the Playwright flow budget spec first.'
+  );
 }
 
 console.log('[flow-performance-budget] Report found.');
@@ -54,9 +61,12 @@ if (targetViolations.length > 0) {
 }
 
 if (blockingViolations.length > 0) {
-  fail(
-    `Blocking violations detected: ${blockingViolations.map(flow => flow.flow).join(', ')}`
-  );
+  fail(`Blocking violations detected: ${blockingViolations.map(flow => flow.flow).join(', ')}`);
 }
 
+writeFlowPerformanceReportArtifacts(root, report);
+
+console.log(
+  `[flow-performance-budget] Report generated at ${FLOW_SUMMARY_JSON_PATH} and ${FLOW_MD_REPORT_PATH}`
+);
 console.log('[flow-performance-budget] OK');
