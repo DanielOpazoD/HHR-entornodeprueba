@@ -288,6 +288,59 @@ test.describe('Clinical library (preview build)', () => {
   });
 });
 
+test('completes and downloads an internal DIAT with no patient context', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await seedPersistedSession(page);
+  await page.goto(`/?date=${PREVIEW_DATE}`);
+  await expect(
+    page.locator('[data-testid="patient-row"][data-bed-id="R1"] input[name="patientName"]')
+  ).toHaveValue(SEEDED_PATIENT_NAME, { timeout: 20_000 });
+  await page.getByTestId('clinical-library-quick-action').click({ timeout: 15_000 });
+  const drawer = page.getByTestId('clinical-library-drawer');
+  await drawer.getByRole('searchbox').fill('DIAT');
+  await drawer
+    .getByTestId('library-document-denuncia-accidente-trabajo-diat')
+    .getByRole('button', { name: /^Completar/ })
+    .click();
+  await expect(drawer.getByText('Uso interno del personal · Ingreso manual')).toBeVisible();
+  await expect(drawer.getByLabel('Origen de los datos')).toHaveCount(0);
+  const worker = drawer.getByLabel('Nombres y apellidos del trabajador/a');
+  await expect(worker).toHaveValue('');
+  await drawer.getByLabel('Nombre o razón social').fill('EMPLEADOR DE PRUEBA');
+  await worker.fill('Ángela Ñaña de Prueba');
+  await drawer.getByLabel('Fecha de nacimiento').fill('1985-06-21');
+  await drawer.getByLabel('Fecha del accidente').fill('2026-04-03');
+  await drawer.getByLabel('Hora del accidente', { exact: true }).fill('18:40');
+  await drawer.getByLabel('Descripción del accidente').fill('Primera línea.\nSegunda línea.');
+  await drawer.getByLabel('Trabajo habitual del trabajador/a').fill('Técnica en mantención');
+  await drawer.getByRole('button', { name: '¿Realizaba su trabajo habitual?: No' }).click();
+  await drawer.getByLabel('Tipo de accidente', { exact: true }).selectOption('trayecto');
+  await drawer.getByLabel('Tipo de trayecto (si corresponde)').selectOption('trabajo_domicilio');
+  await drawer.getByRole('checkbox', { name: 'Testigos' }).check();
+  await drawer.getByLabel('Firma del denunciante (nombre escrito)').fill('René de Prueba');
+  await drawer.getByRole('button', { name: 'Vista previa' }).click();
+  const preview = drawer.getByTitle(
+    'Denuncia Individual de Accidente del Trabajo (DIAT) · PDF para imprimir'
+  );
+  await expect(preview).toBeVisible();
+  await expect(drawer.getByRole('button', { name: 'Imprimir' })).toBeEnabled();
+  const pending = page.waitForEvent('download');
+  await drawer.getByRole('button', { name: 'PDF imprimible' }).click();
+  const pdfPath = test.info().outputPath('diat-imprimible.pdf');
+  await (await pending).saveAs(pdfPath);
+  const pdf = await PDFDocument.load(new Uint8Array(fs.readFileSync(pdfPath)));
+  expect(pdf.getPageCount()).toBe(2);
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await worker.scrollIntoViewIfNeeded();
+  await expect(worker).toHaveValue('Ángela Ñaña de Prueba');
+  const editor = drawer.getByTestId('library-tool-clinical-form');
+  expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await capture(page, 'diat-editor-mobile');
+  expect(pageErrors).toEqual([]);
+});
+
 test('fills the compact MEDIF from the census, restores its preset and prints the original PDF', async ({
   page,
 }) => {

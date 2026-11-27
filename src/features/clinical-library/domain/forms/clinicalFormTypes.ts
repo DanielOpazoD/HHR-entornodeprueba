@@ -1,4 +1,5 @@
 export const CLINICAL_FORM_IDS = [
+  'denuncia-accidente-trabajo-diat',
   'solicitud-interconsulta-hhr',
   'solicitud-laboratorio-policlinico',
   'solicitud-imagenologia',
@@ -22,7 +23,14 @@ export interface ClinicalFormTarget {
   page: number;
   rect: [number, number, number, number];
   equals?: string | boolean;
-  format?: 'date_dmy' | 'date_day' | 'date_month' | 'date_year' | 'sex_initial';
+  format?:
+    | 'date_dmy'
+    | 'date_day'
+    | 'date_month'
+    | 'date_year'
+    | 'sex_initial'
+    | 'time_12h'
+    | 'time_period';
   fontSize?: number;
   align?: 'left' | 'center';
   /** Baseline from the page top and spacing between preprinted writing rules, in PDF points. */
@@ -55,6 +63,8 @@ export interface ClinicalFormDefinition {
   sourceUrl: string;
   templateSha256: string;
   sourceSha256: string;
+  /** A standalone, manual form without a patient or census context. */
+  internalOnly?: boolean;
   /** Whether the editor exposes Word (.docx) export alongside PDF. */
   supportsDocxExport?: boolean;
   pages: Array<{ width: number; height: number }>;

@@ -21,6 +21,21 @@ const HHR_SOURCE = 'Hospital Hanga Roa · Hospitalizados';
 const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
   {
     kind: 'document',
+    id: 'denuncia-accidente-trabajo-diat',
+    editorId: 'denuncia-accidente-trabajo-diat',
+    category: 'forms',
+    title: 'Denuncia Individual de Accidente del Trabajo (DIAT)',
+    description: 'Formulario ACHS de uso interno del personal, con llenado manual.',
+    format: 'pdf',
+    url: '/docs/biblioteca/achs-formulario-diat.pdf',
+    pages: 2,
+    sizeKb: 491,
+    keywords: ['DIAT', 'ACHS', 'accidente laboral', 'trayecto', 'uso interno', 'trabajador'],
+    source: 'Asociación Chilena de Seguridad (ACHS)',
+    downloadable: true,
+  },
+  {
+    kind: 'document',
     id: 'solicitud-interconsulta-hhr',
     editorId: 'solicitud-interconsulta-hhr',
     category: 'forms',

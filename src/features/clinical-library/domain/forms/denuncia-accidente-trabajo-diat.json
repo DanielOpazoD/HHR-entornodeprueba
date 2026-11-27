@@ -1,0 +1,1194 @@
+{
+  "id": "denuncia-accidente-trabajo-diat",
+  "title": "Denuncia Individual de Accidente del Trabajo (DIAT)",
+  "revision": 1,
+  "catalogVersion": "1.1.0",
+  "templateUrl": "/docs/biblioteca/achs-formulario-diat.pdf",
+  "sourceUrl": "/docs/biblioteca/achs-formulario-diat.pdf",
+  "templateSha256": "88e442ecb7a5caff71133e7794c0b950a3a92ce4aaf923cb58d58fab89c37fe8",
+  "sourceSha256": "88e442ecb7a5caff71133e7794c0b950a3a92ce4aaf923cb58d58fab89c37fe8",
+  "internalOnly": true,
+  "pages": [
+    {
+      "width": 620.787,
+      "height": 935.434
+    },
+    {
+      "width": 620,
+      "height": 935
+    }
+  ],
+  "fields": [
+    {
+      "id": "diat_codigo_caso",
+      "label": "Código del caso",
+      "section": "Encabezamiento",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 93.5, 130, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_fecha_emision",
+      "label": "Fecha de emisión",
+      "section": "Encabezamiento",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [250, 93.5, 129, 17.7],
+          "format": "date_dmy",
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "diat_folio",
+      "label": "Folio",
+      "section": "Encabezamiento",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [488, 94.7, 101, 18]
+        }
+      ]
+    },
+    {
+      "id": "diat_empleador_nombre",
+      "label": "Nombre o razón social",
+      "section": "A. Identificación del empleador",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 147, 402, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_empleador_rut",
+      "label": "RUT del empleador",
+      "section": "A. Identificación del empleador",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [460, 147, 126, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_empleador_direccion",
+      "label": "Dirección del empleador",
+      "section": "A. Identificación del empleador",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 182, 326, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_empleador_comuna",
+      "label": "Comuna del empleador",
+      "section": "A. Identificación del empleador",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [380, 182, 110, 17.7],
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "diat_empleador_telefono",
+      "label": "Teléfono del empleador",
+      "section": "A. Identificación del empleador",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [503, 182, 83, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_empleador_actividad",
+      "label": "Actividad económica del empleador",
+      "section": "A. Identificación del empleador",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 217, 328, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_empleador_trabajadores_hombres",
+      "label": "Número de trabajadores hombres",
+      "section": "A. Identificación del empleador",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [388, 219.9, 20, 12],
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "diat_empleador_trabajadoras_mujeres",
+      "label": "Número de trabajadoras mujeres",
+      "section": "A. Identificación del empleador",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [444.7, 219.9, 20, 12],
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "diat_empleador_propiedad",
+      "label": "Propiedad de la empresa",
+      "section": "A. Identificación del empleador",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "publica",
+          "label": "Pública"
+        },
+        {
+          "value": "privada",
+          "label": "Privada"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [509.3, 222.0, 7.9, 7.9],
+          "equals": "publica"
+        },
+        {
+          "page": 0,
+          "rect": [549.8, 222.0, 7.9, 7.9],
+          "equals": "privada"
+        }
+      ]
+    },
+    {
+      "id": "diat_empleador_tipo",
+      "label": "Tipo de empresa",
+      "section": "A. Identificación del empleador",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "principal",
+          "label": "Principal"
+        },
+        {
+          "value": "contratista",
+          "label": "Contratista"
+        },
+        {
+          "value": "subcontratista",
+          "label": "Subcontratista"
+        },
+        {
+          "value": "servicios_transitorios",
+          "label": "De servicios transitorios"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [49.0, 257.1, 7.9, 7.9],
+          "equals": "principal"
+        },
+        {
+          "page": 0,
+          "rect": [108.0, 257.1, 7.9, 7.9],
+          "equals": "contratista"
+        },
+        {
+          "page": 0,
+          "rect": [175.8, 257.1, 7.9, 7.9],
+          "equals": "subcontratista"
+        },
+        {
+          "page": 0,
+          "rect": [254.3, 257.1, 7.9, 7.9],
+          "equals": "servicios_transitorios"
+        }
+      ]
+    },
+    {
+      "id": "diat_empresa_principal_actividad",
+      "label": "Actividad económica de la empresa principal (si corresponde)",
+      "section": "A. Identificación del empleador",
+      "kind": "text",
+      "multiline": true,
+      "targets": [
+        {
+          "page": 0,
+          "rect": [389, 272.8, 194, 19]
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_nombre",
+      "label": "Nombres y apellidos del trabajador/a",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 326.5, 402, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_run",
+      "label": "RUN del trabajador/a",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [460, 326.5, 126, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_direccion",
+      "label": "Dirección del trabajador/a",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 361, 328, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_comuna",
+      "label": "Comuna del trabajador/a",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [386, 361, 105, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_telefono",
+      "label": "Teléfono del trabajador/a",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [503, 361, 83, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_sexo",
+      "label": "Sexo",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "hombre",
+          "label": "Hombre"
+        },
+        {
+          "value": "mujer",
+          "label": "Mujer"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [49.3, 400.0, 7.9, 7.9],
+          "equals": "hombre"
+        },
+        {
+          "page": 0,
+          "rect": [103.4, 400.0, 7.9, 7.9],
+          "equals": "mujer"
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_edad",
+      "label": "Edad (años cumplidos)",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [154, 395, 37, 17.7],
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_nacimiento",
+      "label": "Fecha de nacimiento",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [203.5, 395, 19, 18],
+          "format": "date_day",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [230.8, 395, 16, 18],
+          "format": "date_month",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [255, 395, 33, 18],
+          "format": "date_year",
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_pueblo",
+      "label": "Pueblo originario",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "alacalufe",
+          "label": "Alacalufe"
+        },
+        {
+          "value": "atacameno",
+          "label": "Atacameño"
+        },
+        {
+          "value": "aimara",
+          "label": "Aimara"
+        },
+        {
+          "value": "colla",
+          "label": "Colla"
+        },
+        {
+          "value": "diaguita",
+          "label": "Diaguita"
+        },
+        {
+          "value": "mapuche",
+          "label": "Mapuche"
+        },
+        {
+          "value": "quechua",
+          "label": "Quechua"
+        },
+        {
+          "value": "rapanui",
+          "label": "Rapanui"
+        },
+        {
+          "value": "yamana",
+          "label": "Yamana (Yagán)"
+        },
+        {
+          "value": "otro",
+          "label": "Otro"
+        },
+        {
+          "value": "ninguno",
+          "label": "Ninguno"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [306.5, 406.5, 7.9, 7.9],
+          "equals": "alacalufe"
+        },
+        {
+          "page": 0,
+          "rect": [306.5, 420.3, 7.9, 7.9],
+          "equals": "atacameno"
+        },
+        {
+          "page": 0,
+          "rect": [306.5, 434.8, 7.9, 7.9],
+          "equals": "aimara"
+        },
+        {
+          "page": 0,
+          "rect": [370.3, 406.3, 7.9, 7.9],
+          "equals": "colla"
+        },
+        {
+          "page": 0,
+          "rect": [370.3, 420.1, 7.9, 7.9],
+          "equals": "diaguita"
+        },
+        {
+          "page": 0,
+          "rect": [370.3, 434.6, 7.9, 7.9],
+          "equals": "mapuche"
+        },
+        {
+          "page": 0,
+          "rect": [435.3, 406.6, 7.9, 7.9],
+          "equals": "quechua"
+        },
+        {
+          "page": 0,
+          "rect": [435.3, 420.3, 7.9, 7.9],
+          "equals": "rapanui"
+        },
+        {
+          "page": 0,
+          "rect": [435.3, 434.8, 7.9, 7.9],
+          "equals": "yamana"
+        },
+        {
+          "page": 0,
+          "rect": [517.2, 405.2, 7.9, 7.9],
+          "equals": "otro"
+        },
+        {
+          "page": 0,
+          "rect": [517.2, 434.9, 7.9, 7.9],
+          "equals": "ninguno"
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_pueblo_otro",
+      "label": "Otro pueblo originario (especificar)",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [517.5, 415.3, 64, 10.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_nacionalidad",
+      "label": "Nacionalidad",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 427.7, 97, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_profesion",
+      "label": "Profesión u oficio",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [156, 427.7, 131, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_antiguedad",
+      "label": "Antigüedad en la empresa (cantidad)",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [45, 463.7, 20.4, 12],
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_antiguedad_unidad",
+      "label": "Unidad de antigüedad en la empresa",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "dias",
+          "label": "Días"
+        },
+        {
+          "value": "meses",
+          "label": "Meses"
+        },
+        {
+          "value": "anos",
+          "label": "Años"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [71.3, 465.8, 7.9, 7.9],
+          "equals": "dias"
+        },
+        {
+          "page": 0,
+          "rect": [104.4, 465.5, 7.9, 7.9],
+          "equals": "meses"
+        },
+        {
+          "page": 0,
+          "rect": [143.0, 465.5, 7.9, 7.9],
+          "equals": "anos"
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_contrato",
+      "label": "Tipo de contrato",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "indefinido",
+          "label": "Indefinido"
+        },
+        {
+          "value": "plazo_fijo",
+          "label": "Plazo fijo"
+        },
+        {
+          "value": "obra_faena",
+          "label": "Por obra o faena"
+        },
+        {
+          "value": "temporada",
+          "label": "Temporada"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.5, 466.0, 7.9, 7.9],
+          "equals": "indefinido"
+        },
+        {
+          "page": 0,
+          "rect": [254.1, 466.0, 7.9, 7.9],
+          "equals": "plazo_fijo"
+        },
+        {
+          "page": 0,
+          "rect": [318.5, 465.5, 7.9, 7.9],
+          "equals": "obra_faena"
+        },
+        {
+          "page": 0,
+          "rect": [410.1, 466.1, 7.9, 7.9],
+          "equals": "temporada"
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_ingreso",
+      "label": "Tipo de ingreso",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "fijo",
+          "label": "Remuneración fija"
+        },
+        {
+          "value": "variable",
+          "label": "Remuneración variable"
+        },
+        {
+          "value": "honorarios",
+          "label": "Honorarios"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [487.5, 474.8, 7.9, 7.9],
+          "equals": "fijo"
+        },
+        {
+          "page": 0,
+          "rect": [487.4, 487.8, 7.9, 7.9],
+          "equals": "variable"
+        },
+        {
+          "page": 0,
+          "rect": [487.3, 500.8, 7.9, 7.9],
+          "equals": "honorarios"
+        }
+      ]
+    },
+    {
+      "id": "diat_trabajador_categoria",
+      "label": "Categoría ocupacional",
+      "section": "B. Identificación del trabajador/a",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "empleador",
+          "label": "Empleador"
+        },
+        {
+          "value": "dependiente",
+          "label": "Trabajador dependiente"
+        },
+        {
+          "value": "independiente",
+          "label": "Trabajador independiente"
+        },
+        {
+          "value": "familiar",
+          "label": "Familiar no remunerado"
+        },
+        {
+          "value": "voluntario",
+          "label": "Trabajador voluntario"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [48.9, 499.3, 7.9, 7.9],
+          "equals": "empleador"
+        },
+        {
+          "page": 0,
+          "rect": [101.1, 499.3, 7.9, 7.9],
+          "equals": "dependiente"
+        },
+        {
+          "page": 0,
+          "rect": [193.9, 499.3, 7.9, 7.9],
+          "equals": "independiente"
+        },
+        {
+          "page": 0,
+          "rect": [292.3, 499.3, 7.9, 7.9],
+          "equals": "familiar"
+        },
+        {
+          "page": 0,
+          "rect": [387.8, 499.3, 7.9, 7.9],
+          "equals": "voluntario"
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_fecha",
+      "label": "Fecha del accidente",
+      "section": "C. Datos del accidente",
+      "kind": "date",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [170, 542.4, 19, 18],
+          "format": "date_day",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [197.2, 542.4, 16, 18],
+          "format": "date_month",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [221.5, 542.4, 32.5, 18],
+          "format": "date_year",
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_hora",
+      "label": "Hora del accidente",
+      "section": "C. Datos del accidente",
+      "kind": "time",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [268.3, 545, 34.5, 12.5],
+          "format": "time_12h",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [307.0, 547.2, 7.9, 7.9],
+          "equals": "am",
+          "format": "time_period"
+        },
+        {
+          "page": 0,
+          "rect": [336.5, 547.2, 7.9, 7.9],
+          "equals": "pm",
+          "format": "time_period"
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_hora_ingreso",
+      "label": "Hora de ingreso al trabajo",
+      "section": "C. Datos del accidente",
+      "kind": "time",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [379, 545.1, 34.5, 12.5],
+          "format": "time_12h",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [417.7, 547.3, 7.9, 7.9],
+          "equals": "am",
+          "format": "time_period"
+        },
+        {
+          "page": 0,
+          "rect": [447.2, 547.3, 7.9, 7.9],
+          "equals": "pm",
+          "format": "time_period"
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_hora_salida",
+      "label": "Hora de salida del trabajo",
+      "section": "C. Datos del accidente",
+      "kind": "time",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [489.2, 545.4, 34.5, 12.5],
+          "format": "time_12h",
+          "align": "center"
+        },
+        {
+          "page": 0,
+          "rect": [528.0, 547.5, 7.9, 7.9],
+          "equals": "am",
+          "format": "time_period"
+        },
+        {
+          "page": 0,
+          "rect": [557.5, 547.5, 7.9, 7.9],
+          "equals": "pm",
+          "format": "time_period"
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_direccion",
+      "label": "Dirección del accidente",
+      "section": "C. Datos del accidente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 576, 402, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_comuna",
+      "label": "Comuna del accidente",
+      "section": "C. Datos del accidente",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [460, 576, 126, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_actividad",
+      "label": "Actividad al momento del accidente",
+      "section": "C. Datos del accidente",
+      "kind": "text",
+      "multiline": true,
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 628.3, 264, 13.1]
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_lugar",
+      "label": "Lugar del accidente (sección, edificio o área)",
+      "section": "C. Datos del accidente",
+      "kind": "text",
+      "multiline": true,
+      "targets": [
+        {
+          "page": 0,
+          "rect": [322, 628.3, 264, 13.1]
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_descripcion",
+      "label": "Descripción del accidente",
+      "section": "C. Datos del accidente",
+      "kind": "text",
+      "multiline": true,
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 662.5, 541, 39]
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_trabajo_habitual",
+      "label": "Trabajo habitual del trabajador/a",
+      "section": "C. Datos del accidente",
+      "kind": "text",
+      "multiline": true,
+      "targets": [
+        {
+          "page": 0,
+          "rect": [176, 711, 132, 18]
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_durante_trabajo_habitual",
+      "label": "¿Realizaba su trabajo habitual?",
+      "section": "C. Datos del accidente",
+      "kind": "boolean",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [537.0, 715.8, 7.9, 7.9],
+          "equals": true
+        },
+        {
+          "page": 0,
+          "rect": [560.5, 715.8, 7.9, 7.9],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_clasificacion",
+      "label": "Clasificación del accidente",
+      "section": "C. Datos del accidente",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "grave",
+          "label": "Grave"
+        },
+        {
+          "value": "fatal",
+          "label": "Fatal"
+        },
+        {
+          "value": "otro",
+          "label": "Otro"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [48.1, 753.8, 7.9, 7.9],
+          "equals": "grave"
+        },
+        {
+          "page": 0,
+          "rect": [83.6, 753.8, 7.9, 7.9],
+          "equals": "fatal"
+        },
+        {
+          "page": 0,
+          "rect": [116.0, 753.8, 7.9, 7.9],
+          "equals": "otro"
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_tipo",
+      "label": "Tipo de accidente",
+      "section": "C. Datos del accidente",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "trabajo",
+          "label": "Trabajo"
+        },
+        {
+          "value": "trayecto",
+          "label": "Trayecto"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [159.2, 751.1, 7.9, 7.9],
+          "equals": "trabajo"
+        },
+        {
+          "page": 0,
+          "rect": [218.9, 751.1, 7.9, 7.9],
+          "equals": "trayecto"
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_trayecto_tipo",
+      "label": "Tipo de trayecto (si corresponde)",
+      "section": "Accidente de trayecto y medios de prueba",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "domicilio_trabajo",
+          "label": "Domicilio a trabajo"
+        },
+        {
+          "value": "trabajo_domicilio",
+          "label": "Trabajo a domicilio"
+        },
+        {
+          "value": "entre_trabajos",
+          "label": "Entre dos trabajos"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [475.4, 750.2, 7.9, 7.9],
+          "equals": "domicilio_trabajo"
+        },
+        {
+          "page": 0,
+          "rect": [475.2, 763.0, 7.9, 7.9],
+          "equals": "trabajo_domicilio"
+        },
+        {
+          "page": 0,
+          "rect": [475.2, 775.7, 7.9, 7.9],
+          "equals": "entre_trabajos"
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_prueba_carabineros",
+      "label": "Parte de Carabineros",
+      "section": "Accidente de trayecto y medios de prueba",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [47.5, 776.5, 7.9, 7.9],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_prueba_declaracion",
+      "label": "Declaración",
+      "section": "Accidente de trayecto y medios de prueba",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [133.4, 776.5, 7.9, 7.9],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_prueba_testigos",
+      "label": "Testigos",
+      "section": "Accidente de trayecto y medios de prueba",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [191.7, 776.5, 7.9, 7.9],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_prueba_otra",
+      "label": "Otro medio de prueba",
+      "section": "Accidente de trayecto y medios de prueba",
+      "kind": "check",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [241.5, 776.5, 7.9, 7.9],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "diat_accidente_prueba_detalle",
+      "label": "Detalle del medio de prueba",
+      "section": "Accidente de trayecto y medios de prueba",
+      "kind": "text",
+      "multiline": true,
+      "targets": [
+        {
+          "page": 0,
+          "rect": [282, 772.7, 165, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_denunciante_nombre",
+      "label": "Nombres y apellidos del denunciante",
+      "section": "D. Identificación del denunciante",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 829.1, 289, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_denunciante_run",
+      "label": "RUN del denunciante",
+      "section": "D. Identificación del denunciante",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [347, 829.1, 99, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_denunciante_telefono",
+      "label": "Teléfono del denunciante",
+      "section": "D. Identificación del denunciante",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [44, 862.2, 104, 17.7]
+        }
+      ]
+    },
+    {
+      "id": "diat_denunciante_clasificacion",
+      "label": "Clasificación del denunciante",
+      "section": "D. Identificación del denunciante",
+      "kind": "choice",
+      "options": [
+        {
+          "value": "empleador",
+          "label": "Empleador"
+        },
+        {
+          "value": "trabajador",
+          "label": "Trabajador/a"
+        },
+        {
+          "value": "familiar",
+          "label": "Familiar"
+        },
+        {
+          "value": "medico",
+          "label": "Médico tratante"
+        },
+        {
+          "value": "comite",
+          "label": "Comité Paritario"
+        },
+        {
+          "value": "empresa_usuaria",
+          "label": "Empresa usuaria"
+        },
+        {
+          "value": "otro",
+          "label": "Otro"
+        }
+      ],
+      "targets": [
+        {
+          "page": 0,
+          "rect": [173.5, 877.8, 7.9, 7.9],
+          "equals": "empleador"
+        },
+        {
+          "page": 0,
+          "rect": [244.4, 877.8, 7.9, 7.9],
+          "equals": "trabajador"
+        },
+        {
+          "page": 0,
+          "rect": [315.8, 877.5, 7.9, 7.9],
+          "equals": "familiar"
+        },
+        {
+          "page": 0,
+          "rect": [370.9, 877.7, 7.9, 7.9],
+          "equals": "medico"
+        },
+        {
+          "page": 0,
+          "rect": [173.5, 892.0, 7.9, 7.9],
+          "equals": "comite"
+        },
+        {
+          "page": 0,
+          "rect": [268.3, 892.0, 7.9, 7.9],
+          "equals": "empresa_usuaria"
+        },
+        {
+          "page": 0,
+          "rect": [370.9, 891.9, 7.9, 7.9],
+          "equals": "otro"
+        }
+      ]
+    },
+    {
+      "id": "diat_denunciante_firma",
+      "label": "Firma del denunciante (nombre escrito)",
+      "section": "D. Identificación del denunciante",
+      "kind": "text",
+      "targets": [
+        {
+          "page": 0,
+          "rect": [465, 866, 114, 27],
+          "align": "center"
+        }
+      ]
+    }
+  ]
+}

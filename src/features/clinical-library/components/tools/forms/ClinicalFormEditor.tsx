@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Eye, FileText, Printer, RefreshCw, Save, Settings2, Upload } from 'lucide-react';
 import {
-  CLINICAL_FORMS,
   CLINICAL_VARIABLE_CATALOG,
   getClinicalForm,
+  PATIENT_CLINICAL_FORMS,
 } from '../../../domain/forms/clinicalFormCatalog';
 import { exportClinicalFormDraft } from '../../../domain/forms/clinicalFormDraft';
 import {
@@ -100,6 +100,7 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
   );
   const blocked =
     exportBlocked || Boolean(draft.replacement) || draft.sourceMissing || draft.sourceChanged;
+  const fieldSearchLabel = form.internalOnly ? 'Buscar campo' : 'Buscar campo o examen';
   const bradenEpisodeId =
     formId === 'pauta-braden-lpp' && draft.source?.context.episodeId
       ? draft.source.context.episodeId
@@ -160,47 +161,53 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
     >
       <div className="clinical-form-editor">
         <div className="clinical-form-toolbar">
-          <label className="clinical-form-source">
-            Formulario
-            <select
-              aria-label="Formulario clínico"
-              value={formId}
-              disabled={pdf.busy || Boolean(draft.replacement)}
-              className="clinical-form-input"
-              onChange={event => {
-                draft.changeForm(event.target.value as ClinicalFormId);
-                setQuery('');
-              }}
-            >
-              {CLINICAL_FORMS.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="clinical-form-source">
-            Paciente
-            <select
-              aria-label="Origen de los datos"
-              value={draft.source?.key ?? ''}
-              disabled={pdf.busy || Boolean(draft.replacement)}
-              className="clinical-form-input"
-              onChange={event => draft.selectPatient(event.target.value)}
-            >
-              <option value="">Ingreso manual</option>
-              {patients.map(patient => (
-                <option key={patient.key} value={patient.key}>
-                  {patient.label}
-                </option>
-              ))}
-              {draft.sourceMissing && draft.source && (
-                <option value={draft.source.key}>
-                  Paciente cargado · vínculo pendiente de revisión
-                </option>
-              )}
-            </select>
-          </label>
+          {form.internalOnly ? (
+            <p className="clinical-form-source">Uso interno del personal · Ingreso manual</p>
+          ) : (
+            <>
+              <label className="clinical-form-source">
+                Formulario
+                <select
+                  aria-label="Formulario clínico"
+                  value={formId}
+                  disabled={pdf.busy || Boolean(draft.replacement)}
+                  className="clinical-form-input"
+                  onChange={event => {
+                    draft.changeForm(event.target.value as ClinicalFormId);
+                    setQuery('');
+                  }}
+                >
+                  {PATIENT_CLINICAL_FORMS.map(item => (
+                    <option key={item.id} value={item.id}>
+                      {item.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="clinical-form-source">
+                Paciente
+                <select
+                  aria-label="Origen de los datos"
+                  value={draft.source?.key ?? ''}
+                  disabled={pdf.busy || Boolean(draft.replacement)}
+                  className="clinical-form-input"
+                  onChange={event => draft.selectPatient(event.target.value)}
+                >
+                  <option value="">Ingreso manual</option>
+                  {patients.map(patient => (
+                    <option key={patient.key} value={patient.key}>
+                      {patient.label}
+                    </option>
+                  ))}
+                  {draft.sourceMissing && draft.source && (
+                    <option value={draft.source.key}>
+                      Paciente cargado · vínculo pendiente de revisión
+                    </option>
+                  )}
+                </select>
+              </label>
+            </>
+          )}
           <div className="clinical-form-actions">
             {draft.source && (
               <button
@@ -274,7 +281,9 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
           >
             <strong id="clinical-form-replace-title">Reemplazar los datos actuales</strong>
             <p id="clinical-form-replace-description">
-              Se vaciarán los datos anteriores antes de cargar el nuevo paciente o borrador.
+              {form.internalOnly
+                ? 'El borrador que importes reemplazará los datos actuales.'
+                : 'Se vaciarán los datos anteriores antes de cargar el nuevo paciente o borrador.'}
             </p>
             <div className="clinical-form-actions">
               <button type="button" autoFocus onClick={draft.cancelReplacement}>
@@ -342,8 +351,8 @@ export const ClinicalFormEditor: React.FC<ClinicalFormEditorProps> = ({
               {formId !== SIC_FORM_ID && (
                 <input
                   type="search"
-                  aria-label="Buscar campo o examen"
-                  placeholder="Buscar campo o examen…"
+                  aria-label={fieldSearchLabel}
+                  placeholder={`${fieldSearchLabel}…`}
                   value={query}
                   onChange={event => setQuery(event.target.value)}
                   className="clinical-form-input clinical-form-search"

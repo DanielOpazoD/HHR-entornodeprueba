@@ -46,6 +46,39 @@ const mount = () => {
 };
 
 describe('clinical form import failures', () => {
+  it('only opens drafts of internal forms in their own editor and rejects mixed fields', async () => {
+    const diatId = 'denuncia-accidente-trabajo-diat';
+    const worker = { diat_trabajador_nombre: 'TRABAJADOR DE PRUEBA' };
+    const diat = exportClinicalFormDraft(diatId, { ...source.values, ...worker });
+    expect(importClinicalFormDraft(diat)).toEqual({ formId: diatId, values: worker });
+    expect(() =>
+      importClinicalFormDraft(
+        JSON.stringify({ ...JSON.parse(diat), values: { ...worker, ...source.values } })
+      )
+    ).toThrow('variables desconocidas');
+
+    const patient = mount();
+    const internal = renderHook(() => useClinicalFormDraft(diatId, [source], vi.fn()));
+    await act(async () => {
+      internal.result.current.selectPatient(source.key);
+      await internal.result.current.importFile(file(async () => valid));
+      await patient.result.current.importFile(file(async () => diat));
+    });
+    for (const { current } of [patient.result, internal.result]) {
+      expect(current.notice).toBe(
+        'Abre el formulario correspondiente para importar este borrador.'
+      );
+      expect(current.replacement).toBeNull();
+    }
+    expect(patient.result.current.source?.key).toBe(source.key);
+    expect(internal.result.current.source).toBeNull();
+    expect(internal.result.current.values).toEqual({});
+    await act(async () => {
+      await internal.result.current.importFile(file(async () => diat));
+    });
+    expect(internal.result.current.values).toEqual(worker);
+  });
+
   it.each(['', '{', '{"paciente_nombre_completo":"TEXTO SINTÉTICO PRIVADO",}'])(
     'reports malformed JSON without echoing the file contents: %j',
     text => {

@@ -3,9 +3,13 @@ import { AuthContext } from '@/context/AuthContext';
 import { BOOTSTRAP_PLACEHOLDER_UID } from '@/constants/security';
 import { useDailyRecordBeds, useDailyRecordMeta } from '@/context/DailyRecordContext';
 import { useSessionEpoch } from '@/hooks/useSessionEpoch';
+import { getClinicalForm } from '../../domain/forms/clinicalFormCatalog';
 import { buildClinicalFormPatientOptions } from '../../domain/forms/clinicalFormPatient';
 import { SIC_FORM_ID } from '../../domain/forms/sicFormData';
-import type { ClinicalFormId } from '../../domain/forms/clinicalFormTypes';
+import type {
+  ClinicalFormId,
+  ClinicalFormPatientOption,
+} from '../../domain/forms/clinicalFormTypes';
 import { generateClinicalFormPdf } from '../../services/clinicalFormPdf';
 import { readSicSignaturePng } from '../../services/sicSignatureImage';
 import { ClinicalFormEditor } from './forms/ClinicalFormEditor';
@@ -14,19 +18,31 @@ import type { ToolComponentProps } from './ToolFrame';
 
 export { LibraryExitConfirmation } from '../LibraryExitConfirmation';
 
-type Props = ToolComponentProps & {
+type Props = Pick<ToolComponentProps, 'onBack' | 'onClose' | 'onDirtyChange'> & {
   formId: ClinicalFormId;
   onFormChange: (id: ClinicalFormId) => void;
 };
+
+const NO_PATIENTS: ReadonlyArray<ClinicalFormPatientOption> = [];
 
 export const ClinicalFormTool: React.FC<Props> = props => {
   const user = useContext(AuthContext)?.currentUser;
   const epoch = useSessionEpoch();
   const uid = user?.uid && user.uid !== BOOTSTRAP_PLACEHOLDER_UID ? user.uid : null;
-  return <SessionForm key={`${uid}:${epoch}`} {...props} uid={uid} />;
+  const sessionKey = `${uid}:${epoch}`;
+  return getClinicalForm(props.formId).internalOnly ? (
+    <ClinicalFormEditor
+      key={`${props.formId}:${sessionKey}`}
+      {...props}
+      patients={NO_PATIENTS}
+      onGeneratePdf={generateClinicalFormPdf}
+    />
+  ) : (
+    <PatientForm key={sessionKey} {...props} uid={uid} />
+  );
 };
 
-const SessionForm: React.FC<Props & { uid: string | null }> = ({
+const PatientForm: React.FC<Props & { uid: string | null }> = ({
   uid,
   formId,
   onFormChange,

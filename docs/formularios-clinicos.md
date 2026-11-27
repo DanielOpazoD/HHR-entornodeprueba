@@ -148,3 +148,13 @@ sin completar. El usuario puede descargar el original o editar y exportar PDF/Wo
 
 Pruebas específicas: `sicForm.test.ts`, `SicSignatureField.test.tsx`, `ClinicalFormTool.session.test.tsx`
 y regresiones del editor compartido. Los ejemplos de prueba son sintéticos.
+
+## Denuncia Individual de Accidente del Trabajo (DIAT ACHS)
+
+El personal la abre en Documentos → Formularios → DIAT → Completar. Los 55 campos se
+completan a mano, con un borrador descargable propio. La DIAT se mantiene independiente
+del censo y de los borradores clínicos. Los valores se mantienen en la sesión del navegador.
+
+La vista previa, la impresión y la descarga conservan el diseño y las dos páginas del original de
+ACHS. Las horas se imprimen en formato de 12 horas y marcan la opción A.M. o P.M. correspondiente.
+La firma admite un nombre escrito en el recuadro o puede quedar en blanco para firmar a mano.

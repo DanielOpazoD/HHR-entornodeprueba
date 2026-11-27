@@ -8,6 +8,19 @@ export interface ClinicalFormInputProps {
   matrix?: boolean;
 }
 
+const LONG_FIELD_IDS = new Set([
+  'paciente_nombre_completo',
+  'diagnostico_texto',
+  'medico_tratante_nombre',
+  'consentimiento_procedimiento',
+  'diat_empleador_nombre',
+  'diat_empleador_direccion',
+  'diat_trabajador_nombre',
+  'diat_trabajador_direccion',
+  'diat_accidente_direccion',
+  'diat_denunciante_nombre',
+]);
+
 export const ClinicalFormInput: React.FC<ClinicalFormInputProps> = ({
   field,
   value,
@@ -90,7 +103,7 @@ export const ClinicalFormInput: React.FC<ClinicalFormInputProps> = ({
   return (
     <label
       htmlFor={id}
-      className={`clinical-form-field${field.multiline ? ' clinical-form-field-wide' : ''}${['paciente_nombre_completo', 'diagnostico_texto', 'medico_tratante_nombre', 'consentimiento_procedimiento'].includes(field.id) ? ' clinical-form-field-long' : ''}`}
+      className={`clinical-form-field${field.multiline ? ' clinical-form-field-wide' : ''}${LONG_FIELD_IDS.has(field.id) ? ' clinical-form-field-long' : ''}`}
     >
       <span className={matrix ? 'sr-only' : ''}>{field.label}</span>
       {control}
