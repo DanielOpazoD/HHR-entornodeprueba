@@ -142,16 +142,19 @@ describe('bundleRiskLedgerSupport', () => {
     ).toBe('30,000 bytes precached chunk budget');
   });
 
-  it('documents the governed heavy bundle surfaces in docs/BUNDLE_RISK_LEDGER.md', () => {
+  it('documents every governed bundle surface in the Current surfaces table of docs/BUNDLE_RISK_LEDGER.md', () => {
     const ledger = fs.readFileSync(path.join(process.cwd(), 'docs/BUNDLE_RISK_LEDGER.md'), 'utf8');
+    const liveLedger = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), 'scripts/config/bundle-risk-ledger.json'), 'utf8')
+    ) as { surfaces: Array<{ id: string }> };
 
-    for (const surface of [
-      'vendor-heic2any',
-      'vendor-pdfjs',
-      'vendor-pdf-lib',
-      'app-authenticated-shell',
-    ]) {
-      expect(ledger).toContain(surface);
-    }
+    const sectionMatch = ledger.match(/## Current surfaces\r?\n([\s\S]*?)(?:\r?\n## |\s*$)/);
+    expect(sectionMatch).not.toBeNull();
+    const documentedSurfaceIds = [
+      ...(sectionMatch?.[1] ?? '').matchAll(/^\|\s*`([^`]+)`\s*\|/gm),
+    ].map(match => match[1]);
+    const configuredSurfaceIds = liveLedger.surfaces.map(surface => surface.id);
+
+    expect(documentedSurfaceIds).toEqual(configuredSurfaceIds);
   });
 });
