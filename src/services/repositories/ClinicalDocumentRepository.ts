@@ -343,12 +343,14 @@ export const ClinicalDocumentRepository = {
 
   subscribeByEpisodeKeys(
     episodeKeys: string[],
-    callback: (documents: ClinicalDocumentRecord[]) => void,
-    hospitalId: string = getActiveHospitalId()
+    callback: (documents: ClinicalDocumentRecord[], confirmed?: boolean) => void,
+    hospitalId: string = getActiveHospitalId(),
+    onError?: (error: Error) => void
   ): () => void {
     return subscribeClinicalDocumentsByEpisodeKeys({
       episodeKeys,
       callback,
+      onError,
       hospitalId,
       firestoreEnabled: isFirestoreEnabled(),
       collectionPath: getClinicalDocumentsCollectionPath(hospitalId),

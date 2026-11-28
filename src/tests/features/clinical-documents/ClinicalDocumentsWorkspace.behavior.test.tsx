@@ -195,6 +195,31 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
     );
   });
 
+  it('distinguishes a pending read, denied access, retry and a confirmed empty episode', async () => {
+    const subscribe = vi.mocked(ClinicalDocumentRepository.subscribeByEpisodeKeys);
+    subscribe.mockImplementation(() => () => {});
+    render(
+      <ClinicalDocumentsWorkspace
+        patient={workspacePatient}
+        currentDateString="2026-03-06"
+        bedId="R1"
+      />
+    );
+    const emptyText = /No hay documentos clínicos para este episodio/i;
+    expect(screen.getByText(/Cargando documentos del episodio/)).toBeInTheDocument();
+    const first = subscribe.mock.calls.at(-1)!;
+    act(() => first[1]([], false));
+    expect(screen.queryByText(emptyText)).toBeNull();
+    act(() => first[3]?.(Object.assign(new Error('synthetic'), { code: 'permission-denied' })));
+    expect(screen.getByText(/No se pudieron actualizar los documentos/)).toBeInTheDocument();
+    expect(screen.queryByText(emptyText)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    const retry = subscribe.mock.calls.at(-1)!;
+    expect(retry).not.toBe(first);
+    act(() => retry[1]([], true));
+    expect(screen.getByText(emptyText)).toBeInTheDocument();
+  });
+
   it('renders read-only sheet actions for nurse role', async () => {
     authState.currentUser = { uid: 'n1', email: 'nurse@test.com', displayName: 'Nurse Test' };
     authState.role = 'nurse_hospital';

@@ -3,7 +3,8 @@ import type { QueryOptions } from '@/services/infrastructure/db/types';
 
 interface SubscribeByEpisodeKeysParams {
   episodeKeys: string[];
-  callback: (documents: ClinicalDocumentRecord[]) => void;
+  callback: (documents: ClinicalDocumentRecord[], confirmed?: boolean) => void;
+  onError?: (error: Error) => void;
   hospitalId: string;
   firestoreEnabled: boolean;
   collectionPath: string;
@@ -19,13 +20,15 @@ interface SubscribeByEpisodeKeysParams {
   subscribeQuery: <T>(
     collectionName: string,
     options: QueryOptions,
-    callback: (data: T[]) => void
+    callback: (data: T[], confirmed?: boolean) => void,
+    onError?: (error: Error) => void
   ) => () => void;
 }
 
 export const subscribeClinicalDocumentsByEpisodeKeys = ({
   episodeKeys,
   callback,
+  onError,
   hospitalId,
   firestoreEnabled,
   collectionPath,
@@ -48,17 +51,26 @@ export const subscribeClinicalDocumentsByEpisodeKeys = ({
 
   const chunks = chunkArray(sanitizedEpisodeKeys, chunkSize);
   const chunkDocuments = new Map<number, ClinicalDocumentRecord[]>();
-  const emit = () => {
-    callback(normalizeReadDocuments(Array.from(chunkDocuments.values()).flat()));
-  };
+  const confirmedChunks = new Set<number>();
+  let failed = false;
   const unsubscribes = chunks.map((chunk, index) =>
     subscribeQuery<ClinicalDocumentRecord>(
       collectionPath,
       { where: [{ field: 'episodeKey', operator: 'in', value: chunk }] },
-      docs => {
+      (docs, confirmed = true) => {
+        if (failed) return;
         chunkDocuments.set(index, docs);
-        emit();
-      }
+        if (confirmed) confirmedChunks.add(index);
+        else confirmedChunks.delete(index);
+        const documents = normalizeReadDocuments(Array.from(chunkDocuments.values()).flat());
+        if (onError) callback(documents, confirmedChunks.size === chunks.length);
+        else callback(documents);
+      },
+      onError &&
+        (error => {
+          failed = true;
+          onError(error);
+        })
     )
   );
 

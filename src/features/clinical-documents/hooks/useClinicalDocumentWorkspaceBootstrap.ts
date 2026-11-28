@@ -16,6 +16,8 @@ import {
   filterClinicalDocumentsForCurrentEpisode,
 } from './clinicalDocumentWorkspaceBootstrapSupport';
 
+const EMPTY_DOCUMENTS: ClinicalDocumentRecord[] = [];
+
 interface UseClinicalDocumentWorkspaceBootstrapParams {
   patient: ClinicalDocumentsWorkspacePatientContract;
   currentDateString: string;
@@ -31,6 +33,8 @@ export interface ClinicalDocumentWorkspaceBootstrapState {
   selectedTemplateId: string;
   setSelectedTemplateId: React.Dispatch<React.SetStateAction<string>>;
   documents: ClinicalDocumentRecord[];
+  readStatus: 'loading' | 'ready' | 'error';
+  retryDocuments: () => void;
   selectedDocumentId: string | null;
   setSelectedDocumentId: React.Dispatch<React.SetStateAction<string | null>>;
   episode: ReturnType<typeof buildClinicalDocumentEpisodeContext>;
@@ -49,7 +53,9 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
   const [documentsState, setDocumentsState] = useState<{
     episodeKey: string;
     documents: ClinicalDocumentRecord[];
-  }>({ episodeKey: '', documents: [] });
+    status: ClinicalDocumentWorkspaceBootstrapState['readStatus'];
+  }>({ episodeKey: '', documents: [], status: 'loading' });
+  const [readAttempt, setReadAttempt] = useState(0);
   const [selectedDocumentState, setSelectedDocumentState] = useState<{
     episodeKey: string;
     id: string | null;
@@ -68,8 +74,14 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
     return resolveSelectedClinicalTemplateId(templates, selectedTemplateId);
   }, [selectedTemplateId, templates]);
 
-  const documents =
-    documentsState.episodeKey === episode.episodeKey ? documentsState.documents : [];
+  const readKey = JSON.stringify([hospitalId, episode.episodeKey]);
+  const currentRead = canRead && documentsState.episodeKey === readKey;
+  const documents = currentRead ? documentsState.documents : EMPTY_DOCUMENTS;
+  const readStatus = currentRead ? documentsState.status : 'loading';
+  const retryDocuments = () => {
+    setDocumentsState(previous => ({ ...previous, status: 'loading' }));
+    setReadAttempt(previous => previous + 1);
+  };
   const selectedDocumentId =
     selectedDocumentState.episodeKey === episode.episodeKey ? selectedDocumentState.id : null;
 
@@ -90,9 +102,11 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
       return;
     }
 
+    let active = true;
     const unsubscribe = subscribeClinicalDocumentsByEpisodeKeys(
       episodeKeys,
-      docs => {
+      (docs, confirmed = true) => {
+        if (!active) return;
         const hydrated = docs.map(hydrateClinicalDocumentRecord);
         const currentEpisodeDocuments = filterClinicalDocumentsForCurrentEpisode({
           documents: hydrated,
@@ -100,8 +114,10 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
           allowedEpisodeKeys: episodeKeys,
           currentPatientRut: patient.rut,
         });
+        if (!confirmed && currentEpisodeDocuments.length === 0) return;
         setDocumentsState({
-          episodeKey: episode.episodeKey,
+          episodeKey: readKey,
+          status: confirmed ? 'ready' : 'loading',
           documents: currentEpisodeDocuments,
         });
         setSelectedDocumentState(previousState => {
@@ -113,19 +129,45 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
           };
         });
       },
-      hospitalId
+      hospitalId,
+      {
+        onError: error => {
+          if (!active) return;
+          const restricted =
+            'code' in error &&
+            (error.code === 'permission-denied' || error.code === 'unauthenticated');
+          setDocumentsState(previous => ({
+            episodeKey: readKey,
+            status: 'error',
+            documents: !restricted && previous.episodeKey === readKey ? previous.documents : [],
+          }));
+          if (restricted) setSelectedDocumentState({ episodeKey: episode.episodeKey, id: null });
+        },
+      }
     );
 
     return () => {
+      active = false;
       unsubscribe();
     };
-  }, [canRead, episode.episodeKey, episodeKeys, hospitalId, isActive, patient.rut]);
+  }, [
+    canRead,
+    episode.episodeKey,
+    episodeKeys,
+    hospitalId,
+    isActive,
+    patient.rut,
+    readAttempt,
+    readKey,
+  ]);
 
   return {
     templates,
     selectedTemplateId: resolvedSelectedTemplateId,
     setSelectedTemplateId,
     documents,
+    readStatus,
+    retryDocuments,
     selectedDocumentId,
     setSelectedDocumentId,
     episode,

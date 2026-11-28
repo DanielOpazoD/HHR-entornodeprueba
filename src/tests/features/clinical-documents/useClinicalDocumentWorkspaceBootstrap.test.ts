@@ -100,7 +100,8 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
     expect(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).toHaveBeenCalledWith(
       ['11.111.111-1__2026-03-06', '11111111-1__2026-03-06'],
       expect.any(Function),
-      'hhr'
+      'hhr',
+      expect.objectContaining({ onError: expect.any(Function) })
     );
   });
 

@@ -14,6 +14,7 @@ import {
   updateDoc,
   where,
   writeBatch,
+  type QuerySnapshot,
   type DocumentReference,
   type Firestore,
   type QueryConstraint as FirebaseQueryConstraint,
@@ -157,13 +158,25 @@ export class FirestoreProvider implements IDatabaseProvider {
   subscribeQuery<T>(
     collectionName: string,
     options: QueryOptions,
-    callback: (data: T[]) => void
+    callback: (data: T[], confirmed?: boolean) => void,
+    onError?: (error: Error) => void
   ): () => void {
     const constraints = this.buildConstraints(options);
     const collectionRef = this.api.collection(this.getFirestoreInstance(), collectionName);
-    return this.api.onSnapshot(this.api.query(collectionRef, ...constraints), snapshot => {
-      callback(snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }) as T));
-    });
+    const queryRef = this.api.query(collectionRef, ...constraints);
+    const read = (snapshot: QuerySnapshot) =>
+      snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }) as T);
+    if (!onError) return this.api.onSnapshot(queryRef, snapshot => callback(read(snapshot)));
+    return this.api.onSnapshot(
+      queryRef,
+      { includeMetadataChanges: true },
+      snapshot =>
+        callback(
+          read(snapshot),
+          !snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites
+        ),
+      onError
+    );
   }
 
   async runBatch(operations: (batch: IDatabaseBatch) => void): Promise<void> {

@@ -36,6 +36,8 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
   onSelectTemplate,
   onCreateDocument,
   documents,
+  readStatus = 'ready',
+  retryDocuments,
   selectedDocumentId,
   onSelectDocument,
   onDuplicateDocument,
@@ -282,7 +284,16 @@ export const ClinicalDocumentsSidebar: React.FC<ClinicalDocumentsSidebarProps> =
 
       <div className="space-y-1.5">
         <p className="text-[11px] font-semibold text-slate-500">Episodio actual</p>
-        {documents.length === 0 ? (
+        {readStatus === 'loading' && <p role="status">Cargando documentos del episodio…</p>}
+        {readStatus === 'error' && (
+          <div role="status">
+            No se pudieron actualizar los documentos del episodio.{' '}
+            <button type="button" onClick={retryDocuments} className="underline">
+              Reintentar
+            </button>
+          </div>
+        )}
+        {documents.length === 0 && readStatus === 'ready' ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-xs text-slate-500">
             No hay documentos clínicos para este episodio.
           </div>
