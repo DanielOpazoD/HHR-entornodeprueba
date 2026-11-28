@@ -4,7 +4,13 @@ import { CircleMinus } from 'lucide-react';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import { cudyrExclusionSummary } from '@/features/cudyr/report/cudyrExclusionSummary';
 
-export const CudyrExclusionSummary = ({ data }: { data: CudyrReportDataset }) => {
+export const CudyrExclusionSummary = ({
+  data,
+  embedded = false,
+}: {
+  data: CudyrReportDataset;
+  embedded?: boolean;
+}) => {
   const [selection, setSelection] = useState<{ key: string; withCudyr: boolean } | null>(null);
   const summary = cudyrExclusionSummary(data.rows);
   const selectedGroup = summary.groups.find(group => group.key === selection?.key);
@@ -12,7 +18,13 @@ export const CudyrExclusionSummary = ({ data }: { data: CudyrReportDataset }) =>
     'rounded px-1 py-1 text-teal-800 underline decoration-teal-200 underline-offset-2 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700';
   return (
     <>
-      <details className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-600">
+      <details
+        className={
+          embedded
+            ? 'text-[11px] text-slate-600'
+            : 'mt-2 border-t border-slate-100 pt-2 text-xs text-slate-600'
+        }
+      >
         <summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
           <CircleMinus size={13} aria-hidden="true" />
           No elegibles del mes · {summary.patientDays} pacientes-día · {summary.patients} pacientes

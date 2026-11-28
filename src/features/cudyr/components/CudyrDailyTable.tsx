@@ -7,6 +7,15 @@ import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import { CUDYR_GROUP_LABELS } from '@/services/cudyr/cudyrReportPresentation';
 import { cudyrControlStatus, cudyrCompactMoment } from '@/features/cudyr/report/cudyrDailyControl';
 
+const resolveCategoryBadgeClass = (category: string): string => {
+  const group = category.trim().charAt(0).toUpperCase();
+  if (group === 'A') return 'border-rose-200 bg-rose-50 text-rose-800';
+  if (group === 'B') return 'border-amber-200 bg-amber-50 text-amber-800';
+  if (group === 'C') return 'border-sky-200 bg-sky-50 text-sky-800';
+  if (group === 'D') return 'border-emerald-200 bg-emerald-50 text-emerald-800';
+  return 'border-slate-200 bg-slate-50 text-slate-700';
+};
+
 export const CudyrDailyTable = ({
   rows,
   onReview,
@@ -20,10 +29,10 @@ export const CudyrDailyTable = ({
   const movementRow = rows.find(row => row.key === movementKey);
   return (
     <>
-      <div className="relative overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="relative max-h-[calc(100vh-14rem)] overflow-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full min-w-[960px] table-fixed text-left text-xs">
           <caption className="sr-only">Medias: NEO 1–2 y H1C1–H6C2 · Intermedias: R1–R4.</caption>
-          <thead className="border-y bg-slate-50 text-[11px] text-slate-500">
+          <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 text-[11px] text-slate-500 backdrop-blur-[2px]">
             <tr>
               {[
                 ['Cama · Eloísa', 'w-36'],
@@ -82,8 +91,16 @@ export const CudyrDailyTable = ({
                 <td className="px-2 py-0.5 tabular-nums text-rose-700">
                   {row.evaluation?.riskScore ?? '—'}
                 </td>
-                <td className="px-2 py-0.5 font-semibold text-teal-800">
-                  {row.evaluation?.category || '—'}
+                <td className="px-2 py-0.5">
+                  {row.evaluation?.category ? (
+                    <span
+                      className={`inline-flex min-w-[2.1rem] items-center justify-center rounded-md border px-1.5 py-0.5 text-[11px] font-semibold leading-none tabular-nums ${resolveCategoryBadgeClass(row.evaluation.category)}`}
+                    >
+                      {row.evaluation.category}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">—</span>
+                  )}
                 </td>
                 <td
                   className="px-2 py-0.5 tabular-nums text-slate-600"

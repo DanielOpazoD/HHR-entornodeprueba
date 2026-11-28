@@ -31,9 +31,17 @@ export interface BuildCudyrViewModelInput {
   now?: Date;
 }
 
+export interface CudyrFilterCounts {
+  all: number;
+  elegible: number;
+  no_elegible: number;
+  por_revisar: number;
+}
+
 export interface CudyrViewModel {
   rows: CudyrReportRow[];
   visibleRows: CudyrReportRow[];
+  filterCounts: CudyrFilterCounts;
   totals: CudyrReportTotals;
   daily: CudyrReportTotals;
   dayPending: boolean;
@@ -76,6 +84,12 @@ export const buildCudyrViewModel = ({
 }: BuildCudyrViewModelInput): CudyrViewModel => {
   const rows = data?.rows.filter(row => row.date === date && !row.resolvedSystemDeparture) ?? [];
   const visibleRows = rows.filter(row => filter === 'all' || row.eligibility === filter);
+  const filterCounts: CudyrFilterCounts = {
+    all: rows.length,
+    elegible: rows.filter(row => row.eligibility === 'elegible').length,
+    no_elegible: rows.filter(row => row.eligibility === 'no_elegible').length,
+    por_revisar: rows.filter(row => row.eligibility === 'por_revisar').length,
+  };
   const totals = cudyrReportTotals(data?.rows ?? []);
   const asOf = data?.generatedAt ? new Date(data.generatedAt) : (now ?? new Date());
   const archiveDays = data ? cudyrArchiveCoverage(data, asOf) : [];
@@ -128,6 +142,7 @@ export const buildCudyrViewModel = ({
   return {
     rows,
     visibleRows,
+    filterCounts,
     totals,
     daily,
     dayPending,

@@ -100,7 +100,10 @@ test('explores the saved period, preserves group totals in Excel and audits a co
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Volver al registro CUDYR' }).click();
   await expect(page.getByRole('heading', { name: 'CUDYR · control diario' })).toBeVisible();
-  await page.getByRole('combobox').selectOption('no_elegible');
+  await page
+    .getByRole('group', { name: 'Filtrar casos CUDYR' })
+    .getByRole('button', { name: /^Excluidos/ })
+    .click();
   await expect(page.getByText('PACIENTE SINTÉTICO R1', { exact: true })).toBeVisible();
   const updatedDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Excel mensual', exact: true }).click();

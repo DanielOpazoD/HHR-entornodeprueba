@@ -248,7 +248,7 @@ export const CudyrMonthlyRecovery = ({
           type="button"
           disabled={!closed || disabled}
           title={!closed ? 'Aún no hay turnos cerrados en este mes.' : undefined}
-          className="inline-flex items-center rounded-lg border border-teal-700 bg-white px-3 py-2 text-sm font-medium text-teal-800 disabled:opacity-40"
+          className="inline-flex items-center rounded-lg border border-teal-700 bg-white px-2.5 py-1.5 text-xs font-medium text-teal-800 transition-colors hover:bg-teal-50 disabled:opacity-40"
           onClick={() => {
             setOpen(true);
             if (!busy) void start();
