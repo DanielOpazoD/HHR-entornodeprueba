@@ -128,6 +128,13 @@ export const chunkForModule = (
 ): string | undefined => {
   const normalizedId = moduleId.replace(/\\/g, '/');
   if (graph && isStartupAppModule(moduleId, graph)) return 'app-bootstrap';
+  // Both delayed readers also serve the authenticated census. Give their shared storage code an
+  // offline chunk of its own so a role-cache read does not have to load the application shell.
+  if (
+    normalizedId.endsWith('/src/services/storage/indexeddb/indexedDbRecordService.ts') ||
+    normalizedId.endsWith('/src/services/storage/indexeddb/indexedDbSettingsService.ts')
+  )
+    return 'local-record-store';
   if (
     clinicalDocumentsWorkspaceModules.has(normalizedId.slice(normalizedId.lastIndexOf('/src/')))
   ) {
