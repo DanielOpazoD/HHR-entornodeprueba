@@ -341,6 +341,57 @@ test('completes and downloads an internal DIAT with no patient context', async (
   expect(pageErrors).toEqual([]);
 });
 
+test.describe('MEDIF availability', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('loads the editor on opening and can discard a dirty form offline', async ({
+    page,
+    context,
+  }) => {
+    await seedPersistedSession(page);
+    await page.goto(`/?date=${PREVIEW_DATE}`);
+    await page.getByTestId('clinical-library-quick-action').click();
+    const drawer = page.getByTestId('clinical-library-drawer');
+    const medif = drawer.getByTestId('library-tool-medif');
+    const passenger = drawer.locator('#medif-p1_nombre_pasajero');
+    await expect(medif).toBeVisible();
+
+    // Hold new scripts after the library is usable, irrespective of their filenames.
+    let releaseScripts!: () => void;
+    const scriptsMayLoad = new Promise<void>(resolve => {
+      releaseScripts = resolve;
+    });
+    await page.route('**/assets/*.js', async route => {
+      await scriptsMayLoad;
+      await route.continue();
+    });
+    try {
+      await Promise.all([
+        page.waitForRequest(request => request.resourceType() === 'script'),
+        medif.click(),
+      ]);
+      await expect(drawer.getByRole('status')).toBeVisible();
+      await expect(passenger).toHaveCount(0);
+    } finally {
+      releaseScripts();
+    }
+    await passenger.fill('BORRADOR SINTÉTICO');
+    await page.unroute('**/assets/*.js');
+    await context.setOffline(true);
+
+    const back = drawer.getByRole('button', { name: 'Volver a la biblioteca' });
+    const confirmation = drawer.getByRole('alertdialog', { name: '¿Salir del MEDIF?' });
+    await back.click();
+    await confirmation.getByRole('button', { name: 'Seguir editando' }).click();
+    await expect(passenger).toHaveValue('BORRADOR SINTÉTICO');
+    await back.click();
+    await confirmation.getByRole('button', { name: 'Salir y descartar' }).click();
+    await expect(passenger).toHaveCount(0);
+    await medif.click();
+    await expect(passenger).toHaveValue('');
+  });
+});
+
 test('fills the compact MEDIF from the census, restores its preset and prints the original PDF', async ({
   page,
 }) => {
