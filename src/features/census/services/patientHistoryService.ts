@@ -100,6 +100,13 @@ function collectPatientMovementHistory(
   let lastSeenDate = '';
   let openEpisodeAdmissionDate = '';
   let isEpisodeOpen = false;
+  let totalDays = 0;
+  const observeStayDay = (date: string, admissionDate?: string) => {
+    if (isEpisodeOpen && (!admissionDate || admissionDate === openEpisodeAdmissionDate)) {
+      totalDays += Math.max(diffCalendarDays(lastSeenDate, date) ?? 0, 0);
+    }
+    lastSeenDate = date;
+  };
 
   // We process records to find movements and the latest admission date
   for (const date of sortedDates) {
@@ -114,7 +121,7 @@ function collectPatientMovementHistory(
         if (!patientName && patient.patientName) patientName = patient.patientName;
         const patientAdmissionDate = patient.admissionDate || date;
         if (patientAdmissionDate) openEpisodeAdmissionDate ||= patientAdmissionDate;
-        lastSeenDate = date;
+        observeStayDay(date, patient.admissionDate);
 
         // Movements logic...
         // To keep it simple and accurate, we detect transitions
@@ -152,7 +159,7 @@ function collectPatientMovementHistory(
           patientName = patient.clinicalCrib.patientName;
         const cribAdmissionDate = patient.clinicalCrib.admissionDate || date;
         if (cribAdmissionDate) openEpisodeAdmissionDate ||= cribAdmissionDate;
-        lastSeenDate = date;
+        observeStayDay(date, patient.clinicalCrib.admissionDate);
 
         const cribBedId = `${bedId}-cuna`;
         const lastMove = movements[movements.length - 1];
@@ -187,7 +194,7 @@ function collectPatientMovementHistory(
     // 2. Check discharges/transfers (these end a session)
     for (const discharge of getActiveMovements(record.discharges)) {
       if (normalizeRut(discharge.rut) === normalizedRut) {
-        lastSeenDate = date;
+        observeStayDay(date);
         movements.push({
           date,
           bedId: discharge.bedId,
@@ -204,7 +211,7 @@ function collectPatientMovementHistory(
 
     for (const transfer of getActiveMovements(record.transfers)) {
       if (normalizeRut(transfer.rut) === normalizedRut) {
-        lastSeenDate = date;
+        observeStayDay(date);
         movements.push({
           date,
           bedId: transfer.bedId,
@@ -223,12 +230,7 @@ function collectPatientMovementHistory(
   const firstMovement = movements[0];
   if (!firstMovement) return null;
 
-  // Use the official formula for totalDays (matching Census first column)
-  const calculateDays = (startStr: string, endStr: string): number =>
-    Math.max(diffCalendarDays(startStr, endStr) ?? 0, 0);
-
   const firstSeenDate = firstMovement.date;
-  const totalDays = calculateDays(firstSeenDate, lastSeenDate);
 
   return {
     patientName: patientName || 'Paciente',

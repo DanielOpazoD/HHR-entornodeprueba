@@ -308,6 +308,8 @@ describe('patientHistoryService', () => {
       '2026-04-12:admission:H2C2',
       '2026-04-24:discharge:H2C2',
     ]);
+    // Eleven days in the first stay and twelve in the second.
+    expect(history?.totalDays).toBe(23);
     expect(history?.movements).not.toContainEqual(
       expect.objectContaining({
         date: '2026-04-12',
@@ -315,6 +317,39 @@ describe('patientHistoryService', () => {
         details: 'Desde cama H4C1',
       })
     );
+  });
+
+  it('adds only the observed days of an open readmission to the closed stay', async () => {
+    const rut = '1-9';
+    const bed = (admissionDate: string) => ({
+      R1: DataFactory.createMockPatient('R1', { rut, admissionDate }),
+    });
+    const close = {
+      id: 'out',
+      rut,
+      bedId: 'R1',
+      bedName: 'R1',
+      bedType: 'MEDIA',
+      status: 'Vivo',
+      time: '12:00',
+      dischargeType: 'Domicilio (Habitual)',
+    } as const;
+    readServerHistory.mockResolvedValue(
+      Object.fromEntries(
+        [
+          buildRecord('2025-01-01', { beds: bed('2025-01-01') }),
+          buildRecord('2025-01-03', {
+            discharges: [{ ...close, patientName: 'Sintético', diagnosis: '' }],
+          }),
+          buildRecord('2025-01-11', { beds: bed('2025-01-11') }),
+          buildRecord('2025-01-13', { beds: bed('2025-01-11') }),
+        ].map(record => [record.date, record])
+      )
+    );
+    expect(await getPatientMovementHistory(rut)).toMatchObject({
+      totalDays: 4,
+      lastSeen: '2025-01-13',
+    });
   });
 
   it('rejects invalid identifiers and skips all storage lookups', async () => {
