@@ -8,7 +8,6 @@ import { useClinicalDocumentDraftAutosave } from '@/features/clinical-documents/
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 
 const executePersistClinicalDocumentEditorDraft = vi.fn();
-const resolveClinicalDocumentAutosaveCommit = vi.fn();
 const auditContextMocks = vi.hoisted(() => ({
   logClinicalDocumentEdited: vi.fn(),
   recordCriticalClinicalAction: vi.fn(),
@@ -17,8 +16,6 @@ const auditContextMocks = vi.hoisted(() => ({
 vi.mock('@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases', () => ({
   executePersistClinicalDocumentEditorDraft: (...args: unknown[]) =>
     executePersistClinicalDocumentEditorDraft(...args),
-  resolveClinicalDocumentAutosaveCommit: (...args: unknown[]) =>
-    resolveClinicalDocumentAutosaveCommit(...args),
 }));
 
 vi.mock('@/context/AuditContext', () => ({
@@ -84,7 +81,6 @@ describe('useClinicalDocumentDraftAutosave', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
-    resolveClinicalDocumentAutosaveCommit.mockReturnValue('mark_clean');
   });
 
   afterEach(() => {
@@ -117,6 +113,7 @@ describe('useClinicalDocumentDraftAutosave', () => {
       ({ draft }) =>
         useClinicalDocumentDraftAutosave({
           draft,
+          pendingSnapshot: serializeClinicalDocument(draft),
           canEdit: true,
           isActive: true,
           hospitalId: 'hhr',
@@ -165,15 +162,17 @@ describe('useClinicalDocumentDraftAutosave', () => {
 
     expect(dispatch).toHaveBeenCalledWith({ type: 'AUTOSAVE_REQUESTED' });
     expect(dispatch).toHaveBeenCalledWith({
-      type: 'AUTOSAVE_MARK_CLEAN',
+      type: 'AUTOSAVE_COMMIT_BASE',
       document: secondDraft,
-      snapshot: expect.any(String),
+      requestedSnapshot: expect.any(String),
+      savedSnapshot: expect.any(String),
     });
 
     expect(dispatch).not.toHaveBeenCalledWith({
-      type: 'AUTOSAVE_MARK_CLEAN',
+      type: 'AUTOSAVE_COMMIT_BASE',
       document: firstDraft,
-      snapshot: expect.any(String),
+      requestedSnapshot: expect.any(String),
+      savedSnapshot: expect.any(String),
     });
   });
 
@@ -193,6 +192,7 @@ describe('useClinicalDocumentDraftAutosave', () => {
       ({ isActive }) =>
         useClinicalDocumentDraftAutosave({
           draft,
+          pendingSnapshot: serializeClinicalDocument(draft),
           canEdit: true,
           isActive,
           hospitalId: 'hhr',
@@ -241,6 +241,7 @@ describe('useClinicalDocumentDraftAutosave', () => {
     renderHook(() =>
       useClinicalDocumentDraftAutosave({
         draft,
+        pendingSnapshot: serializeClinicalDocument(draft),
         canEdit: true,
         isActive: true,
         hospitalId: 'hhr',
@@ -293,6 +294,7 @@ describe('useClinicalDocumentDraftAutosave', () => {
     renderHook(() =>
       useClinicalDocumentDraftAutosave({
         draft,
+        pendingSnapshot: serializeClinicalDocument(draft),
         canEdit: true,
         isActive: false,
         hospitalId: 'hhr',
@@ -333,6 +335,7 @@ describe('useClinicalDocumentDraftAutosave', () => {
       ({ draft }) =>
         useClinicalDocumentDraftAutosave({
           draft,
+          pendingSnapshot: serializeClinicalDocument(draft),
           canEdit: true,
           isActive: true,
           hospitalId: 'hhr',
@@ -380,6 +383,7 @@ describe('useClinicalDocumentDraftAutosave', () => {
     const { unmount } = renderHook(() =>
       useClinicalDocumentDraftAutosave({
         draft,
+        pendingSnapshot: serializeClinicalDocument(draft),
         canEdit: true,
         isActive: true,
         hospitalId: 'hhr',
