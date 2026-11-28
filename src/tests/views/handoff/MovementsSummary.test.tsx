@@ -61,12 +61,13 @@ describe('MovementsSummary', () => {
     record.discharges[0].diagnosis = diagnosis;
     record.transfers[0].diagnosis = diagnosis;
     record.cma[0].diagnosis = diagnosis;
-    const { rerender } = render(
+    const { container, rerender } = render(
       <MovementsSummary
         record={{ ...record, discharges: [], transfers: [], cma: [] }}
         selectedShift="day"
       />
     );
+    expect(container.querySelector('.handoff-movements')).toHaveAttribute('data-all-empty', 'true');
     const headings = screen.getAllByRole('heading', { level: 3 });
     expect(headings.map(heading => heading.textContent)).toEqual([
       'Altas',
@@ -76,6 +77,10 @@ describe('MovementsSummary', () => {
 
     rerender(<MovementsSummary record={record} selectedShift="day" />);
 
+    expect(container.querySelector('.handoff-movements')).toHaveAttribute(
+      'data-all-empty',
+      'false'
+    );
     expect(screen.getAllByRole('heading', { level: 3 })).toEqual(headings);
     for (const name of ['Altas del turno', 'Traslados del turno', 'Hospitalización diurna / CMA']) {
       const section = screen.getByRole('region', { name });

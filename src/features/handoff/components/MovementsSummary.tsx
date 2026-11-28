@@ -49,14 +49,19 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = React.memo(
       [recordDischarges, recordTransfers, recordCma, selectedShift]
     );
     const { discharges, transfers, cma } = movementsSummaryViewModel;
+    const allEmpty =
+      discharges.items.length === 0 && transfers.items.length === 0 && cma.items.length === 0;
 
     return (
-      <div className="handoff-movements min-w-0 w-full space-y-4 print:space-y-2 print:text-[11px] print:leading-tight">
+      <div
+        className="handoff-movements min-w-0 w-full print:space-y-2 print:text-[11px] print:leading-tight"
+        data-all-empty={allEmpty}
+      >
         {/* Discharges - Filtered by shift */}
         <div className="handoff-movement" data-empty={discharges.items.length === 0}>
           <h3 className="handoff-movement-title">
             <UserMinus
-              size={16}
+              size={14}
               className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-red-500"
               aria-hidden="true"
             />
@@ -125,7 +130,7 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = React.memo(
         <div className="handoff-movement" data-empty={transfers.items.length === 0}>
           <h3 className="handoff-movement-title">
             <ArrowRightLeft
-              size={16}
+              size={14}
               className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-blue-500"
               aria-hidden="true"
             />
@@ -200,7 +205,7 @@ export const MovementsSummary: React.FC<MovementsSummaryProps> = React.memo(
         <div className="handoff-movement" data-empty={cma.items.length === 0}>
           <h3 className="handoff-movement-title">
             <Sun
-              size={16}
+              size={14}
               className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-orange-500"
               aria-hidden="true"
             />
