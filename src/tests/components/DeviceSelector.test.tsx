@@ -267,6 +267,36 @@ describe('DeviceSelector', () => {
       });
     });
 
+    it('keeps a pending edit across equivalent census reads and uses new device data while open', () => {
+      const props = {
+        onChange: mockOnChange,
+        onConfigChange: mockOnConfigChange,
+        currentDate: '2026-02-16',
+      };
+      const { rerender } = render(<DeviceSelector {...props} devices={['CUP']} />);
+      fireEvent.click(screen.getByRole('button', { name: /Editar dispositivos/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'CVC', pressed: false }));
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar e Instalar' }));
+
+      rerender(<DeviceSelector {...props} devices={['CUP']} deviceDetails={{}} />);
+      expect(screen.getByRole('button', { name: 'CVC', pressed: true })).toBeVisible();
+
+      const remoteDetails = { TET: { installationDate: '2026-02-15', note: 'Dato recibido' } };
+      rerender(<DeviceSelector {...props} devices={['TET']} deviceDetails={remoteDetails} />);
+      expect(screen.getByRole('button', { name: 'TET', pressed: true })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'CVC', pressed: false })).toBeVisible();
+      fireEvent.click(screen.getByRole('button', { name: 'LA', pressed: false }));
+      const revisedDetails = {
+        TET: { ...remoteDetails.TET, note: 'Actualizado durante el alta de LA' },
+      };
+      rerender(<DeviceSelector {...props} devices={['TET']} deviceDetails={revisedDetails} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar e Instalar' }));
+      expect(mockOnConfigChange).toHaveBeenLastCalledWith(['TET', 'LA'], {
+        ...revisedDetails,
+        LA: { installationDate: '2026-02-16' },
+      });
+    });
+
     it('drops an unconfirmed local device draft after closing the editor without parent rehydration', () => {
       const { rerender } = render(
         <DeviceSelector
