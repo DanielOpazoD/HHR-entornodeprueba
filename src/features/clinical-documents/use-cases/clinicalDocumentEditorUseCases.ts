@@ -5,7 +5,6 @@ import {
 } from '../controllers/clinicalDocumentWorkspaceController';
 import type { ClinicalDocumentDraftBaseState } from '../hooks/clinicalDocumentDraftReducer';
 import { executePersistClinicalDocumentDraft } from '@/application/clinical-documents/clinicalDocumentUseCases';
-import { hydrateClinicalDocumentRecord } from '@/domain/clinical-documents/compatibility';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 
 export type ClinicalDocumentDraftLoadResolution =
@@ -46,20 +45,20 @@ export const resolveClinicalDocumentDraftLoad = ({
     return { kind: 'preserve' };
   }
 
-  const hydrated = selected ? hydrateClinicalDocumentRecord(structuredClone(selected)) : null;
-  const snapshot = serializeClinicalDocument(hydrated);
+  const incoming = selected ? structuredClone(selected) : null;
+  const snapshot = serializeClinicalDocument(incoming);
   const isSameSelectedDocument = Boolean(currentDraft) && currentDraft?.id === selectedDocumentId;
 
   if (isSameSelectedDocument && hasLocalDraftChanges) {
     const isNewRemoteVersion =
-      hydrated?.audit.updatedAt &&
-      hydrated.audit.updatedAt !== baseState.updatedAt &&
+      incoming?.audit.updatedAt &&
+      incoming.audit.updatedAt !== baseState.updatedAt &&
       snapshot !== baseState.snapshot;
 
-    if (isNewRemoteVersion && hydrated) {
+    if (isNewRemoteVersion && incoming) {
       return {
         kind: 'stage_remote',
-        document: hydrated,
+        document: incoming,
         snapshot,
       };
     }
@@ -69,7 +68,7 @@ export const resolveClinicalDocumentDraftLoad = ({
 
   return {
     kind: 'load',
-    document: hydrated,
+    document: incoming,
     snapshot,
   };
 };
