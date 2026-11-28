@@ -2,9 +2,9 @@
 import '../../../features/laboratory/labAnalyticsController.testSupport';
 
 import { describe, expect, it } from 'vitest';
+import { buildLabReportGroups } from '@/features/census/components/clinical-explorer/clinicalExplorerLabDownloadModel';
 import { buildAnalysisData } from '@/features/laboratory';
 import {
-  buildLabDayRows,
   buildLabSeriesModel,
   buildNiceTicks,
   calendarDaysBetween,
@@ -149,13 +149,18 @@ describe('clinicalExplorerLabModel', () => {
 
   it('lists every result of one day, numeric or not, with time and reference text', () => {
     expect(
-      buildLabDayRows(analysis, '2026-10-30').map(r => [r.name, r.display, r.unit, r.refValue])
+      buildLabReportGroups(analysis, { from: '2026-10-30', to: '2026-10-30' })[0]!.rows.map(r => [
+        r.name,
+        r.display,
+        r.unit,
+        r.refValue,
+      ])
     ).toEqual([
       ['Creatinina', '1,9', 'mg/dL', '0,7 - 1,2'],
       ['Proteina C Reactiva', '<5', 'mg/L', '0 - 5'],
       ['Sodio', '136', 'mmol/L', '135 - 145'],
     ]);
-    expect(buildLabDayRows(analysis, '2026-11-01')).toEqual([]);
+    expect(buildLabReportGroups(analysis, { from: '2026-11-01', to: '2026-11-01' })).toEqual([]);
   });
 
   it('keeps the raw unit on the scale and splits an analysis reported in two units', () => {
@@ -231,12 +236,14 @@ describe('clinicalExplorerLabModel', () => {
     ]);
     expect(series.variables[2]!.points[0]!.display).toBe('7,280');
     // Two orders in the same minute keep their own column.
-    const rows = buildLabDayRows(result, '2026-11-01');
+    const rows = buildLabReportGroups(result, { from: '2026-11-01', to: '2026-11-01' }).flatMap(
+      group => group.rows
+    );
     expect(rows.map(r => r.columnKey)).toEqual([
-      '01/11/2026 08:30:59 (#8)',
       '01/11/2026 08:30:00 (#7)',
+      '01/11/2026 08:30:59 (#8)',
     ]);
-    expect(rows.map(r => r.time)).toEqual(['08:30:59', '08:30:00']);
+    expect(rows.map(r => r.time)).toEqual(['08:30:00', '08:30:59']);
     expect(selectDefaultLabVariables(series.variables, 4)).toEqual([
       'Creatinina|mg/dl',
       'Creatinina|umol/l',

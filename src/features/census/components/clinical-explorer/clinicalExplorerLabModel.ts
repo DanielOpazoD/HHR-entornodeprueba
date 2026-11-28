@@ -1,7 +1,7 @@
 import { buildExamColumnKey } from '@/features/laboratory/hospitalization-reports';
-import { formatLabResult, parseDateDDMMYYYY, parseLabMeasurement } from '@/features/laboratory';
+import { parseDateDDMMYYYY, parseLabMeasurement } from '@/features/laboratory';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
-import type { LabResultRow, SyslabExamItem } from '@/types/domain/labExamTypes';
+import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 
 export interface LabPoint {
   /** Comparison column of the report ("DD/MM/YYYY HH:MM", with seconds and order id on collisions). */
@@ -21,15 +21,6 @@ export interface LabVariable {
   analysis: string;
   unit: string;
   points: LabPoint[];
-}
-
-export interface LabDayRow {
-  columnKey: string;
-  name: string;
-  time: string;
-  display: string;
-  unit: string;
-  refValue: string;
 }
 
 export interface LabSeriesModel {
@@ -142,29 +133,6 @@ export const selectDefaultLabVariables = (variables: readonly LabVariable[], lim
   if (preferred.length) return preferred.slice(0, limit);
   const trending = variables.filter(variable => variable.points.length > 1).map(v => v.id);
   return (trending.length ? trending : ids).slice(0, limit);
-};
-
-/** Every result reported on one day, numeric or not, in clinical order. */
-export const buildLabDayRows = (analysis: LabAnalysisData, dayIso: string): LabDayRow[] => {
-  const rows: LabDayRow[] = [];
-  for (const [name, columns] of Object.entries(analysis.comparison)) {
-    for (const [columnKey, row] of Object.entries(columns) as Array<[string, LabResultRow]>) {
-      const when = parseColumnKey(columnKey);
-      if (!when || when.dayIso !== dayIso) continue;
-      const formatted = formatLabResult(row.result, row.unit);
-      rows.push({
-        columnKey,
-        name,
-        time: when.time,
-        display: formatted.display,
-        unit: formatted.displayUnit || row.unit,
-        refValue: row.refValue,
-      });
-    }
-  }
-  return rows.sort(
-    (a, b) => compareVariableNames(a.name, b.name) || a.columnKey.localeCompare(b.columnKey)
-  );
 };
 
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
