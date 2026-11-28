@@ -162,7 +162,8 @@ describe('clinicalDocumentDraftReducer', () => {
     const committed = clinicalDocumentDraftReducer(locallyEdited, {
       type: 'AUTOSAVE_COMMIT_BASE',
       document: autosaved,
-      snapshot: JSON.stringify(autosaved),
+      requestedSnapshot: JSON.stringify(document),
+      savedSnapshot: JSON.stringify(autosaved),
     });
 
     expect(committed.draft?.sections.find(section => section.id === 'antecedentes')?.content).toBe(
@@ -189,9 +190,10 @@ describe('clinicalDocumentDraftReducer', () => {
     };
 
     const committed = clinicalDocumentDraftReducer(loaded, {
-      type: 'AUTOSAVE_MARK_CLEAN',
+      type: 'AUTOSAVE_COMMIT_BASE',
       document: autosaved,
-      snapshot: JSON.stringify(autosaved),
+      requestedSnapshot: JSON.stringify(document),
+      savedSnapshot: JSON.stringify(autosaved),
     });
 
     expect(committed.draft).toEqual(document);
@@ -224,7 +226,7 @@ describe('clinicalDocumentDraftReducer', () => {
     });
 
     const otherAutosave = clinicalDocumentDraftReducer(staged, {
-      type: 'AUTOSAVE_MARK_CLEAN',
+      type: 'AUTOSAVE_COMMIT_BASE',
       document: {
         ...document,
         audit: {
@@ -232,7 +234,8 @@ describe('clinicalDocumentDraftReducer', () => {
           updatedAt: '2026-03-06T12:55:00.000Z',
         },
       },
-      snapshot: JSON.stringify({
+      requestedSnapshot: JSON.stringify(document),
+      savedSnapshot: JSON.stringify({
         ...document,
         audit: {
           ...document.audit,
@@ -244,9 +247,10 @@ describe('clinicalDocumentDraftReducer', () => {
     expect(otherAutosave.hasPendingRemoteUpdate).toBe(true);
 
     const matchingAutosave = clinicalDocumentDraftReducer(staged, {
-      type: 'AUTOSAVE_MARK_CLEAN',
+      type: 'AUTOSAVE_COMMIT_BASE',
       document: remote,
-      snapshot: remoteSnapshot,
+      requestedSnapshot: JSON.stringify(document),
+      savedSnapshot: remoteSnapshot,
     });
 
     expect(matchingAutosave.hasPendingRemoteUpdate).toBe(false);

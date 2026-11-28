@@ -6,7 +6,6 @@ import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entitie
 import { useClinicalDocumentWorkspaceDraft } from '@/features/clinical-documents/hooks/useClinicalDocumentWorkspaceDraft';
 
 const executePersistClinicalDocumentEditorDraft = vi.fn();
-const resolveClinicalDocumentAutosaveCommit = vi.fn();
 
 vi.mock(
   '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases',
@@ -20,8 +19,6 @@ vi.mock(
       ...actual,
       executePersistClinicalDocumentEditorDraft: (...args: unknown[]) =>
         executePersistClinicalDocumentEditorDraft(...args),
-      resolveClinicalDocumentAutosaveCommit: (...args: unknown[]) =>
-        resolveClinicalDocumentAutosaveCommit(...args),
     };
   }
 );
@@ -70,12 +67,66 @@ describe('useClinicalDocumentWorkspaceDraft autosave integration', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
-    resolveClinicalDocumentAutosaveCommit.mockReturnValue('mark_clean');
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
+
+  it.each(['Última edición', 'Título inicial'])(
+    'keeps the last title "%s" pending until its own save succeeds',
+    async lastTitle => {
+      const document = { ...buildDraft('doc-1', '<p>Prueba</p>'), title: 'Título inicial' };
+      const documents = [document];
+      const user = { uid: 'u1' };
+      let finishFirstSave!: () => void;
+      const saved = (record: ClinicalDocumentRecord) => ({
+        status: 'success',
+        data: { ...record, audit: { ...record.audit, updatedAt: '2026-03-06T15:00:00Z' } },
+        issues: [],
+      });
+      executePersistClinicalDocumentEditorDraft
+        .mockImplementationOnce(
+          ({ record }) =>
+            new Promise(resolve => {
+              finishFirstSave = () => resolve(saved(record));
+            })
+        )
+        .mockImplementationOnce(async ({ record }) => saved(record));
+      const { result } = renderHook(() =>
+        useClinicalDocumentWorkspaceDraft({
+          documents,
+          selectedDocumentId: document.id,
+          canEdit: true,
+          isActive: true,
+          hospitalId: 'hhr',
+          role: 'doctor_urgency',
+          persistReason: 'autosave',
+          user,
+        })
+      );
+
+      act(() => result.current.patchDocumentTitle('Primer cambio'));
+      await act(() => vi.advanceTimersByTimeAsync(900));
+      expect(executePersistClinicalDocumentEditorDraft).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ record: expect.objectContaining({ title: 'Primer cambio' }) })
+      );
+
+      act(() => result.current.patchDocumentTitle(lastTitle));
+      await act(async () => finishFirstSave());
+      expect(result.current.draft?.title).toBe(lastTitle);
+      expect(result.current.hasLocalDraftChanges).toBe(true);
+
+      await act(() => vi.advanceTimersByTimeAsync(900));
+      expect(executePersistClinicalDocumentEditorDraft).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ record: expect.objectContaining({ title: lastTitle }) })
+      );
+      expect(result.current.draft?.title).toBe(lastTitle);
+      expect(result.current.hasLocalDraftChanges).toBe(false);
+    }
+  );
 
   it('flushes pending structural formatting when switching to another document before debounce', async () => {
     const firstDraft = buildDraft(
