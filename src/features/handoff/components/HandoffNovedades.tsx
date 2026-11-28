@@ -42,13 +42,13 @@ export const HandoffNovedades: React.FC<HandoffNovedadesProps> = React.memo(
     const headingId = useId();
 
     return (
-      <div className="min-w-0 max-w-full bg-white border border-slate-200/80 rounded-2xl shadow-sm p-4 mt-4 print:rounded-lg print:shadow-none print:border-none print:p-0 print:mt-2 print:bg-transparent">
+      <div className="min-w-0 max-w-full bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_2px_rgba(15,23,42,0.03)] px-3 py-2.5 print:rounded-lg print:shadow-none print:border-none print:p-0 print:mt-2 print:bg-transparent">
         <h3
           id={headingId}
-          className="font-semibold text-sm text-slate-700 mb-3 flex items-center gap-2 print:font-bold print:text-sm print:mb-1 print:text-black"
+          className="font-semibold text-[13px] text-slate-700 mb-1.5 flex items-center gap-1.5 print:font-bold print:text-sm print:mb-1 print:text-black"
         >
           <MessageCircle
-            size={16}
+            size={14}
             className="shrink-0 text-teal-600 print:w-4 print:h-4 print:text-amber-500"
             aria-hidden="true"
           />
@@ -65,7 +65,7 @@ export const HandoffNovedades: React.FC<HandoffNovedadesProps> = React.memo(
               readOnly ? 'Sin novedades registradas.' : 'Escriba las novedades del turno aquí...'
             }
             className={clsx(
-              'min-w-0 max-w-full w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm text-slate-700 min-h-[100px]',
+              'min-w-0 max-w-full w-full px-2.5 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none text-sm text-slate-700 min-h-[76px]',
               readOnly && 'bg-slate-50 cursor-not-allowed text-slate-500'
             )}
             debounceMs={1500}
