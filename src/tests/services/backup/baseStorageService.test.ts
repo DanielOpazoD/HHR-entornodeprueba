@@ -108,13 +108,38 @@ describe('baseStorageService', () => {
       ]);
     });
 
-    it('createListYears returns [] for expected storage miss errors', async () => {
+    it('reports denied access separately from a missing folder', async () => {
       const listYears = BaseStorage.createListYears('test-root');
       const { listAll } = await import('firebase/storage');
       vi.mocked(listAll).mockRejectedValueOnce({ code: 'storage/unauthorized' });
 
-      const years = await listYears();
-      expect(years).toEqual([]);
+      await expect(listYears()).rejects.toMatchObject({ code: 'storage/unauthorized' });
+      vi.mocked(listAll).mockRejectedValueOnce({ code: 'storage/object-not-found' });
+      await expect(listYears()).resolves.toEqual([]);
+    });
+
+    it('times out an unconfirmed folder and clears the deadline after a successful month read', async () => {
+      vi.useFakeTimers();
+      try {
+        const { listAll } = await import('firebase/storage');
+        vi.mocked(listAll).mockImplementationOnce(() => new Promise(() => {}));
+        const pending = expect(BaseStorage.createListMonths('test-root')('2025')).rejects.toThrow(
+          /tiempo de espera/
+        );
+        await vi.advanceTimersByTimeAsync(5001);
+        await pending;
+        vi.mocked(listAll).mockResolvedValueOnce(createListResult([]));
+        const result = await BaseStorage.createListFilesInMonthWithReport({
+          storageRoot: 'test-root',
+          parseFilePath: vi.fn(),
+          mapToFile: vi.fn(),
+        })('2025', '01');
+        await vi.advanceTimersByTimeAsync(15001);
+        expect(result.report.timedOut).toBe(false);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('createListFilesInMonthWithReport returns files correctly', async () => {

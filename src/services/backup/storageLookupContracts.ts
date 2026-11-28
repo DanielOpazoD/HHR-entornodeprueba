@@ -13,18 +13,24 @@ export const createStorageLookupResult = (
   status,
 });
 
-export const withStorageLookupTimeout = async (
+export const withStorageDeadline = async <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  onTimeout: () => T | Promise<T>
+): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>(resolve => {
+    timer = setTimeout(() => resolve(Promise.resolve().then(onTimeout)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+};
+
+export const withStorageLookupTimeout = (
   promise: Promise<StorageLookupResult>,
   timeoutMs: number,
   onTimeout?: () => void
-): Promise<StorageLookupResult> => {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<StorageLookupResult>(resolve => {
-    timer = setTimeout(() => {
-      onTimeout?.();
-      resolve(createStorageLookupResult(false, 'timeout'));
-    }, timeoutMs);
+): Promise<StorageLookupResult> =>
+  withStorageDeadline(promise, timeoutMs, () => {
+    onTimeout?.();
+    return createStorageLookupResult(false, 'timeout');
   });
-
-  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
-};

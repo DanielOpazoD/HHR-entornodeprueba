@@ -31,6 +31,7 @@ export const BackupFilesView: React.FC<BackupFilesViewProps> = ({
     setPreviewFile,
     items,
     filteredItems,
+    listingIncomplete,
     isLoading,
     isRefetching,
     canDelete,
@@ -84,6 +85,7 @@ export const BackupFilesView: React.FC<BackupFilesViewProps> = ({
         <BackupFilesContent
           items={items}
           filteredItems={filteredItems}
+          listingIncomplete={listingIncomplete}
           path={path}
           selectedBackupType={selectedBackupType}
           viewMode={viewMode}
