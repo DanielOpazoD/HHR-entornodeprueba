@@ -1,6 +1,7 @@
 import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import {
   applyDailyRecordStaffingCompatibility,
+  normalizeStaffSlots,
   readStoredShiftSlots,
   resolveStoredDayShiftSlots,
   toEmptyShiftPair,
@@ -47,6 +48,22 @@ const resolveLegacyDayShiftNurses = (record: DailyRecordShiftStaffingShape): str
   }
 
   return record.nurseName?.trim() ? [record.nurseName.trim()] : [];
+};
+
+export const resolveDayShiftNurseSlots = (
+  record: DailyRecordShiftStaffingShape | null | undefined,
+  slotCount = 2
+): string[] => {
+  if (!record) return [];
+  const canonical = normalizeStaffSlots(record.nursesDayShift, slotCount);
+  if (canonical.some(Boolean)) {
+    return canonical;
+  }
+  const legacy = normalizeStaffSlots(record.nurses, slotCount);
+  if (legacy.some(Boolean)) {
+    return legacy;
+  }
+  return record.nurseName?.trim() ? [record.nurseName.trim(), ''] : ['', ''];
 };
 
 export const resolveDayShiftNurses = (
