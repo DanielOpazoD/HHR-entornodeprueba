@@ -6,7 +6,7 @@ import type { DailyRecordCsvExportState } from '@/types/domain/dailyRecordSlices
 import { BEDS } from '@/constants/beds';
 import { CSV_HEADERS } from '@/constants/export';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
-import { resolveExportableNursesText } from '@/services/staff/dailyRecordStaffing';
+import { resolveExportableNursesText } from '@/services/staff/dailyRecordStaffingPresentation';
 import { resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 import {
   getActiveDischarges,

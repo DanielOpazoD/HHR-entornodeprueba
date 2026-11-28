@@ -6,7 +6,7 @@ import {
   resolveDetailedStaffingState,
   updateDetailedStaffingStandardSlot,
 } from '@/services/staff/dailyRecordDetailedStaffing';
-import { resolvePresentedDayShiftNurses } from '@/services/staff/dailyRecordStaffing';
+import { resolvePresentedDayShiftNurses } from '@/services/staff/dailyRecordStaffingPresentation';
 import { validateAndSalvageRecord } from '@/services/repositories/helpers/validationHelper';
 import { docToRecord } from '@/services/storage/firestore/firestoreShared';
 import { resolveStaffSelectorsState } from '@/features/census/controllers/censusStaffHeaderController';

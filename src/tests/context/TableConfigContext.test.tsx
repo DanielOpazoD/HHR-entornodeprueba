@@ -2,7 +2,8 @@ import React from 'react';
 import { render, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TableConfigProvider, useTableConfig } from '@/context/TableConfigContext';
+import { useTableConfig } from '@/context/TableConfigContext';
+import { TableConfigProvider } from '@/context/TableConfigProvider';
 import {
   DEFAULT_COLUMN_WIDTHS,
   cacheTableConfigLocally,

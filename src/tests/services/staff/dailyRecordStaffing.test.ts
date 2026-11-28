@@ -2,12 +2,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   resolveDayShiftNurses,
-  resolveExportableNursesText,
   normalizeUnknownDailyRecordStaffing,
   resolveNightShiftNurses,
-  resolvePresentedNightShiftNurses,
   resolveShiftNurseSignature,
 } from '@/services/staff/dailyRecordStaffing';
+import {
+  resolveExportableNursesText,
+  resolvePresentedNightShiftNurses,
+} from '@/services/staff/dailyRecordStaffingPresentation';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const buildRecord = (overrides: Partial<DailyRecord> = {}): DailyRecord =>

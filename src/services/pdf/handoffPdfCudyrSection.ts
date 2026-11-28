@@ -1,7 +1,7 @@
 import type { jsPDF } from 'jspdf';
 import { BEDS } from '@/constants/beds';
 import type { DailyRecordHandoffPdfState as HandoffPdfRecord } from '@/types/domain/dailyRecordSlices';
-import { resolvePresentedNightShiftNurses } from '@/services/staff/dailyRecordStaffing';
+import { resolvePresentedNightShiftNurses } from '@/services/staff/dailyRecordStaffingPresentation';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { AutoTableFunction, CellHookData, JsPDFWithAutoTable } from './handoffPdfTypes';
 import { getCategorization } from '@/services/cudyr/CudyrScoreUtils';

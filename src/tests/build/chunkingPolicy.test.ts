@@ -180,6 +180,32 @@ describe('chunkingPolicy', () => {
     expect(repositoryContextSource).not.toContain('CatalogRepository');
   });
 
+  it('keeps TableConfigProvider and tableConfigService out of the static authenticated shell graph', () => {
+    const appProvidersSource = readSource('src/components/AppProviders.tsx');
+    const tableConfigContextSource = readSource('src/context/TableConfigContext.tsx');
+    const deferredTableConfigSource = readSource('src/context/DeferredTableConfigProvider.tsx');
+
+    expect(appProvidersSource).not.toMatch(/from ['"]@\/context\/TableConfigProvider['"]/);
+    expect(appProvidersSource).not.toMatch(/from ['"]@\/context\/TableConfigContext['"]/);
+    expect(appProvidersSource).toContain("from '@/context/DeferredTableConfigProvider'");
+
+    expect(tableConfigContextSource).not.toMatch(
+      /from ['"]@\/services\/storage\/tableConfigService['"]/
+    );
+    expect(deferredTableConfigSource).not.toMatch(
+      /import\s+(?!type\b)[^;]+from ['"]@\/context\/TableConfigProvider['"]/
+    );
+    expect(deferredTableConfigSource).toContain("import('@/context/TableConfigProvider')");
+  });
+
+  it('keeps detailed staff presentation and Eloísa identity helpers out of dailyRecordStaffing', () => {
+    const staffingSource = readSource('src/services/staff/dailyRecordStaffing.ts');
+
+    expect(staffingSource).not.toContain('dailyRecordDetailedStaffing');
+    expect(staffingSource).not.toContain('staffSelectionPresentation');
+    expect(staffingSource).not.toContain('eloisaStaffIdentity');
+  });
+
   it('keeps route-specific handoff, movement and staffing hooks out of useDailyRecordDomainModules', () => {
     const domainModulesSource = readSource('src/hooks/useDailyRecordDomainModules.ts');
 
