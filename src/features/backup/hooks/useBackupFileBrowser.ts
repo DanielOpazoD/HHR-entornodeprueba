@@ -113,6 +113,7 @@ export const useBackupFileBrowser = (initialBackupType: BackupType = 'handoff') 
     searchQuery,
     setSearchQuery,
     previewFile,
+    listingIncomplete: Boolean(listingOutcome && listingOutcome.status !== 'success'),
     setPreviewFile,
     items,
     filteredItems,

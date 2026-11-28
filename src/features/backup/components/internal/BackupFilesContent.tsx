@@ -14,6 +14,7 @@ interface BackupFilesContentProps {
   path: string[];
   selectedBackupType: BackupType;
   viewMode: 'grid' | 'list';
+  listingIncomplete?: boolean;
   isLoading: boolean;
   isRefetching: boolean;
   canDelete: boolean;
@@ -26,6 +27,7 @@ interface BackupFilesContentProps {
 export const BackupFilesContent: React.FC<BackupFilesContentProps> = ({
   items,
   filteredItems,
+  listingIncomplete,
   path,
   selectedBackupType,
   viewMode,
@@ -51,7 +53,9 @@ export const BackupFilesContent: React.FC<BackupFilesContentProps> = ({
       <div className="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
         <Folder className="w-16 h-16 text-slate-200 mb-4" />
         <p className="text-slate-400 font-medium tracking-tight">
-          No se encontraron respaldos en esta ubicación
+          {listingIncomplete
+            ? 'No se pudo comprobar el contenido de esta carpeta.'
+            : 'No se encontraron respaldos en esta ubicación'}
         </p>
       </div>
     );

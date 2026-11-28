@@ -20,22 +20,22 @@ import {
 } from './storageListSupport';
 import type { ListFilesConfig, MonthInfo, StorageListResult } from './storageListSupport';
 import type { BaseStoredFile } from '@/types/backupArtifacts';
+import { withStorageDeadline } from './storageLookupContracts';
 import { resolveBackupStorage } from '@/services/backup/backupStorageRuntimeSupport';
+
+const folderListTimedOut = (): never => {
+  throw new Error('La consulta de carpetas de respaldo excedió el tiempo de espera.');
+};
 
 export const createListYears = (storageRoot: string) => {
   return async (
     runtime: Pick<BackupStorageRuntime, 'ready' | 'getStorage'> = defaultBackupStorageRuntime
   ): Promise<string[]> => {
     try {
-      const storage = await resolveBackupStorage(runtime);
-
-      const timeoutPromise = new Promise<string[]>(resolve =>
-        setTimeout(() => resolve([]), DEFAULT_LIST_TIMEOUT_MS)
-      );
-
       const listPromise = measureStorageOperation(
         'listStorageYears',
         async () => {
+          const storage = await resolveBackupStorage(runtime);
           const rootRef = ref(storage, storageRoot);
           const result = await listAll(rootRef);
           return result.prefixes
@@ -46,9 +46,9 @@ export const createListYears = (storageRoot: string) => {
         { context: storageRoot }
       );
 
-      return await Promise.race([listPromise, timeoutPromise]);
+      return await withStorageDeadline(listPromise, DEFAULT_LIST_TIMEOUT_MS, folderListTimedOut);
     } catch (error: unknown) {
-      if (isExpectedStorageLookupMiss(error)) {
+      if (classifyStorageError(error) === 'not_found') {
         return [];
       }
       if (shouldLogStorageError(error)) {
@@ -65,7 +65,7 @@ export const createListYears = (storageRoot: string) => {
           { context: { storageRoot } }
         );
       }
-      return [];
+      throw error;
     }
   };
 };
@@ -76,15 +76,10 @@ export const createListMonths = (storageRoot: string) => {
     runtime: Pick<BackupStorageRuntime, 'ready' | 'getStorage'> = defaultBackupStorageRuntime
   ): Promise<MonthInfo[]> => {
     try {
-      const storage = await resolveBackupStorage(runtime);
-
-      const timeoutPromise = new Promise<MonthInfo[]>(resolve =>
-        setTimeout(() => resolve([]), DEFAULT_LIST_TIMEOUT_MS)
-      );
-
       const listPromise = measureStorageOperation(
         'listStorageMonths',
         async () => {
+          const storage = await resolveBackupStorage(runtime);
           const yearRef = ref(storage, `${storageRoot}/${year}`);
           const result = await listAll(yearRef);
           return result.prefixes
@@ -97,9 +92,9 @@ export const createListMonths = (storageRoot: string) => {
         { context: `${storageRoot}/${year}` }
       );
 
-      return await Promise.race([listPromise, timeoutPromise]);
+      return await withStorageDeadline(listPromise, DEFAULT_LIST_TIMEOUT_MS, folderListTimedOut);
     } catch (error: unknown) {
-      if (isExpectedStorageLookupMiss(error)) {
+      if (classifyStorageError(error) === 'not_found') {
         return [];
       }
       if (shouldLogStorageError(error)) {
@@ -116,7 +111,7 @@ export const createListMonths = (storageRoot: string) => {
           { context: { storageRoot, year } }
         );
       }
-      return [];
+      throw error;
     }
   };
 };
@@ -190,25 +185,10 @@ export const createListFilesInMonthWithReport = <
     const report = createStorageListReport();
 
     try {
-      const storage = await resolveBackupStorage(runtime);
-
-      const timeoutPromise = new Promise<StorageListResult<T>>(resolve =>
-        setTimeout(() => {
-          report.timedOut = true;
-          recordOperationalTelemetry({
-            category: 'backup',
-            operation: 'list_storage_files_timeout',
-            status: 'degraded',
-            issues: ['La consulta de respaldo excedio el tiempo esperado.'],
-            context: { fullStoragePath },
-          });
-          resolve({ files: [], report: { ...report } });
-        }, DEFAULT_FILES_TIMEOUT_MS)
-      );
-
       const listPromise = measureStorageOperation(
         'listStorageFilesInMonth',
         async () => {
+          const storage = await resolveBackupStorage(runtime);
           const monthRef = ref(storage, fullStoragePath);
           const result = await listAll(monthRef);
 
@@ -231,7 +211,16 @@ export const createListFilesInMonthWithReport = <
         { context: fullStoragePath }
       );
 
-      return await Promise.race([listPromise, timeoutPromise]);
+      return await withStorageDeadline(listPromise, DEFAULT_FILES_TIMEOUT_MS, () => {
+        recordOperationalTelemetry({
+          category: 'backup',
+          operation: 'list_storage_files_timeout',
+          status: 'degraded',
+          issues: ['La consulta de respaldo excedió el tiempo esperado.'],
+          context: { fullStoragePath },
+        });
+        return { files: [], report: { ...report, timedOut: true } };
+      });
     } catch (error: unknown) {
       if (isExpectedStorageLookupMiss(error)) {
         report.skippedRestricted += 1;
