@@ -11,6 +11,8 @@ import { listActiveClinicalDocumentTemplates } from '@/features/clinical-documen
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
+import { buildClinicalDocumentPrintHtml } from '@/features/clinical-documents/services/clinicalDocumentPrintHtmlBuilder';
+import * as compatibility from '@/domain/clinical-documents/compatibility';
 import { ClinicalDocumentsWorkspace } from '@/features/clinical-documents/components/ClinicalDocumentsWorkspace';
 import type {
   ClinicalDocumentRecord,
@@ -120,6 +122,8 @@ const secondaryTemplate: ClinicalDocumentTemplate = {
   defaultFooterEspecialidadLabel: 'Especialidad',
 };
 
+vi.mock('@/services/repositories/repositoryConfig', () => ({ isFirestoreEnabled: () => false }));
+
 vi.mock('@/services/repositories/ClinicalDocumentRepository', () => ({
   ClinicalDocumentRepository: {
     subscribeByEpisode: vi.fn(),
@@ -213,6 +217,46 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
 
     expect(screen.queryByRole('button', { name: /guardar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /drive/i })).not.toBeInTheDocument();
+  });
+
+  it('opens a legacy epicrisis, edits a copy and prints the restored fields and current text', async () => {
+    const { ClinicalDocumentRepository: localRepository } = await vi.importActual<
+      typeof import('@/services/repositories/ClinicalDocumentRepository')
+    >('@/services/repositories/ClinicalDocumentRepository');
+    const legacy = { ...clinicalDocument, patientInfoTitle: '', footerMedicoLabel: '' };
+    const stored = JSON.stringify({ hhr: { [legacy.id]: legacy } });
+    const storageKey = 'hhr_clinical_documents_local_v1';
+    localStorage.setItem(storageKey, stored);
+    vi.mocked(ClinicalDocumentRepository.subscribeByEpisodeKeys).mockImplementation(
+      localRepository.subscribeByEpisodeKeys
+    );
+    const hydrate = vi.spyOn(compatibility, 'hydrateClinicalDocumentRecord');
+    const fetchAsset = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 404 }));
+    try {
+      render(
+        <ClinicalDocumentsWorkspace
+          patient={workspacePatient}
+          currentDateString="2026-03-06"
+          bedId="R1"
+        />
+      );
+      const editor = await screen.findByRole('textbox', { name: /contenido antecedentes/i });
+      expect(editor).toHaveTextContent('Antecedentes completo');
+      expect(hydrate).toHaveBeenCalledTimes(1);
+      editor.innerHTML = 'Antecedente sintético actualizado';
+      fireEvent.input(editor);
+      const html = await buildClinicalDocumentPrintHtml();
+      expect(html).toContain('Antecedente sintético actualizado');
+      expect(html).toContain('Información del Paciente');
+      expect(html).toContain('Médico');
+      expect(localStorage.getItem(storageKey)).toBe(stored);
+    } finally {
+      hydrate.mockRestore();
+      fetchAsset.mockRestore();
+      localStorage.removeItem(storageKey);
+    }
   });
 
   it('blocks editing for non-admin users when the episode is closed', async () => {

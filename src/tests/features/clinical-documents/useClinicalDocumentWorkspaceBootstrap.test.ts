@@ -71,13 +71,7 @@ describe('useClinicalDocumentWorkspaceBootstrap', () => {
     expect(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).not.toHaveBeenCalled();
   });
 
-  it('uses fixed templates and hydrates subscription documents', async () => {
-    vi.mocked(clinicalDocumentUseCases.subscribeClinicalDocumentsByEpisodeKeys).mockImplementation(
-      (_episodeKeys, callback) => {
-        callback([{ ...buildDocument(), patientInfoTitle: '' }]);
-        return vi.fn();
-      }
-    );
+  it('uses fixed templates and selects the document delivered by the repository', async () => {
     const { result } = renderHook(() =>
       useClinicalDocumentWorkspaceBootstrap({
         patient: patient as never,
