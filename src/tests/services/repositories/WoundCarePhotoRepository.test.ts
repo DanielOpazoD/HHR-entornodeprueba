@@ -74,6 +74,27 @@ describe('WoundCarePhotoRepository', () => {
     expect(result.find(photo => photo.id === 'legacy-no-flag')?.isDeleted).toBe(false);
   });
 
+  it('keeps the episode gallery, subscription and count consistent for a legacy photo', async () => {
+    const { isDeleted: _flag, ...legacy } = buildPhoto('legacy', '2026-04-01T10:00:00Z');
+    const deleted = { ...legacy, id: 'deleted', isDeleted: true };
+    const rows = [legacy, deleted];
+    vi.mocked(firestoreDb.getDocs).mockResolvedValue(rows);
+    const callback = vi.fn();
+    const gallery = await WoundCarePhotoRepository.listByEpisode(legacy.episodeKey, 'H1');
+    WoundCarePhotoRepository.subscribeByEpisode(legacy.episodeKey, callback, 'H1');
+    const [path, selection, emit] = vi.mocked(firestoreDb.subscribeQuery).mock.calls[0]!;
+    expect(selection.where).toEqual([
+      { field: 'episodeKey', operator: '==', value: legacy.episodeKey },
+    ]);
+    expect(firestoreDb.getDocs).toHaveBeenCalledWith(path, selection);
+    emit(rows);
+    expect(callback).toHaveBeenCalledWith(gallery);
+    expect(gallery.map(photo => photo.id)).toEqual(['legacy']);
+    expect(await WoundCarePhotoRepository.countByEpisodeKeys([legacy.episodeKey], 'H1')).toEqual({
+      [legacy.episodeKey]: 1,
+    });
+  });
+
   it('fails closed in listByPatientRut when an active photo record fails schema validation', async () => {
     const malformedPhoto = {
       ...buildPhoto('broken', '2026-05-02T10:00:00.000Z'),
