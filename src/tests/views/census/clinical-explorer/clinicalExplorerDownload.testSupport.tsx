@@ -1,4 +1,5 @@
 // Synthetic patients, documents and answers shared by the explorer download tests.
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { PDFDocument } from 'pdf-lib';
 import PizZip from 'pizzip';
@@ -6,15 +7,13 @@ import { vi } from 'vitest';
 import type { AuditDocumentsResult } from '@/features/audit-documents/eloisa-history';
 import type { MMRADExam } from '@/features/radiology/services/mmradService';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
-import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerHeader } from '@/features/census/components/clinical-explorer/ClinicalExplorerHeader';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 export const RUT = '12.345.678-5';
-export const [patient, otherPatient] = listClinicalExplorerPatients({
-  visibleBeds: BEDS.filter(bed => !bed.isExtra),
-  beds: {
+export const [patient, otherPatient] = listClinicalExplorerPatients(
+  buildTestCensusRows({
     R1: DataFactory.createMockPatient('R1', {
       patientName: 'PACIENTE SINTÉTICO',
       rut: RUT,
@@ -27,8 +26,8 @@ export const [patient, otherPatient] = listClinicalExplorerPatients({
       clinicalEpisodeId: 'ep-2',
       admissionDate: '2026-11-03',
     }),
-  },
-});
+  })
+);
 
 /** A synthetic PDF whose page width tells which source it came from. */
 export const syntheticPdf = async (width: number): Promise<Uint8Array> => {

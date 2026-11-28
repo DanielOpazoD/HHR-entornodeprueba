@@ -1,14 +1,13 @@
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { ClinicalExplorerHeader } from '@/features/census/components/clinical-explorer/ClinicalExplorerHeader';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
-import { BEDS } from '@/constants/beds';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 it('keeps one set of print actions when changing patient and returning', () => {
-  const [first, second] = listClinicalExplorerPatients({
-    visibleBeds: BEDS.filter(bed => !bed.isExtra),
-    beds: {
+  const [first, second] = listClinicalExplorerPatients(
+    buildTestCensusRows({
       R1: DataFactory.createMockPatient('R1', {
         patientName: 'PRIMERA SINTÉTICA',
         rut: '12345678-5',
@@ -19,8 +18,8 @@ it('keeps one set of print actions when changing patient and returning', () => {
         rut: '1000105-6',
         clinicalEpisodeId: 'ep-two',
       }),
-    },
-  });
+    })
+  );
   if (!first || !second) throw new Error('Synthetic patients are required');
   const props = { censusDate: '2026-11-04', indicationDate: null, onRequestExams: vi.fn() };
   const view = render(<ClinicalExplorerHeader {...props} patient={first} />);

@@ -1,6 +1,6 @@
 // @vitest-environment node
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import { describe, expect, it } from 'vitest';
-import { BEDS } from '@/constants/beds';
 import {
   canExploreClinicalPatient,
   clinicalExplorerPatientIdentity,
@@ -19,8 +19,6 @@ const patient = (bedId: string, overrides = {}) =>
     ...overrides,
   });
 
-const visibleBeds = BEDS.filter(bed => !bed.isExtra);
-
 describe('clinicalExplorerController', () => {
   it('lists the census patients in bed order and leaves out those without RUT or episode', () => {
     const beds = {
@@ -33,20 +31,19 @@ describe('clinicalExplorerController', () => {
         clinicalCrib: patient('H2C1', { patientName: 'RN sintético', clinicalEpisodeId: 'ep-rn' }),
       }),
     };
-    const listed = listClinicalExplorerPatients({ visibleBeds, beds });
+    const listed = listClinicalExplorerPatients(buildTestCensusRows(beds));
     expect(listed.map(entry => entry.bedId)).toEqual(['R1', 'H1C1', 'H2C1']);
     expect(listed[0].episodeId).toBe('ep-R1');
   });
 
   it('names request candidates by patient and episode, once each, in census order', () => {
-    const listed = listClinicalExplorerPatients({
-      visibleBeds,
-      beds: {
+    const listed = listClinicalExplorerPatients(
+      buildTestCensusRows({
         R1: patient('R1', { clinicalEpisodeId: 'ep-same', patientName: 'Primera fila' }),
         R2: patient('R2', { clinicalEpisodeId: 'ep-same', patientName: 'Fila repetida' }),
         R3: patient('R3', { rut: '1.000.105-6' }),
-      },
-    });
+      })
+    );
     expect(clinicalExplorerPatientIdentity(listed[0])).toBe('123456785:ep-same');
     // The same patient and episode in two beds is one person: the first bed stands for it.
     expect(
@@ -68,13 +65,12 @@ describe('clinicalExplorerController', () => {
   });
 
   it('filters by name without accents, by RUT and by bed', () => {
-    const patients = listClinicalExplorerPatients({
-      visibleBeds,
-      beds: {
+    const patients = listClinicalExplorerPatients(
+      buildTestCensusRows({
         R1: patient('R1', { patientName: 'MOPÉF SINTÉTICA' }),
         H1C1: patient('H1C1', { patientName: 'PEDRO SINTÉTICO', rut: '1.000.105-6' }),
-      },
-    });
+      })
+    );
     expect(filterClinicalExplorerPatients(patients, 'mopef').map(p => p.bedId)).toEqual(['R1']);
     expect(filterClinicalExplorerPatients(patients, '1.000').map(p => p.bedId)).toEqual(['H1C1']);
     expect(filterClinicalExplorerPatients(patients, 'h1c1').map(p => p.bedId)).toEqual(['H1C1']);
@@ -82,10 +78,9 @@ describe('clinicalExplorerController', () => {
   });
 
   it('moves to the neighbouring bed and stops at both ends', () => {
-    const patients = listClinicalExplorerPatients({
-      visibleBeds,
-      beds: { R1: patient('R1'), R2: patient('R2'), H1C1: patient('H1C1') },
-    });
+    const patients = listClinicalExplorerPatients(
+      buildTestCensusRows({ R1: patient('R1'), R2: patient('R2'), H1C1: patient('H1C1') })
+    );
     expect(resolveClinicalExplorerNeighbour(patients, 'R2', -1)).toBe('R1');
     expect(resolveClinicalExplorerNeighbour(patients, 'R2', 1)).toBe('H1C1');
     expect(resolveClinicalExplorerNeighbour(patients, 'R1', -1)).toBeNull();

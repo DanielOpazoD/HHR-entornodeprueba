@@ -1,20 +1,13 @@
 import type { PatientData } from '@/types/domain/patient';
 
-import type { BedDefinition } from '@/types/domain/beds';
-
+import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 import { isValidRut, normalizeRut } from '@/utils/rutUtils';
-import { buildCensusBedRows } from './censusTableViewController';
 import { foldSearchText } from '@/utils/stringUtils';
 
 export interface ClinicalExplorerPatient {
   bedId: string;
   episodeId: string;
   data: PatientData;
-}
-
-interface ListClinicalExplorerPatientsParams {
-  visibleBeds: BedDefinition[];
-  beds: Record<string, PatientData> | null | undefined;
 }
 
 /** Same eligibility as the row triggers: every source needs a real RUT and an Eloísa episode. */
@@ -31,11 +24,10 @@ export const canExploreClinicalPatient = (data: PatientData): boolean => {
 };
 
 /** Patients of the census day in bed order. Cribs are left out, as the lab and MMRAD triggers do. */
-export const listClinicalExplorerPatients = ({
-  visibleBeds,
-  beds,
-}: ListClinicalExplorerPatientsParams): ClinicalExplorerPatient[] =>
-  buildCensusBedRows({ visibleBeds, beds }).unifiedRows.flatMap(row =>
+export const listClinicalExplorerPatients = (
+  rows: readonly UnifiedBedRow[]
+): ClinicalExplorerPatient[] =>
+  rows.flatMap(row =>
     row.kind === 'occupied' && !row.isSubRow && canExploreClinicalPatient(row.data)
       ? [{ bedId: row.bed.id, episodeId: row.data.clinicalEpisodeId!.trim(), data: row.data }]
       : []

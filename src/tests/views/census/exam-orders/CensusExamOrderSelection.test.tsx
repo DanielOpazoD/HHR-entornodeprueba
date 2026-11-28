@@ -1,3 +1,4 @@
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -62,10 +63,9 @@ const CensusHarness: React.FC<{ shown?: CensusBeds; canPrepareOrders?: boolean }
   shown = beds,
   canPrepareOrders = true,
 }) => {
-  const candidates = listCensusExamRequestCandidates({
-    visibleBeds,
-    beds: shown as Record<string, (typeof beds)['R1']>,
-  });
+  const candidates = listCensusExamRequestCandidates(
+    buildTestCensusRows(shown as Record<string, (typeof beds)['R1']>, visibleBeds)
+  );
   const date = canPrepareOrders ? CENSUS_DATE : null;
   return (
     <UIProvider>
