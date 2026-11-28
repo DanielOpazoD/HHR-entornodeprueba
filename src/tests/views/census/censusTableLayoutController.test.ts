@@ -13,7 +13,6 @@ describe('censusTableLayoutController', () => {
     const onClearAll = vi.fn().mockResolvedValue(undefined);
     const onResizeColumn = vi.fn(() => vi.fn());
     const onAction = vi.fn();
-    const onActivateEmptyBed = vi.fn();
 
     const bindings = buildCensusTableLayoutBindings({
       currentDateString: '2026-02-15',
@@ -44,7 +43,6 @@ describe('censusTableLayoutController', () => {
       bedTypes: {},
       clinicalDocumentCountsByBedId: {},
       onAction,
-      onActivateEmptyBed,
       totalWidth: 1200,
     });
 
@@ -52,7 +50,6 @@ describe('censusTableLayoutController', () => {
     expect(bindings.headerProps.onResizeColumn).toBe(onResizeColumn);
     expect(bindings.bodyProps.currentDateString).toBe('2026-02-15');
     expect(bindings.bodyProps.onAction).toBe(onAction);
-    expect(bindings.bodyProps.onActivateEmptyBed).toBe(onActivateEmptyBed);
     // The projected table reserves room for signs, VVP and UPC even with old saved widths.
     expect(bindings.headerProps.columns.upc).toBe(60);
     expect(bindings.bodyProps.columns.upc).toBe(60);
@@ -108,7 +105,6 @@ describe('censusTableLayoutController', () => {
       bedTypes,
       clinicalDocumentCountsByBedId: {},
       onAction: vi.fn(),
-      onActivateEmptyBed: vi.fn(),
       totalWidth: 1200,
     });
 

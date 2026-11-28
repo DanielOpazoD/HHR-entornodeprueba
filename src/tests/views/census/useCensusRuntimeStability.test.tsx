@@ -7,9 +7,6 @@ import { buildCensusBedRows } from '@/features/census/controllers/censusTableVie
 vi.mock('@/features/census/hooks/useCensusTableDependencies', () => ({
   useCensusTableDependencies: () => dependencies,
 }));
-vi.mock('@/features/census/components/useEmptyBedActivation', () => ({
-  useEmptyBedActivation: () => ({ activateEmptyBed: vi.fn() }),
-}));
 vi.mock('@/features/census/controllers/censusTableViewController', async original => ({
   ...(await original<typeof import('@/features/census/controllers/censusTableViewController')>()),
   buildCensusBedRows: vi.fn(
