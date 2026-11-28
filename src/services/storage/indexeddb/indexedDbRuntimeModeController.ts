@@ -1,15 +1,7 @@
-import type { OperationalRuntimeState } from '@/services/observability/operationalRuntimeState';
-
 export interface LocalPersistenceRuntimeSnapshot {
   indexedDbAvailable: boolean;
   fallbackMode: boolean;
-  stickyFallbackMode: boolean;
-  runtimeState: 'ok' | OperationalRuntimeState;
-}
-
-export interface IndexedDbRuntimeModeState {
-  isUsingMock: boolean;
-  stickyFallbackMode: boolean;
+  runtimeState: 'ok' | 'recoverable';
 }
 
 export const hasE2ERuntimeOverride = (): boolean =>
@@ -23,39 +15,14 @@ export const shouldExposeDatabaseFallbackToUi = ({
   e2eOverrideActive: boolean;
 }): boolean => fallbackMode && !e2eOverrideActive;
 
-export const shouldSkipReadyCheckForMock = ({
-  isUsingMock,
-  allowRecoveryWhenMock,
-}: {
-  isUsingMock: boolean;
-  allowRecoveryWhenMock: boolean;
-}): boolean => isUsingMock && !allowRecoveryWhenMock;
-
-export const shouldAttemptMockRecovery = ({
-  isUsingMock,
-  allowRecoveryWhenMock,
-  stickyFallbackMode,
-}: IndexedDbRuntimeModeState & { allowRecoveryWhenMock: boolean }): boolean =>
-  isUsingMock && allowRecoveryWhenMock && !stickyFallbackMode;
-
-export const resolveLocalPersistenceRuntimeState = ({
-  isUsingMock,
-  stickyFallbackMode,
-}: IndexedDbRuntimeModeState): LocalPersistenceRuntimeSnapshot['runtimeState'] => {
-  if (stickyFallbackMode) return 'blocked';
-  if (isUsingMock) return 'recoverable';
-  return 'ok';
-};
-
 export const buildLocalPersistenceRuntimeSnapshot = ({
   indexedDbAvailable,
   isUsingMock,
-  stickyFallbackMode,
-}: IndexedDbRuntimeModeState & {
+}: {
   indexedDbAvailable: boolean;
+  isUsingMock: boolean;
 }): LocalPersistenceRuntimeSnapshot => ({
   indexedDbAvailable,
   fallbackMode: isUsingMock,
-  stickyFallbackMode,
-  runtimeState: resolveLocalPersistenceRuntimeState({ isUsingMock, stickyFallbackMode }),
+  runtimeState: isUsingMock ? 'recoverable' : 'ok',
 });

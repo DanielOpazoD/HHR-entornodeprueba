@@ -41,18 +41,7 @@ describe('indexedDbInitialOpenRecoveryController', () => {
       expect(outcome).toEqual({
         database: mockDatabase,
         fallbackMode: true,
-        stickyFallbackMode: false,
-        shouldScheduleBackgroundRecovery: true,
       });
     }
   );
-
-  it('keeps the sticky fallback decision of the recovery policy', async () => {
-    const outcome = await recoverIndexedDbInitialOpenFailure({
-      ...createOptions({ name: 'UnknownError', message: 'boom' }, { id: 'in-memory' }),
-      shouldUseStickyFallback: () => true,
-    });
-
-    expect(outcome.stickyFallbackMode).toBe(true);
-  });
 });

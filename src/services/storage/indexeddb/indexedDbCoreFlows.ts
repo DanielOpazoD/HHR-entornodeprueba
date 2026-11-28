@@ -9,8 +9,8 @@
 
 import type { IndexedDbDatabaseLike } from './indexedDbContracts';
 import {
-  assignIndexedDbMockTables,
   createIndexedDbDatabaseOrFallback,
+  type IndexedDbDatabaseCreationOutcome,
 } from './indexedDbDatabaseLifecycle';
 import {
   recoverIndexedDbInitialOpenRuntimeFailure,
@@ -32,12 +32,6 @@ export interface MockFallbackRecoveryInput {
   currentDatabase: IndexedDbDatabaseLike;
   createDatabase: () => IndexedDbDatabaseLike;
   attachDatabaseEvents: (database: IndexedDbDatabaseLike) => void;
-  resetRecoveryTracking: () => void;
-}
-
-export interface MockFallbackRecoveryResult {
-  database: IndexedDbDatabaseLike;
-  fallbackMode: boolean;
 }
 
 /**
@@ -47,21 +41,11 @@ export interface MockFallbackRecoveryResult {
  */
 export const runMockFallbackRecovery = (
   input: MockFallbackRecoveryInput
-): MockFallbackRecoveryResult => {
-  const recoveryOutcome = restoreIndexedDbFromMockFallback({
-    currentDatabase: input.currentDatabase,
-    createDatabase: input.createDatabase,
-    attachDatabaseEvents: input.attachDatabaseEvents,
-    resetRecoveryTracking: input.resetRecoveryTracking,
-    assignMockTables: assignIndexedDbMockTables,
-    createMockDatabase,
+): IndexedDbDatabaseCreationOutcome<IndexedDbDatabaseLike> => {
+  return restoreIndexedDbFromMockFallback({
+    ...input,
     recordRecoveryFailure: recordIndexedDbRecoveryFailure,
   });
-
-  return {
-    database: recoveryOutcome.database,
-    fallbackMode: recoveryOutcome.fallbackMode,
-  };
 };
 
 export interface OpeningWaitInput {
@@ -90,23 +74,13 @@ export interface FreshOpenAttemptInput {
   database: IndexedDbDatabaseLike;
 }
 
-export interface FreshOpenAttemptResult {
-  database: IndexedDbDatabaseLike;
-  fallbackMode: boolean;
-  stickyFallbackMode: boolean;
-  shouldResetRecoveryTracking: boolean;
-  shouldScheduleBackgroundRecovery: boolean;
-}
-
 /**
  * Runs the open-with-retries path and, if it fails, hands off to the
- * recovery pipeline. Returns the final database + flags the caller uses to
- * update its module state and decide whether to schedule background
- * recovery.
+ * recovery pipeline. The caller schedules a retry while the database is in memory.
  */
 export const runFreshOpenAttempt = async (
   input: FreshOpenAttemptInput
-): Promise<FreshOpenAttemptResult> => {
+): Promise<IndexedDbDatabaseCreationOutcome<IndexedDbDatabaseLike>> => {
   try {
     await openIndexedDbWithRetries({
       open: () =>
@@ -121,34 +95,15 @@ export const runFreshOpenAttempt = async (
     return {
       database: input.database,
       fallbackMode: false,
-      stickyFallbackMode: false,
-      shouldResetRecoveryTracking: true,
-      shouldScheduleBackgroundRecovery: false,
     };
   } catch (error: unknown) {
-    const recoveryOutcome = await recoverIndexedDbInitialOpenRuntimeFailure({
-      error,
-      database: input.database,
-    });
-
-    return {
-      database: recoveryOutcome.database,
-      fallbackMode: recoveryOutcome.fallbackMode,
-      stickyFallbackMode: recoveryOutcome.stickyFallbackMode,
-      shouldResetRecoveryTracking: false,
-      shouldScheduleBackgroundRecovery: recoveryOutcome.shouldScheduleBackgroundRecovery,
-    };
+    return recoverIndexedDbInitialOpenRuntimeFailure({ error, database: input.database });
   }
 };
 
 export interface InitialDatabaseInput {
   createDatabase: () => IndexedDbDatabaseLike;
   attachDatabaseEvents: (database: IndexedDbDatabaseLike) => void;
-}
-
-export interface InitialDatabaseOutcome {
-  database: IndexedDbDatabaseLike;
-  fallbackMode: boolean;
 }
 
 /**
@@ -158,15 +113,6 @@ export interface InitialDatabaseOutcome {
  */
 export const initializeIndexedDbDatabase = (
   input: InitialDatabaseInput
-): InitialDatabaseOutcome => {
-  const outcome = createIndexedDbDatabaseOrFallback({
-    createDatabase: input.createDatabase,
-    createMockDatabase,
-    attachDatabaseEvents: input.attachDatabaseEvents,
-  });
-
-  return {
-    database: outcome.database,
-    fallbackMode: outcome.fallbackMode,
-  };
+): IndexedDbDatabaseCreationOutcome<IndexedDbDatabaseLike> => {
+  return createIndexedDbDatabaseOrFallback({ ...input, createMockDatabase });
 };

@@ -7,7 +7,6 @@ import {
   type ClientBootstrapRecoveryOptions,
   type ClientBootstrapRecoveryResult,
 } from '@/services/config/clientBootstrapRecovery';
-import { shouldUseStickyIndexedDbFallback } from '@/services/storage/indexeddb/indexedDbRecoveryPolicy';
 import { repairClientStorageKeepingPendingWork } from '@/services/storage/indexeddb/indexedDbMaintenanceService';
 import { defaultFirebaseConfigRuntimeAdapter } from '@/services/firebase-runtime/firebaseConfigRuntimeAdapter';
 import { createScopedLogger } from '@/services/utils/loggerScope';
@@ -45,12 +44,7 @@ const clearStorageRepairAttempt = (): void => {
 
 const isIndexedDbBootstrapFailure = (error: unknown): boolean => {
   const message = getErrorMessage(error).toLowerCase();
-  return (
-    shouldUseStickyIndexedDbFallback(error) ||
-    message.includes('indexeddb.open') ||
-    message.includes('backing store') ||
-    message.includes('internal error opening backing store')
-  );
+  return message.includes('indexeddb.open') || message.includes('backing store');
 };
 
 const isLocalStorageBootstrapFailure = (error: unknown): boolean => {

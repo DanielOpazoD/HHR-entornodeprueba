@@ -199,7 +199,7 @@
       "sources": [
         "src/services/storage/indexeddb/indexedDbRecoveryBudgets.ts",
         "src/services/storage/indexeddb/indexedDbRecoveryController.ts",
-        "src/services/storage/indexeddb/indexedDbRecoveryPolicy.ts"
+        "src/services/storage/indexeddb/indexedDbWarningBindings.ts"
       ],
       "tests": "src/tests/services/storage",
       "coverageBaseline": {

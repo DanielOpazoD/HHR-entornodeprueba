@@ -137,7 +137,7 @@ export const OPERATIONAL_TELEMETRY_OPERATIONS = [
   'indexeddb_migrate_from_local_storage',
   'indexeddb_open_stalled',
   'indexeddb_recovery',
-  'indexeddb_recovery_disabled',
+  'indexeddb_recovery_disabled', // Historical events from clients with a permanent fallback.
   'indexeddb_recovery_retry_scheduled',
   'indexeddb_recovery_stopped',
   'indexeddb_save_audit_log',

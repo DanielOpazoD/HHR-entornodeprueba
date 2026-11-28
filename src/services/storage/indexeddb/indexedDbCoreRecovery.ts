@@ -7,9 +7,6 @@ interface RestoreIndexedDbFromMockFallbackOptions<Database extends IndexedDbData
   currentDatabase: Database;
   createDatabase: () => Database;
   attachDatabaseEvents: (database: Database) => void;
-  resetRecoveryTracking: () => void;
-  assignMockTables: (database: Database, mockDatabase: IndexedDbDatabaseLike) => void;
-  createMockDatabase: () => IndexedDbDatabaseLike;
   recordRecoveryFailure: (error: unknown) => void;
 }
 
@@ -22,15 +19,11 @@ export const restoreIndexedDbFromMockFallback = <Database extends IndexedDbDatab
   currentDatabase,
   createDatabase,
   attachDatabaseEvents,
-  resetRecoveryTracking,
-  assignMockTables,
-  createMockDatabase,
   recordRecoveryFailure,
 }: RestoreIndexedDbFromMockFallbackOptions<Database>): RestoreIndexedDbFromMockFallbackOutcome<Database> => {
   try {
     const database = createDatabase();
     attachDatabaseEvents(database);
-    resetRecoveryTracking();
 
     return {
       database,
@@ -38,7 +31,6 @@ export const restoreIndexedDbFromMockFallback = <Database extends IndexedDbDatab
     };
   } catch (error) {
     recordRecoveryFailure(error);
-    assignMockTables(currentDatabase, createMockDatabase());
 
     return {
       database: currentDatabase,

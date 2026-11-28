@@ -7,8 +7,6 @@ import { resolveIndexedDbOpenHealth } from './indexedDbCoreSupport';
 import { getIndexedDbRecoveryBudgetSnapshot } from './indexedDbRecoveryBudgets';
 import {
   buildLocalPersistenceRuntimeSnapshot,
-  shouldAttemptMockRecovery,
-  shouldSkipReadyCheckForMock,
   type LocalPersistenceRuntimeSnapshot,
 } from './indexedDbRuntimeModeController';
 import {
@@ -21,22 +19,16 @@ import {
 let db: IndexedDbDatabaseLike;
 let isUsingMock = false;
 let isOpening = false;
-let stickyFallbackMode = false;
 const emittedIndexedDbWarnings = new Set<string>();
 
 const backgroundRecoveryScheduler = createIndexedDbBackgroundRecoveryScheduler({
-  getStickyFallbackMode: () => stickyFallbackMode,
   onRetry: () => {
     void ensureDbReady({ allowRecoveryWhenMock: true });
   },
 });
 
 const attachDatabaseEvents = (database: IndexedDbDatabaseLike) =>
-  attachIndexedDbWarningBindings(
-    database,
-    () => ({ isUsingMock, stickyFallbackMode }),
-    emittedIndexedDbWarnings
-  );
+  attachIndexedDbWarningBindings(database, () => isUsingMock, emittedIndexedDbWarnings);
 
 const initializeDatabase = () => {
   const outcome = initializeIndexedDbDatabase({
@@ -49,7 +41,6 @@ const initializeDatabase = () => {
 };
 
 const resetIndexedDbRecoveryTracking = () => {
-  stickyFallbackMode = false;
   backgroundRecoveryScheduler.reset();
   emittedIndexedDbWarnings.clear();
 };
@@ -65,19 +56,19 @@ export type { LocalPersistenceRuntimeSnapshot };
 export const ensureDbReady = async (options: EnsureDbReadyOptions = {}): Promise<void> => {
   const { allowRecoveryWhenMock = false } = options;
 
-  if (shouldSkipReadyCheckForMock({ isUsingMock, allowRecoveryWhenMock })) return;
-  if (shouldAttemptMockRecovery({ isUsingMock, allowRecoveryWhenMock, stickyFallbackMode })) {
+  if (isUsingMock) {
+    if (!allowRecoveryWhenMock) return;
     const recoveryOutcome = runMockFallbackRecovery({
       currentDatabase: db,
       createDatabase: () => new HangaRoaDatabase(),
       attachDatabaseEvents,
-      resetRecoveryTracking: resetIndexedDbRecoveryTracking,
     });
 
     db = recoveryOutcome.database;
     isUsingMock = recoveryOutcome.fallbackMode;
 
     if (recoveryOutcome.fallbackMode) {
+      backgroundRecoveryScheduler.schedule();
       return;
     }
   }
@@ -120,15 +111,8 @@ export const ensureDbReady = async (options: EnsureDbReadyOptions = {}): Promise
 
     db = openOutcome.database;
     isUsingMock = openOutcome.fallbackMode;
-    stickyFallbackMode = stickyFallbackMode || openOutcome.stickyFallbackMode;
-
-    if (openOutcome.shouldResetRecoveryTracking) {
-      resetIndexedDbRecoveryTracking();
-    }
-
-    if (openOutcome.fallbackMode && openOutcome.shouldScheduleBackgroundRecovery) {
-      backgroundRecoveryScheduler.schedule();
-    }
+    if (isUsingMock) backgroundRecoveryScheduler.schedule();
+    else resetIndexedDbRecoveryTracking();
   } finally {
     isOpening = false;
   }
@@ -142,7 +126,6 @@ export const getLocalPersistenceRuntimeSnapshot = (): LocalPersistenceRuntimeSna
   buildLocalPersistenceRuntimeSnapshot({
     indexedDbAvailable: isIndexedDBAvailable(),
     isUsingMock,
-    stickyFallbackMode,
   });
 
 export { db as hospitalDB };
