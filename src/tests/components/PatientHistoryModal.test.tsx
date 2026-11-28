@@ -118,6 +118,31 @@ describe('PatientHistoryModal', () => {
     await act(async () => resolveOld({ history: resolvedHistory, source: 'server' }));
     expect(screen.queryByText('2d')).not.toBeInTheDocument();
   });
+  it.each(['close', 'change patient'])(
+    'stops requesting more history pages on %s',
+    async action => {
+      const pages: string[] = [];
+      let finishFirst!: () => void;
+      const firstPage = new Promise<void>(resolve => {
+        finishFirst = resolve;
+      });
+      vi.mocked(getPatientMovementHistoryDetailed).mockImplementation(async (id, options) => {
+        pages.push(id + '-1');
+        if (id === 'first') await firstPage;
+        options?.signal?.throwIfAborted();
+        pages.push(id + '-2');
+        return { history: null, source: 'server' };
+      });
+      const view = render(<PatientHistoryModal isOpen onClose={() => {}} patientRut="first" />);
+      view.rerender(
+        <PatientHistoryModal isOpen={action !== 'close'} onClose={() => {}} patientRut="next" />
+      );
+      await act(async () => {
+        finishFirst();
+      });
+      expect(pages).toEqual(action === 'close' ? ['first-1'] : ['first-1', 'next-1', 'next-2']);
+    }
+  );
   it('does not offer an impossible server retry in configured local-only mode', async () => {
     vi.mocked(getPatientMovementHistoryDetailed).mockResolvedValue({
       history: resolvedHistory,
@@ -144,11 +169,13 @@ describe('PatientHistoryModal', () => {
     );
     await screen.findByText('No se encontró historial para este paciente.');
     expect(getPatientMovementHistoryDetailed).toHaveBeenLastCalledWith('test-1', {
+      signal: expect.any(AbortSignal),
       dateRange: { startDate: '2026-03-06', endDate: '2026-03-08' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Ver historial completo' }));
     await waitFor(() =>
       expect(getPatientMovementHistoryDetailed).toHaveBeenLastCalledWith('test-1', {
+        signal: expect.any(AbortSignal),
         forceFullRemoteHydration: true,
       })
     );
@@ -163,6 +190,7 @@ describe('PatientHistoryModal', () => {
     );
     await waitFor(() =>
       expect(getPatientMovementHistoryDetailed).toHaveBeenLastCalledWith('test-2', {
+        signal: expect.any(AbortSignal),
         dateRange: { startDate: '2026-03-07', endDate: '2026-03-08' },
       })
     );
