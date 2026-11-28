@@ -2,11 +2,11 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PreparedRayenSyncContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
+import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImportCapture';
 import {
   GESTION_CAMAS_CAPTURE_RETRY_DELAY_MS,
   SNAPSHOT_NETWORK_CAPTURE_RETRY_DELAY_MS,
-  useRayenImportCapture,
-} from '@/features/rayen-import/hooks/useRayenImportCapture';
+} from '@/features/rayen-import/hooks/useRayenImportCaptureSubscriptions';
 import { createActiveExecutionHarness } from './support/executionHarness';
 
 const bridge = vi.hoisted(() => ({
