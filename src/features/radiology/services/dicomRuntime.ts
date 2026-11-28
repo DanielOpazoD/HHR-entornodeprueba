@@ -2,50 +2,35 @@ import { destroyDicomToolGroup } from './dicomToolLifecycle';
 import { activateDicomTool } from './dicomToolActivation';
 import { createDicomViewContinuity } from './dicomViewContinuity';
 import { destroyDicomEngine, resetDicomVolumeGraphics } from './dicomGraphicsResources';
-import { configureDicomViewports } from './dicomViewportSetup';
 import { createDicomRuntimeNavigation, resetDicomCamera } from './dicomRuntimeNavigation';
-import {
-  createMprReconstruction,
-  createMprMemory,
-  type MprReconstructionState,
-} from './dicomMprReconstruction';
+import { createMprMemory, type MprReconstructionState } from './dicomMprReconstruction';
 import { createDicomComparisonOwner } from './dicomComparisonOwner';
 import type { fetchDicomInstance } from './mmradDicomService';
 import { describeDicomPlaneSlices } from './dicomVolumeVideo';
 import { initializeDicom as initialize } from './dicomInitialization';
-import {
-  RenderingEngine,
-  setVolumesForViewports,
-  type StackViewport,
-  type VolumeViewport,
-  type VolumeViewport3D,
-} from '@cornerstonejs/core';
-import { ToolGroupManager, CrosshairsTool } from '@cornerstonejs/tools';
+import { RenderingEngine, type VolumeViewport, type VolumeViewport3D } from '@cornerstonejs/core';
 import { captureRuntimeView } from './dicomRuntimeCapture';
-import { createMprTools, type DicomReference, type ReferenceStyle } from './dicomMprTools';
+import type { DicomReference } from './dicomMprTools';
 import { applyVolumePresentation } from './dicomVolumePresentation';
 import { defaultVolumePresentation } from './dicomPresentation';
-import type { DicomVolumeHandle } from './dicomVolume';
 import {
   startDicomSeries,
   type LoadedDicomSeries,
   type ProgressiveDicomSeries,
 } from './dicomSeriesLoader';
 import { createProgressiveStack } from './dicomProgressiveStack';
-import { getRuntimeOrientations, observeDicomViewportSize } from './dicomViewportLayout';
+import { getRuntimeOrientations } from './dicomViewportLayout';
 import type { DicomStudy, DicomSeries } from '@/domain/radiology/dicomTypes';
-import type { DicomTool, DicomMode, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
+import type { DicomTool, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
 import { createDicomMeasurementStore, type DicomMeasurementStore } from './dicomMeasurementStore';
-import { createDicomStackTools, type DicomStackToolSession } from './dicomStackTools';
-import { dicomStackShowsHu, watchDicomCursorHu } from './dicomCursorValue';
 import { dicomSliceInterval } from './dicomVolumeEstimates';
 import {
-  ensureDicomRuntimeVolume,
   openDicomRuntimeCine,
   openDicomRuntimeComparison,
   openDicomRuntimeVolumeVideo,
   retainDicomRuntime,
 } from './dicomRuntimeLifecycle';
+import { mountDicomRuntimeView, type DicomRuntimeViewState } from './dicomRuntimeViewMount';
 
 export type { DicomTool, DicomMode, DicomOrientation, DicomRuntime } from './dicomRuntimeTypes';
 
@@ -64,56 +49,58 @@ export const createDicomRuntime = async (
   let stack: ReturnType<typeof createProgressiveStack> | undefined;
   let disposed = false;
   const comparisons = createDicomComparisonOwner();
-  let volume: DicomVolumeHandle | undefined;
-  let mode: DicomMode = 'original';
-  let viewportIds: string[] = [];
-  let resize: ResizeObserver | undefined;
-  let mpr: ReturnType<typeof createMprTools> | undefined;
-  let stackTools: DicomStackToolSession | undefined;
-  let stopCursor: (() => void) | undefined;
   let cursorListener: ((value: number | null) => void) | undefined;
+  let referenceListener: ((value: DicomReference | null) => void) | undefined;
+  let activeTool: DicomTool = 'window';
+  let graphicsController = new AbortController();
+  const mprMemory = createMprMemory();
+  const view: DicomRuntimeViewState = {
+    mode: 'original',
+    volume: undefined,
+    volumePresentation: defaultVolumePresentation(series.modality),
+    viewportIds: [],
+    group: undefined,
+    stackTools: undefined,
+    mpr: undefined,
+    reconstruction: undefined,
+    referenceEnabled: true,
+    referenceStyle: 'lines',
+    referenceValue: null,
+    recoveringTool: undefined,
+    stopCursor: undefined,
+    resize: undefined,
+  };
   /** Takes this view's drawings off screen; the store keeps them for a later return. */
   const releaseTools = () => {
-    stopCursor?.();
-    stopCursor = undefined;
-    stackTools?.dispose();
-    stackTools = undefined;
-    mpr?.dispose();
-    mpr = undefined;
+    view.stopCursor?.();
+    view.stopCursor = undefined;
+    view.stackTools?.dispose();
+    view.stackTools = undefined;
+    view.mpr?.dispose();
+    view.mpr = undefined;
   };
-  let reconstruction: ReturnType<typeof createMprReconstruction> | undefined;
   const reconstructionListeners = new Set<(state: MprReconstructionState | null) => void>();
   const notifyReconstruction = (state: MprReconstructionState | null) => {
-    mpr?.quantitative(Boolean(state?.quantitative));
+    view.mpr?.quantitative(Boolean(state?.quantitative));
     reconstructionListeners.forEach(listener => listener(state));
   };
-  const mprMemory = createMprMemory();
-  let volumePresentation = defaultVolumePresentation(series.modality);
-  let referenceEnabled = true;
-  let referenceStyle: ReferenceStyle = 'lines';
-  let activeTool: DicomTool = 'window';
-  let recoveringTool: DicomTool | undefined;
-  let graphicsController = new AbortController();
-  let referenceListener: ((value: DicomReference | null) => void) | undefined;
-  let referenceValue: DicomReference | null = null;
   const notifyReference = (value: DicomReference | null) => {
-    referenceValue = value;
+    view.referenceValue = value;
     referenceListener?.(value);
   };
   const id = `dicom-${crypto.randomUUID()}`;
   const volumeId = `cornerstoneStreamingImageVolume:${id}`;
-  let group: ReturnType<typeof ToolGroupManager.createToolGroup>;
   const continuity = createDicomViewContinuity(
     () => engine,
     async () => {
-      recoveringTool = activeTool;
-      mprMemory.remember(reconstruction?.state(), referenceValue);
-      resize?.disconnect();
-      reconstruction?.dispose();
-      reconstruction = undefined;
+      view.recoveringTool = activeTool;
+      mprMemory.remember(view.reconstruction?.state(), view.referenceValue);
+      view.resize?.disconnect();
+      view.reconstruction?.dispose();
+      view.reconstruction = undefined;
       releaseTools();
-      if (group) destroyDicomToolGroup(group.id);
-      group = undefined;
+      if (view.group) destroyDicomToolGroup(view.group.id);
+      view.group = undefined;
       await stack?.detach();
       signal.throwIfAborted();
       if (disposed) return;
@@ -126,7 +113,7 @@ export const createDicomRuntime = async (
     },
     signal,
     () => graphicsController.abort(),
-    () => mode === 'mpr' && referenceEnabled && mpr?.refresh()
+    () => view.mode === 'mpr' && view.referenceEnabled && view.mpr?.refresh()
   );
   const dispose = () => {
     if (disposed) return;
@@ -134,12 +121,12 @@ export const createDicomRuntime = async (
     graphicsController.abort();
     const graphics = continuity.dispose();
     const comparing = comparisons.close();
-    resize?.disconnect();
-    reconstruction?.dispose();
-    reconstruction = undefined;
+    view.resize?.disconnect();
+    view.reconstruction?.dispose();
+    view.reconstruction = undefined;
     releaseTools();
     cursorListener = undefined;
-    if (group) destroyDicomToolGroup(group.id);
+    if (view.group) destroyDicomToolGroup(view.group.id);
     const presentation = stack?.detach();
     // Detach this session's canvases now; Cornerstone.destroy clears but retains their DOM nodes.
     engine?.getViewports().forEach(viewport => viewport.getCanvas().remove());
@@ -150,7 +137,7 @@ export const createDicomRuntime = async (
           if (engine) destroyDicomEngine(engine);
         } finally {
           try {
-            volume?.release();
+            view.volume?.release();
           } finally {
             releaseRuntime();
           }
@@ -176,19 +163,19 @@ export const createDicomRuntime = async (
   let interval: number | undefined | null = null;
   const quantitative = () =>
     !disposed &&
-    mode === 'mpr' &&
+    view.mode === 'mpr' &&
     Boolean(loaded?.huCalibrated) &&
-    Boolean(reconstruction?.state().quantitative);
+    Boolean(view.reconstruction?.state().quantitative);
   const activateTool = (tool: DicomTool) =>
     activateDicomTool(tool, {
-      group,
-      mode,
-      mpr,
-      stack: stackTools,
-      reconstruction,
+      group: view.group,
+      mode: view.mode,
+      mpr: view.mpr,
+      stack: view.stackTools,
+      reconstruction: view.reconstruction,
       calibrated: Boolean(loaded?.huCalibrated),
-      referenceEnabled,
-      referenceStyle,
+      referenceEnabled: view.referenceEnabled,
+      referenceStyle: view.referenceStyle,
       active: value => {
         activeTool = value;
       },
@@ -196,8 +183,8 @@ export const createDicomRuntime = async (
   const orientations = (): DicomOrientation[] =>
     getRuntimeOrientations(
       engine,
-      viewportIds,
-      mode,
+      view.viewportIds,
+      view.mode,
       disposed,
       Boolean(source?.hasOrientation(stack?.state().current ?? source.initialIndex))
     );
@@ -211,7 +198,13 @@ export const createDicomRuntime = async (
     });
   void completion.catch(() => undefined);
   return {
-    ...createDicomRuntimeNavigation(() => ({ engine, viewportIds, mode, disposed, stack })),
+    ...createDicomRuntimeNavigation(() => ({
+      engine,
+      viewportIds: view.viewportIds,
+      mode: view.mode,
+      disposed,
+      stack,
+    })),
     sessionId: id,
     onGraphics: continuity.subscribe,
     loading: source!.loading,
@@ -235,37 +228,37 @@ export const createDicomRuntime = async (
         signal,
         ensureActive,
         onBeforeOpen: () => {
-          mpr?.cancel();
+          view.mpr?.cancel();
           // Comparar draws this series' measurements itself; Original redraws them on return.
-          stopCursor?.();
-          stackTools?.dispose();
-          stackTools = undefined;
-          resize?.disconnect();
+          view.stopCursor?.();
+          view.stackTools?.dispose();
+          view.stackTools = undefined;
+          view.resize?.disconnect();
         },
       }),
     onReconstruction: listener => {
       reconstructionListeners.add(listener);
-      listener(reconstruction?.state() ?? null);
+      listener(view.reconstruction?.state() ?? null);
       return () => {
         reconstructionListeners.delete(listener);
       };
     },
     reconstruct: patch => {
-      if (disposed || mode !== 'mpr' || !reconstruction || !mpr) return;
-      mpr.cancel();
-      if (patch) reconstruction.update(patch);
-      else reconstruction.reset();
-      const state = reconstruction.state();
-      mpr.oblique(state.rotate);
-      if (state.rotate) [referenceEnabled, referenceStyle] = [true, 'lines'];
+      if (disposed || view.mode !== 'mpr' || !view.reconstruction || !view.mpr) return;
+      view.mpr.cancel();
+      if (patch) view.reconstruction.update(patch);
+      else view.reconstruction.reset();
+      const state = view.reconstruction.state();
+      view.mpr.oblique(state.rotate);
+      if (state.rotate) [view.referenceEnabled, view.referenceStyle] = [true, 'lines'];
       activateTool(state.rotate ? 'reference' : 'window');
     },
     openCine: options =>
       openDicomRuntimeCine({
         engine,
         stack,
-        mode,
-        viewportIds,
+        mode: view.mode,
+        viewportIds: view.viewportIds,
         totalInstances: series.instances.length,
         orientations,
         signal,
@@ -276,10 +269,10 @@ export const createDicomRuntime = async (
     openVideo: request =>
       openDicomRuntimeVolumeVideo({
         getEngine: () => engine,
-        mode,
-        viewportIds,
-        getReconstruction: () => reconstruction,
-        resampled: Boolean(volume?.resampled),
+        mode: view.mode,
+        viewportIds: view.viewportIds,
+        getReconstruction: () => view.reconstruction,
+        resampled: Boolean(view.volume?.resampled),
         request,
         signal,
         graphicsSignal: graphicsController.signal,
@@ -288,52 +281,54 @@ export const createDicomRuntime = async (
         orientations,
       }),
     mprSlices: plane => {
-      const targetViewportId = viewportIds[plane];
-      return mode === 'mpr' && !disposed && engine && targetViewportId
+      const targetViewportId = view.viewportIds[plane];
+      return view.mode === 'mpr' && !disposed && engine && targetViewportId
         ? describeDicomPlaneSlices(engine.getViewport(targetViewportId) as VolumeViewport)
         : null;
     },
     select: index => {
-      if (mode === 'original' && !disposed) stack?.select(index);
+      if (view.mode === 'original' && !disposed) stack?.select(index);
     },
     onStack: listener => stack!.subscribe(listener),
     dispose,
     orientations,
     onReference: listener => {
       referenceListener = listener;
-      listener(referenceValue);
+      listener(view.referenceValue);
       return () => {
         if (referenceListener === listener) referenceListener = undefined;
       };
     },
     reference: (enabled, style) => {
-      referenceEnabled = enabled;
-      referenceStyle = style;
-      if (mode === 'mpr') {
+      view.referenceEnabled = enabled;
+      view.referenceStyle = style;
+      if (view.mode === 'mpr') {
         if (!enabled && activeTool === 'reference') activateTool('window');
-        mpr?.reference(enabled, style);
+        view.mpr?.reference(enabled, style);
         engine?.render();
       }
     },
     undoMeasurement: () => {
-      mpr?.undo();
-      stackTools?.undo();
+      view.mpr?.undo();
+      view.stackTools?.undo();
       engine?.render();
     },
     clearMeasurements: () => {
-      mpr?.clear();
-      stackTools?.clear();
+      view.mpr?.clear();
+      view.stackTools?.clear();
       engine?.render();
     },
     measurements,
     focusMeasurement: measurementId => {
       const item = measurements.get(measurementId);
       if (disposed || !item || item.seriesUid !== series.uid) return false;
-      if (mode === 'original' && item.view === 'original' && stack) {
+      if (view.mode === 'original' && item.view === 'original' && stack) {
         stack.select(item.slice);
         return true;
       }
-      return mode === 'mpr' && item.view !== 'original' && Boolean(mpr?.focus(measurementId));
+      return (
+        view.mode === 'mpr' && item.view !== 'original' && Boolean(view.mpr?.focus(measurementId))
+      );
     },
     sliceInterval: () => {
       if (loaded && interval === null) interval = dicomSliceInterval(loaded.geometry);
@@ -346,9 +341,9 @@ export const createDicomRuntime = async (
       };
     },
     presentation: value => {
-      const firstViewportId = viewportIds[0];
-      if (mode === '3d' && !disposed && engine && firstViewportId) {
-        volumePresentation = value;
+      const firstViewportId = view.viewportIds[0];
+      if (view.mode === '3d' && !disposed && engine && firstViewportId) {
+        view.volumePresentation = value;
         applyVolumePresentation(
           engine.getViewport(firstViewportId) as VolumeViewport3D,
           value,
@@ -356,129 +351,61 @@ export const createDicomRuntime = async (
         );
       }
     },
-    isResampled: () => mode !== 'original' && Boolean(volume?.resampled),
+    isResampled: () => view.mode !== 'original' && Boolean(view.volume?.resampled),
     quantitative,
     show: (nextMode, elements) =>
       continuity.show(nextMode, elements, async () => {
-        ensureActive();
         if (!engine) return;
-        await comparisons.close();
-        ensureActive();
-        if (nextMode !== 'original') {
-          await completion;
-          ensureActive();
-          volume = await ensureDicomRuntimeVolume({
-            existingVolume: volume,
-            volumeId,
-            loaded: loaded!,
-            modality: series.modality,
-            signal,
-            loading: source!.loading,
-            ensureActive,
-            isDisposed: () => disposed,
-          });
-        }
-        await stack?.detach();
-        ensureActive();
-        mprMemory.remember(reconstruction?.state(), referenceValue);
-        reconstruction?.dispose();
-        reconstruction = undefined;
-        releaseTools();
-        if (group) destroyDicomToolGroup(group.id);
-        resize?.disconnect();
-        if (mode !== nextMode && nextMode === '3d')
-          volumePresentation = defaultVolumePresentation(series.modality);
-        mode = nextMode;
-        const configured = configureDicomViewports(engine, elements, id, nextMode);
-        viewportIds = configured.viewportIds;
-        group = configured.group;
-        const firstViewportId = viewportIds[0];
-        const firstElement = elements[0];
-        if (nextMode === 'original' && firstViewportId && firstElement)
-          stackTools = createDicomStackTools(
-            id,
-            [{ viewportId: firstViewportId, group, element: firstElement }],
-            measurements,
-            [series.uid]
-          );
-        activateTool(nextMode === '3d' ? 'rotate' : 'window');
-        if (nextMode === 'original' && firstViewportId) {
-          await stack!.show(engine.getViewport(firstViewportId) as StackViewport);
-          if (stack!.state().error) return;
-        } else if (nextMode !== 'original') {
-          await setVolumesForViewports(engine, [{ volumeId }], viewportIds);
-        }
-        ensureActive();
-        if (nextMode === '3d' && firstViewportId)
-          applyVolumePresentation(
-            engine.getViewport(firstViewportId) as VolumeViewport3D,
-            volumePresentation,
-            series.modality
-          );
-        if (nextMode === 'mpr') {
-          if (!recoveringTool) [referenceEnabled, referenceStyle] = [true, 'lines'];
-          mpr = createMprTools(group, id, viewportIds, notifyReference, {
-            store: measurements,
-            series,
-            volumeId,
-            quantitative,
-            oblique: plane => Boolean(reconstruction?.state().planes[plane]?.oblique),
-          });
-          reconstruction = createMprReconstruction(
-            engine,
-            viewportIds,
-            volume!.plan,
-            group.getToolInstance(CrosshairsTool.toolName) as CrosshairsTool,
-            notifyReconstruction
-          );
-          mprMemory.restore(
-            reconstruction,
-            mpr,
-            group.getToolInstance(CrosshairsTool.toolName) as CrosshairsTool
-          );
-          activateTool(referenceEnabled ? 'reference' : 'window');
-        }
-        if (recoveringTool) {
-          activateTool(recoveringTool);
-          recoveringTool = undefined;
-        }
-        if (nextMode !== '3d')
-          stopCursor = watchDicomCursorHu(
-            id,
-            viewportIds,
-            elements,
-            viewport =>
-              nextMode === 'original'
-                ? dicomStackShowsHu(viewport as StackViewport)
-                : quantitative(),
-            value => cursorListener?.(value)
-          );
-        resize = observeDicomViewportSize(engine, elements, () => disposed);
+        await mountDicomRuntimeView({
+          id,
+          volumeId,
+          series,
+          nextMode,
+          elements,
+          engine,
+          comparisons,
+          completion,
+          source: source!,
+          getLoaded: () => loaded,
+          stack: stack!,
+          measurements,
+          mprMemory,
+          signal,
+          ensureActive,
+          isDisposed: () => disposed,
+          quantitative,
+          activateTool,
+          notifyReference,
+          notifyReconstruction,
+          onCursorHu: value => cursorListener?.(value),
+          releaseTools,
+          view,
+        });
       }),
     tool: activateTool,
     reset: () => {
       if (!engine || disposed) return;
-      if (mode === 'mpr' && reconstruction) {
-        mpr?.cancel();
-        reconstruction.reset();
-        mpr?.oblique(false);
+      if (view.mode === 'mpr' && view.reconstruction) {
+        view.mpr?.cancel();
+        view.reconstruction.reset();
+        view.mpr?.oblique(false);
         activateTool(activeTool);
         return;
       }
-      resetDicomCamera(engine, viewportIds);
+      resetDicomCamera(engine, view.viewportIds);
     },
     capture: plane =>
       captureRuntimeView({
         engine,
         stack: stack!,
         series,
-        mode,
+        mode: view.mode,
         plane,
         signal: AbortSignal.any([signal, graphicsController.signal]),
         ensureActive,
-        resampled: Boolean(volume?.resampled),
+        resampled: Boolean(view.volume?.resampled),
         reconstructionLabel:
-          mode === 'mpr' ? () => reconstruction?.state().planes[plane]?.label : undefined,
+          view.mode === 'mpr' ? () => view.reconstruction?.state().planes[plane]?.label : undefined,
         orientations,
       }),
   };
