@@ -8,12 +8,6 @@ export interface BedManagerBlockedGridItem {
   blockedReason?: string;
 }
 
-export interface BedManagerExtraGridItem {
-  id: string;
-  name: string;
-  isEnabled: boolean;
-}
-
 export const resolveBlockedBedsGridItems = (
   beds: BedDefinition[],
   recordBeds: DailyRecord['beds'] | null | undefined
@@ -25,16 +19,4 @@ export const resolveBlockedBedsGridItems = (
       name: bed.name,
       isBlocked: Boolean(recordBeds?.[bed.id]?.isBlocked),
       blockedReason: recordBeds?.[bed.id]?.blockedReason || '',
-    }));
-
-export const resolveExtraBedsGridItems = (
-  beds: BedDefinition[],
-  activeExtraBeds: string[] | null | undefined
-): BedManagerExtraGridItem[] =>
-  beds
-    .filter(bed => bed.isExtra && bed.activationMode !== 'occupied')
-    .map(bed => ({
-      id: bed.id,
-      name: bed.name,
-      isEnabled: (activeExtraBeds || []).includes(bed.id),
     }));

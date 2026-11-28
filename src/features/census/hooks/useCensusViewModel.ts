@@ -25,6 +25,7 @@ export const useCensusViewModel = (currentDateString: string): UseCensusViewMode
 
     return buildVisibleBeds({
       allBeds: BEDS,
+      beds: censusLogic.beds,
       activeExtraBeds: censusLogic.staff?.activeExtraBeds || [],
     });
   }, [censusLogic.beds, censusLogic.staff?.activeExtraBeds]);

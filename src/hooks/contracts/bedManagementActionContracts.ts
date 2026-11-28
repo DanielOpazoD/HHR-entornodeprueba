@@ -25,7 +25,6 @@ export type BedAction =
   | { type: 'COPY_PATIENT'; sourceBedId: string; targetBedId: string }
   | { type: 'TOGGLE_BLOCK_BED'; bedId: string; reason?: string }
   | { type: 'UPDATE_BLOCKED_REASON'; bedId: string; reason: string }
-  | { type: 'TOGGLE_EXTRA_BED'; bedId: string }
   | { type: 'CREATE_CLINICAL_CRIB'; bedId: string }
   | {
       type: 'REMOVE_CLINICAL_CRIB';

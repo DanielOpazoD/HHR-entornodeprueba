@@ -207,7 +207,6 @@ export const createMockDailyRecordContext = (
   moveOrCopyPatient: vi.fn(),
   toggleBlockBed: vi.fn(),
   updateBlockedReason: vi.fn(),
-  toggleExtraBed: vi.fn(),
   toggleBedType: vi.fn(),
   copyPatientToDate: vi.fn().mockResolvedValue(undefined),
 });

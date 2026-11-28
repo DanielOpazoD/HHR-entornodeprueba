@@ -120,7 +120,9 @@ export const resolveMoveCopyBedOptions = ({
   availabilityUnverified = false,
 }: ResolveMoveCopyBedOptionsParams): MoveCopyBedOptionModel[] => {
   const activeExtraBeds = targetRecord?.activeExtraBeds || currentRecord.activeExtraBeds || [];
-  const visibleBeds = allBeds.filter(bed => !bed.isExtra || activeExtraBeds.includes(bed.id));
+  const visibleBeds = allBeds.filter(
+    bed => bed.activationMode !== 'historical' && (!bed.isExtra || activeExtraBeds.includes(bed.id))
+  );
 
   const isCopyingToAnotherDate = Boolean(selectedDate && selectedDate !== currentRecord.date);
 

@@ -61,7 +61,6 @@ export const buildMockBedActions = (
   moveOrCopyPatient: vi.fn(),
   toggleBlockBed: vi.fn(),
   updateBlockedReason: vi.fn(),
-  toggleExtraBed: vi.fn(),
   toggleBedType: vi.fn(),
   copyPatientToDate: vi.fn(async () => undefined),
   ...overrides,

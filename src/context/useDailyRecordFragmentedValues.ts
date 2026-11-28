@@ -188,7 +188,6 @@ export const useDailyRecordFragmentedValues = (
         moveOrCopyPatient: value?.moveOrCopyPatient,
         toggleBlockBed: value?.toggleBlockBed,
         updateBlockedReason: value?.updateBlockedReason,
-        toggleExtraBed: value?.toggleExtraBed,
         toggleBedType: value?.toggleBedType,
         copyPatientToDate: value?.copyPatientToDate,
       }) as DailyRecordActionsContextType,
@@ -208,7 +207,6 @@ export const useDailyRecordFragmentedValues = (
       value?.moveOrCopyPatient,
       value?.toggleBlockBed,
       value?.updateBlockedReason,
-      value?.toggleExtraBed,
       value?.toggleBedType,
       value?.copyPatientToDate,
     ]

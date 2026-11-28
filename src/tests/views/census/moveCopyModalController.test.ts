@@ -42,7 +42,7 @@ describe('moveCopyModalController', () => {
 
   it('resolves source bed name and builds bed options filtering source bed', () => {
     const currentRecord = DataFactory.createMockDailyRecord('2026-02-13', {
-      activeExtraBeds: ['E1'],
+      activeExtraBeds: ['E1', 'CMA_R1', 'BOX1'],
     });
 
     expect(resolveMoveCopySourceBedName(BEDS, 'R1')).toBe('R1');
@@ -57,7 +57,8 @@ describe('moveCopyModalController', () => {
     });
 
     expect(options.some(option => option.id === 'R1')).toBe(false);
-    expect(options.some(option => option.id === 'E1')).toBe(true);
+    expect(options.some(option => option.id === 'E1')).toBe(false);
+    expect(options.map(option => option.id)).toEqual(expect.arrayContaining(['CMA_R1', 'BOX1']));
     expect(options.some(option => option.id === 'E2')).toBe(false);
     expect(options.find(option => option.id === 'R2')?.isSelected).toBe(true);
   });

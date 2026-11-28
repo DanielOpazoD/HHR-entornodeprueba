@@ -73,11 +73,6 @@ export interface BedManagementActions {
   updateBlockedReason: (bedId: string, reason: string) => void;
 
   /**
-   * Toggles an extra bed visibility.
-   */
-  toggleExtraBed: (bedId: string) => void;
-
-  /**
    * Toggles bed level of care (UTI/UCI)
    */
   toggleBedType: (bedId: string) => void;

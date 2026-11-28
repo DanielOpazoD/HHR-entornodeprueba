@@ -96,7 +96,6 @@ export interface DailyRecordBedActions {
   moveOrCopyPatient: (type: 'move' | 'copy', sourceBedId: string, targetBedId: string) => void;
   toggleBlockBed: (bedId: string, reason?: string) => void;
   updateBlockedReason: (bedId: string, reason: string) => void;
-  toggleExtraBed: (bedId: string) => void;
   toggleBedType: (bedId: string) => void;
   copyPatientToDate: (bedId: string, targetDate: string, targetBedId?: string) => Promise<void>;
 }

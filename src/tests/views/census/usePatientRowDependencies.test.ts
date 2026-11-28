@@ -30,7 +30,6 @@ const bedActions = {
   moveOrCopyPatient: vi.fn<BedActions['moveOrCopyPatient']>(),
   toggleBlockBed: vi.fn<BedActions['toggleBlockBed']>(),
   updateBlockedReason: vi.fn<BedActions['updateBlockedReason']>(),
-  toggleExtraBed: vi.fn<BedActions['toggleExtraBed']>(),
   copyPatientToDate: vi.fn<BedActions['copyPatientToDate']>(),
 } satisfies BedActions;
 

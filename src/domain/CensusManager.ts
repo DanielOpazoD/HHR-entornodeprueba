@@ -1,3 +1,4 @@
+import { HISTORICAL_BED_IDS } from '@/constants/beds';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { ActionState, DischargeState, TransferState } from '@/domain/censusActionContracts';
 import { CMAData } from '@/types/domain/movements';
@@ -68,6 +69,8 @@ export class CensusManager {
     if (!state.sourceBedId || !state.targetBedId)
       return { isValid: false, error: 'Cama de origen o destino no especificada.' };
 
+    if (HISTORICAL_BED_IDS.has(state.targetBedId))
+      return { isValid: false, error: 'La cama de destino está retirada.' };
     const sourcePatient = record.beds[state.sourceBedId];
     const targetPatient = record.beds[state.targetBedId];
 

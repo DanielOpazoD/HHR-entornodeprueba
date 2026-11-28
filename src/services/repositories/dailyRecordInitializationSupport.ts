@@ -1,5 +1,5 @@
 import { BedType } from '@/types/domain/beds';
-import { OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
+import { HISTORICAL_BED_IDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordStaffingState } from '@/types/domain/dailyRecordSlices';
 import {
@@ -56,7 +56,18 @@ export const buildInitializedDayRecord = (
     : initialBeds;
   const inheritedExtraBeds = prevRecord ? [...(prevRecord.activeExtraBeds || [])] : [];
   const activeExtraBeds = [
-    ...inheritedExtraBeds.filter(bedId => !OCCUPANCY_ONLY_EXTRA_BED_IDS.has(bedId)),
+    ...inheritedExtraBeds.filter(
+      bedId => !OCCUPANCY_ONLY_EXTRA_BED_IDS.has(bedId) && !HISTORICAL_BED_IDS.has(bedId)
+    ),
+    ...[...HISTORICAL_BED_IDS].filter(bedId => {
+      const patient = beds[bedId];
+      return (
+        patient?.patientName?.trim() ||
+        patient?.rut?.trim() ||
+        patient?.clinicalCrib ||
+        patient?.isBlocked
+      );
+    }),
     ...[...OCCUPANCY_ONLY_EXTRA_BED_IDS].filter(
       bedId => Boolean(beds[bedId]?.patientName?.trim()) && beds[bedId]?.isBlocked !== true
     ),

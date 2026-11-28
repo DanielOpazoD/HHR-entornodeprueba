@@ -290,12 +290,12 @@ describe('CensusTable layout and actions', () => {
     applyDefaultMocks();
   });
 
-  it('should render correct number of beds (normal + active extras)', () => {
+  it('offers admissions in regular beds and omits retired empty beds even when previously enabled', () => {
     render(<CensusTable currentDateString="2025-01-08" />);
 
     const emptyRows = screen.getAllByTestId('empty-bed-row');
-    expect(emptyRows).toHaveLength(REGULAR_BEDS.length + 1);
-    expect(screen.getByText('E1')).toBeInTheDocument();
+    expect(emptyRows).toHaveLength(REGULAR_BEDS.length);
+    expect(screen.queryByText('E1')).not.toBeInTheDocument();
     expect(screen.queryByText('E2')).not.toBeInTheDocument();
   });
 

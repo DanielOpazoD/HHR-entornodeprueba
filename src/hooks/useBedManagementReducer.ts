@@ -16,7 +16,6 @@ import {
   buildRemoveClinicalCribPatches,
   buildToggleBedTypePatches,
   buildToggleBlockedBedPatches,
-  buildToggleExtraBedPatches,
   buildUpdateBlockedReasonPatches,
   buildUpdateClinicalCribPatches,
   buildUpdatePatientPatches,
@@ -102,8 +101,6 @@ export const bedManagementReducer = (
       return buildToggleBlockedBedPatches(state, action.bedId, action.reason);
     case 'UPDATE_BLOCKED_REASON':
       return buildUpdateBlockedReasonPatches(action.bedId, action.reason);
-    case 'TOGGLE_EXTRA_BED':
-      return buildToggleExtraBedPatches(state, action.bedId);
     case 'CREATE_CLINICAL_CRIB':
       return buildCreateClinicalCribPatches(state, action.bedId);
     case 'REMOVE_CLINICAL_CRIB':

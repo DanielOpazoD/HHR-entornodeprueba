@@ -1,17 +1,13 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
 import { BEDS } from '@/constants/beds';
-import { useDailyRecordBeds, useDailyRecordStaff } from '@/context/DailyRecordContext';
+import { useDailyRecordBeds } from '@/context/DailyRecordContext';
 import { useDailyRecordBedActions } from '@/context/useDailyRecordScopedActions';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { ModalSection } from '@/components/shared/baseModalSection';
 import { BedReasonDialog } from '@/features/census/components/bed-manager/BedReasonDialog';
 import { BlockedBedsGrid } from '@/features/census/components/bed-manager/BlockedBedsGrid';
-import { ExtraBedsGrid } from '@/features/census/components/bed-manager/ExtraBedsGrid';
-import {
-  resolveBlockedBedsGridItems,
-  resolveExtraBedsGridItems,
-} from '@/features/census/controllers/bedManagerGridItemsController';
+import { resolveBlockedBedsGridItems } from '@/features/census/controllers/bedManagerGridItemsController';
 import { useBedManagerModalModel } from '@/features/census/hooks/useBedManagerModalModel';
 
 interface BedManagerModalProps {
@@ -21,8 +17,7 @@ interface BedManagerModalProps {
 
 export const BedManagerModal: React.FC<BedManagerModalProps> = ({ isOpen, onClose }) => {
   const beds = useDailyRecordBeds();
-  const staff = useDailyRecordStaff();
-  const { toggleBlockBed, updateBlockedReason, toggleExtraBed } = useDailyRecordBedActions();
+  const { toggleBlockBed, updateBlockedReason } = useDailyRecordBedActions();
   const {
     blockingBedId,
     editingBedId,
@@ -42,10 +37,9 @@ export const BedManagerModal: React.FC<BedManagerModalProps> = ({ isOpen, onClos
     updateBlockedReason,
   });
 
-  if (!beds || !staff) return null;
+  if (!beds) return null;
 
   const regularBeds = resolveBlockedBedsGridItems(BEDS, beds);
-  const extraBeds = resolveExtraBedsGridItems(BEDS, staff.activeExtraBeds);
 
   return (
     <>
@@ -74,18 +68,6 @@ export const BedManagerModal: React.FC<BedManagerModalProps> = ({ isOpen, onClos
                   blockedReason: bed.blockedReason || '',
                 })
               }
-            />
-          </ModalSection>
-
-          <ModalSection
-            title="Camas Extras"
-            variant="info"
-            description="Habilite camas adicionales temporalmente."
-          >
-            <ExtraBedsGrid
-              beds={extraBeds}
-              disabled={isBlockingDialogOpen}
-              onToggleBed={toggleExtraBed}
             />
           </ModalSection>
         </div>
