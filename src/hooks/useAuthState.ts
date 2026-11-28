@@ -149,7 +149,7 @@ export const useAuthState = (): UseAuthStateReturn => {
     }
     commit(createAuthenticatingAuthSessionState());
     const ownerKey = resolveSessionOwnerKey(next.user.uid)!;
-    void Promise.resolve(reconcileAuthorizedSessionOwner(ownerKey))
+    void Promise.resolve(reconcileAuthorizedSessionOwner(ownerKey, next.user.role ?? 'viewer'))
       .then(() => {
         // After the admission: the session generation has changed, so a late answer to the
         // previous person's edit can no longer write what this clears.

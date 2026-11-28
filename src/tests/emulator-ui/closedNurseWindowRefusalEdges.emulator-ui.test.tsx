@@ -232,7 +232,7 @@ beforeEach(async () => {
     clinicalBatchMode: 'enforced',
   });
   setFirestoreEnabled(true);
-  await reconcileAuthorizedSessionOwner(AUTHOR);
+  await reconcileAuthorizedSessionOwner(AUTHOR, 'nurse_hospital');
 });
 afterEach(() => {
   cleanup();
@@ -426,7 +426,7 @@ it('reads the current note while a pending diagnosis of the same day still waits
 }, 60_000);
 
 // Review finding 3: a refusal of the administrator has nothing to do with the nurse window.
-it('keeps the administrator’s retry after a refusal unrelated to the window', async () => {
+it('keeps an administrative refusal and its retry when the same account becomes a nurse', async () => {
   const rules = readFileSync('firestore.rules', 'utf8');
   const denying = rules.replace(
     'allow update: if canUpdatePersistedDailyRecord()',
@@ -442,6 +442,7 @@ it('keeps the administrator’s retry after a refusal unrelated to the window', 
     await loader.cleanup();
   };
   actAs('admin');
+  await reconcileAuthorizedSessionOwner(AUTHOR, 'admin');
   const c = await census();
   offline();
   await c.edit('note');
@@ -455,8 +456,44 @@ it('keeps the administrator’s retry after a refusal unrelated to the window', 
   }
   const [a] = await tasks();
   expect(a.lastErrorCode).toMatch(/permission-denied$/);
+  actAs('nurse_hospital');
+  await reconcileAuthorizedSessionOwner(AUTHOR, 'nurse_hospital');
+  await drain();
+  expect(await tasks()).toEqual([a]);
   expect(a.projectionReleased).toBeUndefined();
   expect(await retryQuarantinedSyncTask(a.id!)).toBe(true);
+}, 60_000);
+
+it('keeps edits by different roles separate and retries with the current permission', async () => {
+  actAs('admin');
+  await reconcileAuthorizedSessionOwner(AUTHOR, 'admin');
+  const c = await census();
+  offline();
+  await c.edit('note');
+  actAs('nurse_hospital');
+  await reconcileAuthorizedSessionOwner(AUTHOR, 'nurse_hospital');
+  await c.edit('diagnosis');
+  const pending = await tasks();
+  expect(pending.map(task => task.writerRole)).toEqual(['admin', 'nurse_hospital']);
+
+  c.live();
+  await sendLater();
+  await settled();
+  const [note, diagnosis] = await tasks();
+  expect(note.lastErrorCode).toMatch(/permission-denied$/);
+  expect(note.projectionReleased).toBeUndefined();
+  expect(diagnosis.projectionReleased).toBe(true);
+  expect((await server())[night]).toBe('NOCHE BASE');
+  await waitFor(() => expect(shown()?.beds.R1.pathology).toBe('DIAGNOSTICO BASE'));
+  expect(shown()?.[night]).toBe(NOTE);
+
+  actAs('admin');
+  await reconcileAuthorizedSessionOwner(AUTHOR, 'admin');
+  expect(await retryQuarantinedSyncTask(note.id!)).toBe(true);
+  await drain();
+  expect((await server())[night]).toBe(NOTE);
+  expect((await server()).beds.R1.pathology).toBe('DIAGNOSTICO BASE');
+  expect(await tasks()).toEqual([diagnosis]);
 }, 60_000);
 
 // Review finding 4: this computer's clock was behind when the server refused.

@@ -136,7 +136,9 @@ export const completeClaimedSyncTask = (
           !task.nursingHandoffRecovery &&
           local &&
           local.lastUpdated !== payload.lastUpdated &&
-          local.lastUpdated !== authoritativeRecord.lastUpdated
+          local.lastUpdated !== authoritativeRecord.lastUpdated &&
+          // Releasing a later edit can leave its local timestamp on the confirmed day's contents.
+          !hasSameComparableValue(local, { ...authoritativeRecord, lastUpdated: local.lastUpdated })
         )
           throw new SyncQueueAckError('sync_ack_projection_conflict', 'ACK version conflict.');
         await db.dailyRecords.put(authoritativeRecord);

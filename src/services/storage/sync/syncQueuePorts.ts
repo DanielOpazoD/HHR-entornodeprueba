@@ -95,7 +95,8 @@ export interface SyncQueueStorePort {
   findReusableTask(
     type: SyncTask['type'],
     key: string,
-    ownerKey?: string | null
+    ownerKey?: string | null,
+    author?: Pick<SyncTask, 'writerRole'>
   ): Promise<SyncTask | null>;
   add(task: SyncTask): Promise<void>;
   saveDailyRecordWithTask(
@@ -194,7 +195,7 @@ export interface SyncRuntimePort {
   isFenced?(): boolean;
   /** The owner this document admitted, held in memory: never the key another tab can replace. */
   getAdmittedOwnerKey?(): string | null;
-  /** The role the server reads for this session's writes (its token claim); null without one. */
+  /** Current token claim, checked before releasing a refused write. */
   getWriterRole?(): Promise<string | null>;
 }
 

@@ -120,6 +120,7 @@ export interface SyncQueueOperationSnapshot {
   lastErrorAction?: SyncTask['lastErrorAction'];
   lastErrorAt?: SyncTask['lastErrorAt'];
   key?: string;
+  writerRole?: SyncTask['writerRole'];
   leaseOwner?: SyncTask['leaseOwner'];
   leaseUntil?: SyncTask['leaseUntil'];
   attemptId?: SyncTask['attemptId'];
@@ -150,6 +151,7 @@ export const toSyncQueueOperationSnapshot = (row: SyncTask): SyncQueueOperationS
   lastErrorAction: row.lastErrorAction,
   lastErrorAt: row.lastErrorAt,
   key: row.key,
+  writerRole: row.writerRole,
   leaseOwner: row.leaseOwner,
   leaseUntil: row.leaseUntil,
   attemptId: row.attemptId,

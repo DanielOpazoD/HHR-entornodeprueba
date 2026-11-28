@@ -2,6 +2,7 @@
  * Sync queue task contracts shared by storage services.
  */
 import type { SyncDomainContext, SyncTaskOrigin } from '@/shared/contracts/syncDomainContracts';
+import type { UserRole } from '@/types/authRoleTypes';
 
 export interface SyncTask {
   id?: number;
@@ -33,6 +34,8 @@ export interface SyncTask {
   lastErrorAt?: number;
   key?: string;
   ownerKey?: string;
+  /** Role at the start of the edit, used to interpret a refusal. Older sends omit it. */
+  writerRole?: UserRole;
   leaseOwner?: string;
   leaseUntil?: number;
   attemptId?: string;

@@ -2,14 +2,17 @@ import {
   getSessionEpoch,
   getSessionGeneration,
   getSessionOwner,
+  getSessionWriterRole,
   sessionEpochGuard,
 } from './sessionStorageTransition';
 import { getStoredSessionOwnerKey, isSessionCleanupPending } from './sessionOwnerKey';
+import type { UserRole } from '@/types/authRoleTypes';
 
 /** The person and session that began a write: whose intent it carries, whatever happens later. */
 export interface AuthoringSession {
   ownerKey: string | null;
   generation: string | null;
+  writerRole?: UserRole;
 }
 
 /**
@@ -20,6 +23,7 @@ export interface AuthoringSession {
 export const captureAuthoringSession = (): AuthoringSession => ({
   ownerKey: getSessionOwner() ?? getStoredSessionOwnerKey(),
   generation: getSessionGeneration(),
+  writerRole: getSessionWriterRole(),
 });
 
 /**

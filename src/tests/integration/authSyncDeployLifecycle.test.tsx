@@ -128,7 +128,8 @@ describe('auth/sync/deploy lifecycle integration', () => {
     });
     await flushBootstrap();
     expect(sessionScopedStorageService.reconcileAuthorizedSessionOwner).toHaveBeenCalledWith(
-      'user:user-1'
+      'user:user-1',
+      'admin'
     );
 
     await act(async () => {
@@ -180,7 +181,8 @@ describe('auth/sync/deploy lifecycle integration', () => {
     });
     await flushBootstrap();
     expect(sessionScopedStorageService.reconcileAuthorizedSessionOwner).toHaveBeenCalledWith(
-      'user:user-2'
+      'user:user-2',
+      'nurse_hospital'
     );
     expect(secondRender.result.current.auth.currentUser?.uid).toBe('user-2');
   });
