@@ -1,7 +1,7 @@
 import type { Worksheet } from 'exceljs';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
 import { MAIN_TITLE_STYLE } from '../styles';
-import { resolvePresentedNightShiftNurses } from '@/services/staff/dailyRecordStaffing';
+import { resolvePresentedNightShiftNurses } from '@/services/staff/dailyRecordStaffingPresentation';
 
 export function addHeaderSection(
   sheet: Worksheet,

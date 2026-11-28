@@ -1,7 +1,7 @@
 import type { ShiftType } from '@/types/domain/shift';
 import type { HandoffPdfStaffingRecord } from '@/services/pdf/contracts/handoffPdfContracts';
 import { calculateHospitalizedDays } from '@/utils/clinicalDayUtils';
-import { resolvePresentedNightHandoffReceives } from '@/services/staff/dailyRecordStaffing';
+import { resolvePresentedNightHandoffReceives } from '@/services/staff/dailyRecordStaffingPresentation';
 import { getShiftSchedule } from '@/utils/clinicalDayUtils';
 import { resolveDetailedStaffingState } from '@/services/staff/dailyRecordDetailedStaffing';
 import {

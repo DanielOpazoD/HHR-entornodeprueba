@@ -119,11 +119,11 @@ describe('census startup payload', () => {
     expect(shell).toContain("import('./HandoffExtensionConnection')");
     expect(shell).toContain('/conectar-entrega-turno');
 
-    const tableConfigContext = read('src/context/TableConfigContext.tsx');
-    expect(tableConfigContext).not.toMatch(
+    const tableConfigProvider = read('src/context/TableConfigProvider.tsx');
+    expect(tableConfigProvider).not.toMatch(
       /import\s*\{[^}]*(?:exportTableConfig|importTableConfig)[^}]*\}\s*from\s*['"]@\/services\/storage\/tableConfigService['"]/
     );
-    expect(tableConfigContext).toContain("import('@/services/storage/tableConfigTransfer')");
+    expect(tableConfigProvider).toContain("import('@/services/storage/tableConfigTransfer')");
 
     const table = read('src/features/census/components/CensusTable.tsx');
     expect(table).not.toMatch(
