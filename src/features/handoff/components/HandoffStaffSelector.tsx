@@ -47,16 +47,16 @@ export const HandoffStaffSelector: React.FC<HandoffStaffSelectorProps> = ({
     // Compact horizontal layout - single row
     return (
       <div
-        className={`grid min-w-0 grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 ${bgClass}`}
+        className={`grid min-w-0 grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-1.5 ${bgClass}`}
       >
-        <div className={`flex items-center gap-1.5 ${iconColor}`}>
-          <Icon size={14} className="shrink-0" aria-hidden="true" />
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+        <div className={`flex shrink-0 items-center gap-1 ${iconColor}`}>
+          <Icon size={13} className="shrink-0" aria-hidden="true" />
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 whitespace-nowrap">
             {label}
           </span>
         </div>
         <select
-          className="h-8 w-full min-w-0 text-xs px-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none bg-white disabled:bg-slate-50 disabled:text-slate-500"
+          className="h-7 w-full min-w-0 text-xs px-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none bg-white disabled:bg-slate-50 disabled:text-slate-500"
           aria-label={`${label}: enfermería 1`}
           value={nurse1}
           onChange={e => handleChange(0, e.target.value)}
@@ -70,7 +70,7 @@ export const HandoffStaffSelector: React.FC<HandoffStaffSelectorProps> = ({
           ))}
         </select>
         <select
-          className="h-8 w-full min-w-0 text-xs px-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none bg-white disabled:bg-slate-50 disabled:text-slate-500"
+          className="h-7 w-full min-w-0 text-xs px-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none bg-white disabled:bg-slate-50 disabled:text-slate-500"
           aria-label={`${label}: enfermería 2`}
           value={nurse2}
           onChange={e => handleChange(1, e.target.value)}

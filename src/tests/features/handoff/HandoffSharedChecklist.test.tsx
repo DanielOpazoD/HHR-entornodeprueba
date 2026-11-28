@@ -132,4 +132,37 @@ describe('shared crash cart checklist UI', () => {
     render(<HandoffNovedades value="" onChange={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Novedades & Pendientes' })).toBeInTheDocument();
   });
+
+  it('keeps shift switcher with staff in one compact top bar across day and night', () => {
+    const { container, rerender } = render(
+      <HandoffChecklistSection
+        {...checklistProps}
+        record={initialRecord()}
+        selectedShift="day"
+        setSelectedShift={vi.fn()}
+        readOnly={false}
+        onUpdateChecklist={vi.fn()}
+      />
+    );
+    const topBar = container.querySelector('.handoff-top-bar');
+    expect(topBar).toContainElement(screen.getByTestId('handoff-shift-day-button'));
+    expect(topBar).toContainElement(screen.getByText('Entrega'));
+    expect(topBar).toContainElement(screen.getByText('Recibe'));
+    expect(container.querySelector('.handoff-checklist-bar--day')).toBeInTheDocument();
+
+    rerender(
+      <HandoffChecklistSection
+        {...checklistProps}
+        record={initialRecord()}
+        selectedShift="night"
+        setSelectedShift={vi.fn()}
+        readOnly={false}
+        onUpdateChecklist={vi.fn()}
+      />
+    );
+    expect(container.querySelector('.handoff-checklist-bar--night')).toBeInTheDocument();
+    expect(container.querySelector('.handoff-top-bar')).toContainElement(
+      screen.getByRole('combobox', { name: 'Recibe: enfermería 1' })
+    );
+  });
 });

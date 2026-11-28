@@ -19,8 +19,8 @@ export const HandoffChecklistDay: React.FC<HandoffChecklistDayProps> = ({
 }) => {
   return (
     <div className="handoff-checklist">
-      <div className="flex w-full items-center gap-2 text-slate-500 shrink-0 lg:w-auto print:w-auto print:text-sky-700">
-        <ClipboardCheck size={14} className="print:w-3 print:h-3" aria-hidden="true" />
+      <div className="flex items-center gap-1 text-slate-400 shrink-0 print:w-auto print:text-sky-700">
+        <ClipboardCheck size={13} className="print:w-3 print:h-3" aria-hidden="true" />
         <span className="text-[10px] font-semibold uppercase tracking-wide print:font-bold print:tracking-normal print:text-black print:text-[9px]">
           Checklist
         </span>
