@@ -281,6 +281,16 @@ describe('BackupFilesContent', () => {
     expect(screen.getByText('No se encontraron respaldos en esta ubicación')).toBeInTheDocument();
   });
 
+  it('distinguishes an unread folder from one with a confirmed empty listing', () => {
+    renderContent({ items: [], filteredItems: [], listingIncomplete: true });
+    expect(
+      screen.getByText(/No se pudo comprobar el contenido de esta carpeta/)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('No se encontraron respaldos en esta ubicación')
+    ).not.toBeInTheDocument();
+  });
+
   it('shows a handoff month as a day and night calendar that opens the chosen shift', () => {
     const nightFile = handoffFile('2026-03-15', 'night');
     const { onPreviewFile } = renderContent({
