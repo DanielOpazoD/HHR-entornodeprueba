@@ -178,14 +178,18 @@ describe('dailyRecordInitializationSupport', () => {
     expect(result.beds.R1.admissionDate).toBe('2026-02-19');
   });
 
-  it('carries an Urgencias box only when it still has an occupant', () => {
+  it('carries occupied historical and operational locations and leaves retired empty beds behind', () => {
     const previous = buildRecord('2026-02-18');
-    previous.activeExtraBeds = ['E1', 'BOX1', 'BOX2'];
+    previous.activeExtraBeds = ['E1', 'E2', 'CMA_R1', 'BOX1', 'BOX2'];
+    previous.beds.E1 = buildPatient('E1');
+    previous.beds.CMA_R1 = buildPatient('CMA_R1');
     previous.beds.BOX1 = buildPatient('BOX1');
 
     const result = buildInitializedDayRecord('2026-02-19', previous);
 
-    expect(result.activeExtraBeds).toEqual(['E1', 'BOX1']);
+    expect(result.activeExtraBeds.sort()).toEqual(['BOX1', 'CMA_R1', 'E1']);
+    expect(result.beds.E1.patientName).toBe('Paciente');
+    expect(previous.activeExtraBeds).toContain('E2');
     expect(result.beds.BOX1.patientName).toBe('Paciente');
     expect(result.beds.BOX2.patientName).toBe('');
   });

@@ -60,9 +60,10 @@ export const useCensusTableModel = ({
   const visibleBeds = useMemo(() => {
     return buildVisibleBeds({
       allBeds: BEDS,
+      beds,
       activeExtraBeds,
     });
-  }, [activeExtraBeds]);
+  }, [activeExtraBeds, beds]);
 
   const { unifiedRows } = useMemo(() => {
     return buildCensusBedRows({

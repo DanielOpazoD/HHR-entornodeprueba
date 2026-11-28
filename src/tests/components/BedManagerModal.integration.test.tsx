@@ -3,12 +3,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { BedManagerModal } from '@/features/census/components/bed-manager/BedManagerModal';
 
 const mockedUseDailyRecordBeds = vi.fn();
-const mockedUseDailyRecordStaff = vi.fn();
 const mockedUseDailyRecordBedActions = vi.fn();
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordBeds: () => mockedUseDailyRecordBeds(),
-  useDailyRecordStaff: () => mockedUseDailyRecordStaff(),
 }));
 
 vi.mock('@/context/useDailyRecordScopedActions', () => ({
@@ -29,22 +27,16 @@ describe('BedManagerModal integration', () => {
   it('supports block, edit and unblock flows end-to-end', () => {
     const toggleBlockBed = vi.fn();
     const updateBlockedReason = vi.fn();
-    const toggleExtraBed = vi.fn();
 
     mockedUseDailyRecordBedActions.mockReturnValue({
       toggleBlockBed,
       updateBlockedReason,
-      toggleExtraBed,
     });
 
     mockedUseDailyRecordBeds.mockReturnValue({
       R1: { isBlocked: true, blockedReason: 'Mantención inicial' },
       R2: { isBlocked: false },
     });
-    mockedUseDailyRecordStaff.mockReturnValue({
-      activeExtraBeds: ['E1'],
-    });
-
     render(<BedManagerModal isOpen={true} onClose={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Gestionar cama R2: Disponible' }));
@@ -68,7 +60,7 @@ describe('BedManagerModal integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Desbloquear Cama' }));
     expect(toggleBlockBed).toHaveBeenCalledWith('R1');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Desactivar cama extra E1' }));
-    expect(toggleExtraBed).toHaveBeenCalledWith('E1');
+    expect(screen.queryByText('Camas Extras')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /activar cama extra/i })).not.toBeInTheDocument();
   });
 });

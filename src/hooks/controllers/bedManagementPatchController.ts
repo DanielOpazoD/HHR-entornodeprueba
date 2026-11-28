@@ -377,15 +377,6 @@ export const buildToggleBlockedBedPatches = (
   } as DailyRecordPatch;
 };
 
-export const buildToggleExtraBedPatches = (state: DailyRecord, bedId: string): DailyRecordPatch => {
-  const currentExtras = state.activeExtraBeds || [];
-  const isActive = !currentExtras.includes(bedId);
-  const newExtras = isActive ? [...currentExtras, bedId] : currentExtras.filter(id => id !== bedId);
-  return {
-    activeExtraBeds: newExtras,
-  } as DailyRecordPatch;
-};
-
 export const buildToggleBedTypePatches = (
   state: DailyRecord,
   bedId: string

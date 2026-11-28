@@ -64,7 +64,6 @@ describe('DailyRecordContext', () => {
     moveOrCopyPatient: vi.fn(),
     toggleBlockBed: vi.fn(),
     updateBlockedReason: vi.fn(),
-    toggleExtraBed: vi.fn(),
     toggleBedType: vi.fn(),
     copyPatientToDate: vi.fn(),
   } as unknown as DailyRecordContextType;

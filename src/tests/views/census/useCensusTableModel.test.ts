@@ -52,7 +52,7 @@ describe('useCensusTableModel', () => {
         currentDateString: today,
         role: 'admin',
         beds,
-        activeExtraBeds: ['E1'],
+        activeExtraBeds: [],
         overrides: {
           R1: BedType.UCI,
         },

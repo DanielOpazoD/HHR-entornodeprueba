@@ -12,6 +12,7 @@ import {
 } from '@/features/census/types/censusTableTypes';
 
 interface BuildVisibleBedsParams {
+  beds?: Record<string, PatientData> | null;
   allBeds: BedDefinition[];
   activeExtraBeds: string[];
 }
@@ -61,8 +62,16 @@ const buildOccupiedBedRows = (bed: BedDefinition, bedData: PatientData): Unified
 export const buildVisibleBeds = ({
   allBeds,
   activeExtraBeds,
+  beds,
 }: BuildVisibleBedsParams): BedDefinition[] => {
-  return allBeds.filter(bed => !bed.isExtra || activeExtraBeds.includes(bed.id));
+  return allBeds.filter(bed => {
+    if (!bed.isExtra || activeExtraBeds.includes(bed.id)) return true;
+    const data = beds?.[bed.id];
+    return (
+      bed.activationMode === 'historical' &&
+      (hasVisibleBedOccupant(data) || hasVisibleClinicalCrib(data?.clinicalCrib))
+    );
+  });
 };
 
 export const buildCensusBedRows = ({ visibleBeds, beds }: BuildBedRowsParams): CensusBedRows => {
@@ -72,8 +81,10 @@ export const buildCensusBedRows = ({ visibleBeds, beds }: BuildBedRowsParams): C
   visibleBeds.forEach(bed => {
     const bedData = beds?.[bed.id];
     if (!bedData || !hasVisibleBedOccupant(bedData)) {
-      unifiedRows.push({ kind: 'empty', id: bed.id, bed });
-      emptyBedCount++;
+      if (bed.activationMode !== 'historical') {
+        unifiedRows.push({ kind: 'empty', id: bed.id, bed });
+        emptyBedCount++;
+      }
       if (bedData) unifiedRows.push(...buildClinicalCribRows(bed, bedData));
       return;
     }

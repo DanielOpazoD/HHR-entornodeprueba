@@ -44,7 +44,6 @@ import { getForDateWithMeta } from '@/services/repositories/dailyRecordRepositor
 import { syncRecordsRange } from '@/services/records/recordQueryService';
 import { buildVisibleBeds } from '@/features/census/controllers/censusTableViewController';
 import { useDevicesCellController } from '@/features/census/components/patient-row/useDevicesCellController';
-import { buildToggleExtraBedPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
 import { captureAuthoringSession } from '@/services/session/authoringSession';
@@ -265,7 +264,7 @@ it.each([
     try {
       await waitFor(() => expect(events.length).toBeGreaterThan(0), { timeout: 10_000 });
       const seen = events.length;
-      const patch = buildToggleExtraBedPatches(await server(), 'E1');
+      const patch = { activeExtraBeds: enabled ? [] : ['E1'] };
       if (writer === 'raw')
         await admin.doc(dayPath).update({ ...patch, lastUpdated: Timestamp.now() });
       else {
@@ -715,17 +714,17 @@ it.each(cases)(
   30000
 );
 
-it('preserves another bed activated while a different extra bed activation is pending', async () => {
+it('preserves another active bed when replaying an older client’s pending extra-bed change', async () => {
   const c = await censusHere(day => {
     day.activeExtraBeds = [];
   });
   try {
     setFirestoreEnabled(false);
-    await c.mutate(buildToggleExtraBedPatches(shown()!.record!, 'E1'));
+    await c.mutate({ activeExtraBeds: ['E1'] });
     c.hook.unmount();
     setFirestoreEnabled(true);
     const current = await server();
-    const patch = buildToggleExtraBedPatches(current, 'E2');
+    const patch = { activeExtraBeds: [...current.activeExtraBeds, 'E2'] };
     const previous = h.db;
     h.db = env
       .authenticatedContext('synthetic-A', {

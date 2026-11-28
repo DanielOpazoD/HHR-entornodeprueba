@@ -50,20 +50,6 @@ describe('bedManagementReducer bed state controls', () => {
     });
   });
 
-  it('toggles active extra beds without duplicating existing entries', () => {
-    const record = DataFactory.createMockDailyRecord('2026-04-12');
-    record.activeExtraBeds = ['R1'];
-
-    const patch = bedManagementReducer(record, {
-      type: 'TOGGLE_EXTRA_BED',
-      bedId: 'R2',
-    });
-
-    expect(patch).toMatchObject({
-      activeExtraBeds: ['R1', 'R2'],
-    });
-  });
-
   it('toggles bed type overrides between UTI and UCI', () => {
     const record = DataFactory.createMockDailyRecord('2026-04-12');
 
@@ -273,23 +259,5 @@ describe('bedManagementReducer bed state controls', () => {
     expect(cribFieldPatch).toEqual({
       'beds.R1.clinicalCrib.patientName': 'RN Ajustado',
     });
-  });
-
-  it('toggles extra beds by adding and removing the same bed id predictably', () => {
-    const record = DataFactory.createMockDailyRecord('2026-04-12');
-    record.activeExtraBeds = ['H1C1'];
-
-    const removePatch = bedManagementReducer(record, {
-      type: 'TOGGLE_EXTRA_BED',
-      bedId: 'H1C1',
-    });
-
-    const addPatch = bedManagementReducer(record, {
-      type: 'TOGGLE_EXTRA_BED',
-      bedId: 'H2C1',
-    });
-
-    expect(removePatch).toEqual({ activeExtraBeds: [] });
-    expect(addPatch).toEqual({ activeExtraBeds: ['H1C1', 'H2C1'] });
   });
 });

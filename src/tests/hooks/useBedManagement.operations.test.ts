@@ -193,19 +193,6 @@ describe('useBedManagement operations', () => {
       });
     });
 
-    it('toggles extra bed', () => {
-      const record = createMockRecord({ R1: createMockPatient('R1') });
-      const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));
-
-      act(() => {
-        result.current.toggleExtraBed('R10');
-      });
-
-      expect(mockPatchRecord).toHaveBeenCalledWith({
-        activeExtraBeds: expect.arrayContaining(['R10']),
-      });
-    });
-
     it('toggles bed type', () => {
       const record = createMockRecord({ R1: createMockPatient('R1') });
       const { result } = renderHook(() => useBedManagement(record, mockPatchRecord));

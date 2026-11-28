@@ -97,7 +97,6 @@ export const useDailyRecord = (
       moveOrCopyPatient: bedManagement.moveOrCopyPatient,
       toggleBlockBed: bedManagement.toggleBlockBed,
       updateBlockedReason: bedManagement.updateBlockedReason,
-      toggleExtraBed: bedManagement.toggleExtraBed,
       toggleBedType: bedManagement.toggleBedType,
       copyPatientToDate,
     }),

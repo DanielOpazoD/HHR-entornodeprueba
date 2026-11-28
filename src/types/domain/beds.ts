@@ -10,6 +10,6 @@ export interface BedDefinition {
   type: BedType;
   isCuna: boolean;
   isExtra?: boolean;
-  /** Extra beds sourced from Rayen that must stay hidden unless they are occupied. */
-  activationMode?: 'manual' | 'occupied';
+  /** CMA and BOX follow occupancy; retired locations remain readable in past and ongoing episodes. */
+  activationMode?: 'historical' | 'occupied';
 }

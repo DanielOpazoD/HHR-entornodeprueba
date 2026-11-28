@@ -44,12 +44,14 @@ export const BEDS: BedDefinition[] = [
       activationMode: 'occupied' as const,
     },
   ]),
-  // Extra Beds (overflow)
-  { id: 'E1', name: 'E1', type: BedType.MEDIA, isCuna: false, isExtra: true },
-  { id: 'E2', name: 'E2', type: BedType.MEDIA, isCuna: false, isExtra: true },
-  { id: 'E3', name: 'E3', type: BedType.MEDIA, isCuna: false, isExtra: true },
-  { id: 'E4', name: 'E4', type: BedType.MEDIA, isCuna: false, isExtra: true },
-  { id: 'E5', name: 'E5', type: BedType.MEDIA, isCuna: false, isExtra: true },
+  ...['E1', 'E2', 'E3', 'E4', 'E5'].map(id => ({
+    id,
+    name: id,
+    type: BedType.MEDIA,
+    isCuna: false,
+    isExtra: true,
+    activationMode: 'historical' as const,
+  })),
   // Virtual beds for hospitalized patients who remain physically in Urgencias.
   // Visibility follows the occupied HHR census: synchronization adds/removes verified encounters,
   // while day carryover keeps a patient visible until a safe reconciliation confirms a change.
@@ -92,4 +94,7 @@ export const OCCUPANCY_ONLY_EXTRA_BEDS = EXTRA_BEDS.filter(
   bed => bed.activationMode === 'occupied'
 );
 export const OCCUPANCY_ONLY_EXTRA_BED_IDS = new Set(OCCUPANCY_ONLY_EXTRA_BEDS.map(bed => bed.id));
+export const HISTORICAL_BED_IDS = new Set(
+  EXTRA_BEDS.filter(bed => bed.activationMode === 'historical').map(bed => bed.id)
+);
 export const REGULAR_BEDS = BEDS.filter(b => !b.isExtra);

@@ -151,13 +151,6 @@ export const useBedManagementActionCreators = (
     [dispatch]
   );
 
-  const toggleExtraBed = useCallback(
-    (bedId: string) => {
-      dispatch({ type: 'TOGGLE_EXTRA_BED', bedId });
-    },
-    [dispatch]
-  );
-
   const toggleBedType = useCallback(
     (bedId: string) => {
       dispatch({ type: 'TOGGLE_BED_TYPE', bedId });
@@ -177,7 +170,6 @@ export const useBedManagementActionCreators = (
       moveOrCopyPatient,
       toggleBlockBed,
       updateBlockedReason,
-      toggleExtraBed,
       toggleBedType,
     }),
     [
@@ -187,7 +179,6 @@ export const useBedManagementActionCreators = (
       moveOrCopyPatient,
       toggleBedType,
       toggleBlockBed,
-      toggleExtraBed,
       updateBlockedReason,
       updateClinicalCrib,
       updateClinicalCribMultiple,

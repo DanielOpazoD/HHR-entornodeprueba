@@ -144,13 +144,6 @@ const getPatchFieldMetadata = (action: BedAction): BedPatchFieldMetadata => {
         fieldLabel: 'Todas las camas',
         actionLabel: 'Limpiar todas las camas',
       };
-    case 'TOGGLE_EXTRA_BED':
-      return {
-        bedId: action.bedId,
-        fieldKey: 'activeExtraBeds',
-        fieldLabel: 'Cama extra',
-        actionLabel: 'Cambiar cama extra',
-      };
   }
 };
 

@@ -55,6 +55,27 @@ describe('censusActionRuntimeController', () => {
     expect(copyPatientToDate).not.toHaveBeenCalled();
   });
 
+  it('allows moving out of an occupied historical bed and rejects it as a new destination on any day', async () => {
+    const record = DataFactory.createMockDailyRecord('2026-02-13', {
+      activeExtraBeds: ['E1', 'E2'],
+      beds: { E1: DataFactory.createMockPatient('E1', { patientName: 'Persona de prueba' }) },
+    });
+    const actions = { moveOrCopyPatient: vi.fn(), copyPatientToDate: vi.fn() };
+    const move = (type: 'copy' | 'move', targetBedId: string, targetDate?: string) =>
+      executeMoveOrCopyController({
+        actionState: { type, sourceBedId: 'E1', targetBedId },
+        targetDate,
+        record,
+        actions,
+      });
+    expect((await move('move', 'E2')).ok).toBe(false);
+    expect((await move('copy', 'E2', '2026-02-14')).ok).toBe(false);
+    expect(actions.moveOrCopyPatient).not.toHaveBeenCalled();
+    expect(actions.copyPatientToDate).not.toHaveBeenCalled();
+    expect((await move('move', 'R1')).ok).toBe(true);
+    expect(actions.moveOrCopyPatient).toHaveBeenCalledWith('move', 'E1', 'R1');
+  });
+
   it('executes copy-to-date command and returns reset state', async () => {
     const record = DataFactory.createMockDailyRecord('2026-02-13', {
       beds: {
