@@ -25,6 +25,7 @@ import { lazyWithRetry } from '@/components/ui/lazyWithRetry';
 import '../styles/censusLayout.css';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
+import { buildCensusBedRows } from '@/features/census/controllers/censusTableViewController';
 import { CensusLaboratoryMenuEntry } from './CensusLaboratoryMenuEntry';
 import { buildCensusLaboratoryCohort } from '../controllers/censusLaboratoryController';
 import { ClinicalExplorerMenuEntry } from './clinical-explorer/ClinicalExplorerMenuEntry';
@@ -97,17 +98,18 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   const editingReadOnly = readOnly || writeStatus.isSyncCommit;
   const explorer = useClinicalExplorerSelection(currentDateString);
   const loadedExplorerView = useLoadedClinicalExplorerView();
-  const explorerPatients = useMemo(
-    () => listClinicalExplorerPatients({ visibleBeds, beds }),
+  const { unifiedRows } = useMemo(
+    () => buildCensusBedRows({ visibleBeds, beds }),
     [visibleBeds, beds]
   );
+  const explorerPatients = useMemo(() => listClinicalExplorerPatients(unifiedRows), [unifiedRows]);
   const laboratoryCohort = useMemo(
-    () => buildCensusLaboratoryCohort(visibleBeds, beds, currentDateString),
-    [visibleBeds, beds, currentDateString]
+    () => buildCensusLaboratoryCohort(unifiedRows, beds, currentDateString),
+    [unifiedRows, beds, currentDateString]
   );
   const examRequestCandidates = useMemo(
-    () => listCensusExamRequestCandidates({ visibleBeds, beds }),
-    [visibleBeds, beds]
+    () => listCensusExamRequestCandidates(unifiedRows),
+    [unifiedRows]
   );
   // Same people as the row's laboratory request, which needs clinical editing.
   const examOrderDate = editingReadOnly ? null : currentDateString;

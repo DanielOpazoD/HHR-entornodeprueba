@@ -1,18 +1,10 @@
-import type { PatientData } from '@/types/domain/patient';
-
-import type { BedDefinition } from '@/types/domain/beds';
+import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 
 import type { ExamRequestCandidate } from '@/features/census/components/exam-request/useExamRequestOrders';
 import {
   hasExamRequestRecordIdentity,
   resolveExamRequestPatientIdentity,
 } from '@/features/census/components/exam-request/examRequestPatientIdentity';
-import { buildCensusBedRows } from './censusTableViewController';
-
-interface ListCensusExamRequestCandidatesParams {
-  visibleBeds: BedDefinition[];
-  beds: Record<string, PatientData> | null | undefined;
-}
 
 /**
  * Census patients a laboratory request may include, in bed order: the same rows that offer the
@@ -20,12 +12,11 @@ interface ListCensusExamRequestCandidatesParams {
  * apart. Keyed by patient and episode; if one patient and episode shows in two beds, the first bed
  * stands for that person.
  */
-export const listCensusExamRequestCandidates = ({
-  visibleBeds,
-  beds,
-}: ListCensusExamRequestCandidatesParams): ExamRequestCandidate[] => {
+export const listCensusExamRequestCandidates = (
+  rows: readonly UnifiedBedRow[]
+): ExamRequestCandidate[] => {
   const seen = new Set<string>();
-  return buildCensusBedRows({ visibleBeds, beds }).unifiedRows.flatMap(row => {
+  return rows.flatMap(row => {
     if (
       row.kind !== 'occupied' ||
       row.data.isBlocked ||

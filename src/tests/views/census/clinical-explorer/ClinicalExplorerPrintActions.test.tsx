@@ -1,3 +1,4 @@
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -27,15 +28,13 @@ vi.mock(
 );
 
 import { panelResult } from '../clinicalPanelDrawer.fixture';
-import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerPrintActions } from '@/features/census/components/clinical-explorer/ClinicalExplorerPrintActions';
 import { buildIndicationsPrintHtml } from '@/features/census/components/clinical-explorer/clinicalExplorerPrint';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
-const [patient] = listClinicalExplorerPatients({
-  visibleBeds: BEDS.filter(bed => !bed.isExtra),
-  beds: {
+const [patient] = listClinicalExplorerPatients(
+  buildTestCensusRows({
     R1: DataFactory.createMockPatient('R1', {
       patientName: 'PACIENTE SINTÉTICO',
       rut: '12.345.678-5',
@@ -43,8 +42,8 @@ const [patient] = listClinicalExplorerPatients({
       admissionDate: '2026-07-10',
       pathology: 'Neumonía sintética',
     }),
-  },
-});
+  })
+);
 
 // On 2026-07-13 AMOXICILINA is active and CEFTRIAXONA suspended.
 const panelWithActiveIndication = {

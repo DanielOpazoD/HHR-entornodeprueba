@@ -1,3 +1,4 @@
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,7 +23,6 @@ vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({
   useSyslabAccess: () => mocks.access(),
 }));
 
-import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerLab } from '@/features/census/components/clinical-explorer/ClinicalExplorerLab';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -34,17 +34,16 @@ import {
 } from '../../../features/laboratory/labAnalyticsController.testSupport';
 
 const DATE = '2026-11-04';
-const [patient] = listClinicalExplorerPatients({
-  visibleBeds: BEDS.filter(bed => !bed.isExtra),
-  beds: {
+const [patient] = listClinicalExplorerPatients(
+  buildTestCensusRows({
     H3C1: DataFactory.createMockPatient('H3C1', {
       patientName: 'PACIENTE SINTÉTICO',
       rut: '12.345.678-5',
       clinicalEpisodeId: 'ep-1',
       admissionDate: '2026-10-28',
     }),
-  },
-});
+  })
+);
 const connected = {
   state: 'connected',
   message: 'Sesión de Syslab activa.',

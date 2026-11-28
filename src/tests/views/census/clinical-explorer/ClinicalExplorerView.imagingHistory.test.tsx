@@ -1,3 +1,4 @@
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -39,7 +40,6 @@ vi.mock('@/features/laboratory/hooks/useSyslabAccess', () => ({
 
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { panelResult } from '../clinicalPanelDrawer.fixture';
-import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerView } from '@/features/census/components/clinical-explorer/ClinicalExplorerView';
 import {
   closeClinicalExplorer,
@@ -50,17 +50,16 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 
 const DATE = '2026-11-04';
-const patients = listClinicalExplorerPatients({
-  visibleBeds: BEDS.filter(bed => !bed.isExtra),
-  beds: {
+const patients = listClinicalExplorerPatients(
+  buildTestCensusRows({
     R1: DataFactory.createMockPatient('R1', {
       patientName: 'PRIMERA SINTÉTICA',
       rut: '12.345.678-5',
       clinicalEpisodeId: 'ep-r1',
       admissionDate: '2026-11-01',
     }),
-  },
-});
+  })
+);
 
 const study = (day: number) => ({
   nombre_examen: `Rx sintética ${day}`,

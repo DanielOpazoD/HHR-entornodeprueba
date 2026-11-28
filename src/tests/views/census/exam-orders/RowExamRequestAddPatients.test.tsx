@@ -1,3 +1,4 @@
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import React, { useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -85,7 +86,7 @@ const Census: React.FC<{ beds: typeof census; inCensus?: boolean }> = ({
   beds,
   inCensus = true,
 }) => {
-  const candidates = listCensusExamRequestCandidates({ visibleBeds, beds });
+  const candidates = listCensusExamRequestCandidates(buildTestCensusRows(beds, visibleBeds));
   return (
     <CensusExamRequestCandidatesContext.Provider value={inCensus ? candidates : null}>
       <CensusExamOrderDateContext.Provider value={inCensus ? CENSUS_DATE : null}>

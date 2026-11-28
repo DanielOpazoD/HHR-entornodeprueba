@@ -1,22 +1,20 @@
 import type { PatientData } from '@/types/domain/patient';
 
 import type { CensusLabPatient } from '@/shared/contracts/censusLaboratory';
-import type { BedDefinition } from '@/types/domain/beds';
-
-import { buildCensusBedRows } from './censusTableViewController';
+import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 import { isValidRut, normalizeRut, isSameRut } from '@/utils/rutUtils';
 import { isCalendarDate } from '@/utils/clinicalDateUtils';
 
 /** Each crib has its own identity. Missing RUNs are excluded, never replaced by the mother's. */
 export const buildCensusLaboratoryCohort = (
-  visibleBeds: BedDefinition[],
+  rows: readonly UnifiedBedRow[],
   beds: Record<string, PatientData>,
   censusDate: string
 ): { patients: CensusLabPatient[]; excluded: number } => {
   const patients: CensusLabPatient[] = [];
   let excluded = 0;
   const seen = new Set<string>();
-  for (const row of buildCensusBedRows({ visibleBeds, beds }).unifiedRows) {
+  for (const row of rows) {
     if (row.kind !== 'occupied' || !row.data.patientName.trim() || row.data.isBlocked) continue;
     const data = row.data;
     const episodeId = data.clinicalEpisodeId?.trim();

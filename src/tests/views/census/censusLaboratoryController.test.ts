@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { BEDS } from '@/constants/beds';
+import { buildTestCensusRows } from './censusBedRows.testSupport';
+import type { PatientData } from '@/types/domain/patient';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { buildCensusLaboratoryCohort } from '@/features/census/controllers/censusLaboratoryController';
 
@@ -12,10 +14,12 @@ const patient = (bed: string, overrides = {}) =>
     clinicalEpisodeId: 'synthetic-episode',
     ...overrides,
   });
+const laboratoryCohortFor = (beds: Record<string, PatientData>, censusDate: string) =>
+  buildCensusLaboratoryCohort(buildTestCensusRows(beds, BEDS), beds, censusDate);
+
 describe('census laboratory cohort', () => {
   it('uses the numeric RUN body, deduplicates an episode, and keeps readmissions separate', () => {
-    const cohort = buildCensusLaboratoryCohort(
-      BEDS,
+    const cohort = laboratoryCohortFor(
       {
         R1: patient('R1'),
         R2: patient('R2'),
@@ -29,8 +33,7 @@ describe('census laboratory cohort', () => {
     ]);
   });
   it('includes a newborn only with their own RUN and episode, and excludes passports and uncertain admissions', () => {
-    const cohort = buildCensusLaboratoryCohort(
-      BEDS,
+    const cohort = laboratoryCohortFor(
       {
         R1: patient('R1', {
           clinicalCrib: patient('R1', {
@@ -58,8 +61,7 @@ describe('census laboratory cohort', () => {
 });
 
 it('includes the child own RUN when only the mother passport shares its digits', () => {
-  const cohort = buildCensusLaboratoryCohort(
-    BEDS,
+  const cohort = laboratoryCohortFor(
     {
       R1: patient('R1', {
         rut: 'P123456785',
