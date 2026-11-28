@@ -24,6 +24,7 @@ const stamp = (value: string) =>
     timeZone: CLINICAL_TIME_ZONE,
     dateStyle: 'short',
     timeStyle: 'medium',
+    hourCycle: 'h23',
   }).format(new Date(value));
 const Comparison = ({ title, value }: { title: string; value: DailyRestoreSummary }) => (
   <section className="min-w-0 rounded border p-3">

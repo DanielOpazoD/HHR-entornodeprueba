@@ -187,6 +187,7 @@ function evolutionText(record) {
     dateStyle: 'short',
     timeStyle: 'short',
     timeZone: 'Pacific/Easter',
+    hourCycle: 'h23',
   }).format(new Date(record.savedAt));
   const subscoreLine =
     record.score?.subscores && Object.keys(record.score.subscores).length

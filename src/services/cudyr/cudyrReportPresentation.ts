@@ -34,6 +34,7 @@ export const cudyrMomentLabel = (value: string) => {
     timeZone: CLINICAL_TIME_ZONE,
     dateStyle: 'short',
     timeStyle: 'short',
+    hourCycle: 'h23',
   }).format(new Date(value));
 };
 export const cudyrSystemDischargeLabel = (row: CudyrReportRow) =>

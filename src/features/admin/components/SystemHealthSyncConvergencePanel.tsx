@@ -26,6 +26,7 @@ const formatDateTime = (timestamp: string | undefined): string => {
     timeZone: CLINICAL_TIME_ZONE,
     dateStyle: 'short',
     timeStyle: 'short',
+    hourCycle: 'h23',
   }).format(date);
 };
 

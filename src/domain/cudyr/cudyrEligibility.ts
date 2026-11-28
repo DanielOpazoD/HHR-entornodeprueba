@@ -1,7 +1,7 @@
 import { getNextDay, normalizeDateOnly, parseTimeMinutes } from '@/utils/clinicalDayUtils';
 
 export const CUDYR_NIGHT_REFERENCE_TIME = '01:00';
-export const CUDYR_NIGHT_REFERENCE_TIME_LABEL = '1:00 AM';
+export const CUDYR_NIGHT_REFERENCE_TIME_LABEL = '01:00';
 export const CUDYR_MIN_HOSPITALIZATION_HOURS = 8;
 const CUDYR_SAME_DAY_CUTOFF_MINUTES = 17 * 60;
 

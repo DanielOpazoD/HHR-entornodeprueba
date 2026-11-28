@@ -141,6 +141,7 @@ export const chunkForModule = (
   )
     return 'census-view';
   if (normalizedId.endsWith('/src/utils/htmlEscape.ts')) return 'htmlEscape';
+  if (normalizedId.endsWith('/src/components/ui/Time24Input.tsx')) return 'Time24Input';
   if (
     normalizedId.endsWith('/src/services/storage/firestore/firestoreDatabaseProvider.ts') ||
     normalizedId.endsWith('/src/services/infrastructure/db/FirestoreProvider.ts')

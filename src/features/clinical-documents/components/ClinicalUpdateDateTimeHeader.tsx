@@ -7,6 +7,7 @@
  */
 
 import React, { useState } from 'react';
+import { Time24Input } from '@/components/ui/Time24Input';
 
 interface ClinicalUpdateDateTimeHeaderProps {
   sectionId: string;
@@ -54,12 +55,11 @@ export const ClinicalUpdateDateTimeHeader: React.FC<ClinicalUpdateDateTimeHeader
           className="text-[12px] text-slate-600 border border-slate-200 rounded px-1 py-0.5"
           autoFocus
         />
-        <input
-          type="time"
+        <Time24Input
           aria-label="Hora"
           value={time || ''}
-          onChange={e => onPatchTime?.(sectionId, e.target.value)}
-          className="text-[12px] text-slate-600 border border-slate-200 rounded px-1 py-0.5 w-[80px]"
+          onValueChange={nextTime => onPatchTime?.(sectionId, nextTime)}
+          className="text-[12px] tabular-nums text-slate-600 border border-slate-200 rounded px-1 py-0.5 w-[68px]"
         />
       </span>
     );

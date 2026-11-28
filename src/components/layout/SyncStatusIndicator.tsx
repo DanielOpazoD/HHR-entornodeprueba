@@ -64,7 +64,7 @@ export const SyncStatusIndicator: React.FC = () => {
   const Icon = config.icon;
 
   const timeString = lastSyncTime
-    ? `Última sync: ${lastSyncTime.toLocaleTimeString('es-CL', { timeZone: CLINICAL_TIME_ZONE, hour: '2-digit', minute: '2-digit' })}`
+    ? `Última sync: ${lastSyncTime.toLocaleTimeString('es-CL', { timeZone: CLINICAL_TIME_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`
     : 'Esperando conexión…';
 
   return (

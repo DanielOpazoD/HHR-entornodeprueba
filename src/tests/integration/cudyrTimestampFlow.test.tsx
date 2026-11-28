@@ -20,7 +20,7 @@ describe('CUDYR timestamp flow', () => {
       contextValue: createMockDailyRecordContext(record),
     });
 
-    expect(container).toHaveTextContent('Fecha y hora de corte de aplicación: 24-03-2026, 1:00 AM');
+    expect(container).toHaveTextContent('Fecha y hora de corte de aplicación: 24-03-2026, 01:00');
     expect(container).toHaveTextContent('Registro CUDYR: Enfermera Noche');
   });
 });

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { BaseModal } from '@/components/shared/BaseModal';
+import { Time24Input } from '@/components/ui/Time24Input';
 import { CLINICAL_TIME_ZONE, getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import { correctCudyrDischarge } from '@/services/cudyr/cudyrDischargeService';
 import type {
@@ -153,11 +154,10 @@ export const CudyrActualDischargeDialog = ({
           </label>
           <label className="space-y-1">
             Hora, si está confirmada
-            <input
-              type="time"
+            <Time24Input
               value={time}
-              onChange={event => setTime(event.target.value)}
-              className="block w-full rounded-lg border border-slate-300 p-2"
+              onValueChange={setTime}
+              className="block w-full rounded-lg border border-slate-300 p-2 tabular-nums"
             />
           </label>
         </fieldset>

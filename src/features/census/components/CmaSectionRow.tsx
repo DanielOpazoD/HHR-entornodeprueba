@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useMemo, useState } from 'react';
 import { Scissors } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
+import { Time24Input } from '@/components/ui/Time24Input';
 import { createPortal } from 'react-dom';
 
 import type { CMAData } from '@/types/domain/movements';
@@ -138,12 +139,11 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
               <span className="mb-1 whitespace-nowrap text-[11px] tabular-nums text-slate-500">
                 {formatDateDDMMYYYY(recordDate)}
               </span>
-              <input
-                type="time"
-                step="300"
-                className="w-20 rounded border border-green-200 bg-green-50 px-2 py-1 text-center text-xs font-medium text-slate-600"
+              <Time24Input
+                aria-label="Hora de egreso CMA"
+                className="w-20 rounded border border-green-200 bg-green-50 px-2 py-1 text-center text-xs font-medium tabular-nums text-slate-600"
                 value={item.dischargeTime || ''}
-                onChange={event => onUpdate(item.id, { dischargeTime: event.target.value })}
+                onValueChange={dischargeTime => onUpdate(item.id, { dischargeTime })}
               />
               <MovementProvenanceBadge provenance={item.movementProvenance} />
             </div>
@@ -213,12 +213,10 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
               </label>
               <label className="block text-xs font-medium text-slate-600">
                 Hora egreso
-                <input
-                  type="time"
-                  step="300"
-                  className="mt-1 w-full rounded border border-slate-200 p-2 text-sm"
+                <Time24Input
+                  className="mt-1 w-full rounded border border-slate-200 p-2 text-sm tabular-nums"
                   value={draftDischargeTime}
-                  onChange={event => setDraftDischargeTime(event.target.value)}
+                  onValueChange={setDraftDischargeTime}
                 />
               </label>
               <label className="block text-xs font-medium text-slate-600">
