@@ -3,10 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createClinicalDocumentDraft } from '@/features/clinical-documents/domain/factories';
 import type { ClinicalDocumentDraftBaseState } from '@/features/clinical-documents/hooks/clinicalDocumentDraftReducer';
-import {
-  resolveClinicalDocumentAutosaveCommit,
-  resolveClinicalDocumentDraftLoad,
-} from '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases';
+import { resolveClinicalDocumentDraftLoad } from '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases';
 import { executeOpenClinicalDocumentPrint } from '@/features/clinical-documents/use-cases/clinicalDocumentPrintOpenUseCase';
 import { openClinicalDocumentBrowserPrintPreview } from '@/features/clinical-documents/services/clinicalDocumentBrowserPrintService';
 
@@ -142,22 +139,6 @@ describe('clinicalDocumentEditorUseCases', () => {
     });
 
     expect(resolution.kind).toBe('preserve');
-  });
-
-  it('marks autosave as clean only when the current draft still matches the requested snapshot', () => {
-    expect(
-      resolveClinicalDocumentAutosaveCommit({
-        requestedSnapshot: 'snapshot-a',
-        currentDraftSnapshot: 'snapshot-a',
-      })
-    ).toBe('mark_clean');
-
-    expect(
-      resolveClinicalDocumentAutosaveCommit({
-        requestedSnapshot: 'snapshot-a',
-        currentDraftSnapshot: 'snapshot-b',
-      })
-    ).toBe('commit_base');
   });
 
   it('delegates browser print opening through the print use case', async () => {

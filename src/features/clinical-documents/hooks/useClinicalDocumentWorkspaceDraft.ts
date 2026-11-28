@@ -148,10 +148,8 @@ export const useClinicalDocumentWorkspaceDraft = ({
   const draftDirtyRef = useRef(false);
   const baseStateRef = useRef<ClinicalDocumentDraftBaseState>(state.baseState);
 
-  const hasLocalDraftChanges = useMemo(
-    () => serializeClinicalDocument(state.draft) !== state.baseState.snapshot,
-    [state.baseState.snapshot, state.draft]
-  );
+  const draftSnapshot = useMemo(() => serializeClinicalDocument(state.draft), [state.draft]);
+  const hasLocalDraftChanges = draftSnapshot !== state.baseState.snapshot;
 
   useEffect(() => {
     draftRef.current = state.draft;
@@ -173,6 +171,7 @@ export const useClinicalDocumentWorkspaceDraft = ({
 
   const flushPendingAutosave = useClinicalDocumentDraftAutosave({
     draft: state.draft,
+    pendingSnapshot: hasLocalDraftChanges ? draftSnapshot : null,
     canEdit,
     isActive,
     hospitalId,
