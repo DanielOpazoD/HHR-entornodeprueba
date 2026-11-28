@@ -38,13 +38,12 @@ export interface CensusTableLayoutParams {
   clinicalDocumentCountsByBedId: ClinicalDocumentCountsByBed;
   dischargedRuts?: ReadonlySet<string>;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
-  onActivateEmptyBed: (bedId: string) => void;
   totalWidth: number;
 }
 
 export interface CensusTableLayoutBindings {
   headerProps: CensusTableHeaderProps;
-  bodyProps: CensusTableBodyProps;
+  bodyProps: Omit<CensusTableBodyProps, 'onActivateEmptyBed'>;
   tableStyle: CSSProperties;
 }
 
@@ -100,7 +99,6 @@ export const buildCensusTableLayoutBindings = (
       clinicalDocumentCountsByBedId: params.clinicalDocumentCountsByBedId,
       dischargedRuts: params.dischargedRuts,
       onAction: params.onAction,
-      onActivateEmptyBed: params.onActivateEmptyBed,
     },
     tableStyle: resolveCensusTableStyle(visibleTotalWidth),
   };
