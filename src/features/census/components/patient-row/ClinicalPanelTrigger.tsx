@@ -23,6 +23,7 @@ import {
 import { openClinicalExplorer } from '../clinical-explorer/clinicalExplorerStore';
 import { RecoverableClinicalPanelModule, PanelModuleRetry } from './RecoverableClinicalPanelModule';
 import { DeferredHospitalizationReportsDialog } from '../DeferredHospitalizationReportsDialog';
+import { readClinicalPanelWidePreference } from './clinicalPanelWidthPreference';
 
 const loadDrawer = () =>
   import('./ClinicalPanelDrawer').then(module => ({ default: module.ClinicalPanelDrawer }));
@@ -37,6 +38,8 @@ interface ClinicalPanelTriggerProps {
   triggerKey?: string;
   patientName: string;
   patientRun: string;
+  patientAge?: string;
+  diagnosis?: string;
   patientDocumentType?: 'RUT' | 'Pasaporte';
   clinicalEpisodeId?: string;
   encounterRouteHint?: 'medical' | 'nurse';
@@ -99,7 +102,7 @@ const ClinicalPanelImportFallback: React.FC<{
         tabIndex={-1}
         data-testid="clinical-panel-module-loading"
         style={{ zIndex: LAYER_Z_INDEX.drawer }}
-        className="clinical-panel-drawer fixed right-0 top-0 flex h-full w-[460px] max-w-full flex-col border-l border-slate-200 bg-slate-50 shadow-xl focus:outline-none"
+        className={`clinical-panel-drawer fixed right-0 top-0 flex h-full max-w-full flex-col border-l border-slate-200 bg-slate-50 shadow-xl focus:outline-none ${readClinicalPanelWidePreference() ? 'w-[680px]' : 'w-[460px]'}`}
       >
         <header className="flex shrink-0 items-start gap-2 border-b border-slate-200 bg-white px-3 py-2">
           <div className="min-w-0 flex-1">
@@ -152,6 +155,8 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   triggerKey = bedId,
   patientName,
   patientRun,
+  patientAge,
+  diagnosis,
   patientDocumentType,
   clinicalEpisodeId,
   encounterRouteHint,
@@ -204,6 +209,8 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
                 bedId,
                 patientName,
                 patientRun,
+                patientAge,
+                diagnosis,
                 clinicalEpisodeId: episode,
                 admissionDate,
                 censusDate,

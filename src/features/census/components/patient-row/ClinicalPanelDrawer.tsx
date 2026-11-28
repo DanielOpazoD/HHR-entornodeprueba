@@ -26,6 +26,10 @@ import { useClinicalPanelSnapshot } from './useClinicalPanelSnapshot';
 import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
 import { ClinicalPanelPrescriptionButton } from './ClinicalPanelPrescriptionButton';
 import { ClinicalPanelProfessionTabs } from './ClinicalPanelProfessionTabs';
+import {
+  readClinicalPanelWidePreference,
+  writeClinicalPanelWidePreference,
+} from './clinicalPanelWidthPreference';
 
 /** Static placeholders occupy the same reading area as the first clinical notes. */
 const ClinicalPanelLoadingContent: React.FC = () => (
@@ -67,6 +71,8 @@ interface ClinicalPanelDrawerProps {
   bedId: string;
   patientName: string;
   patientRun?: string;
+  patientAge?: string;
+  diagnosis?: string;
   clinicalEpisodeId: string;
   admissionDate?: string;
   censusDate?: string;
@@ -105,6 +111,8 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   bedId,
   patientName,
   patientRun = '',
+  patientAge,
+  diagnosis,
   clinicalEpisodeId,
   admissionDate,
   censusDate,
@@ -123,22 +131,61 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   const [antecedentsEpisode, setAntecedentsEpisode] = useState<string | null>(null);
   const [evolutionView, setEvolutionView] = useState<EvolutionView>('notes');
   const [isDocumentManagerOpen, setIsDocumentManagerOpen] = useState(false);
-  const [isWide, setIsWide] = useState(false);
+  const [isWide, setIsWide] = useState<boolean>(readClinicalPanelWidePreference);
   const drawerRef = useRef<HTMLDivElement>(null);
+
+  const toggleWidth = (): void => {
+    setIsWide(wide => {
+      const next = !wide;
+      writeClinicalPanelWidePreference(next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (
-        event.key === 'Escape' &&
-        document.activeElement?.closest('[role="dialog"]') === drawerRef.current
-      ) {
+      const activeDialog = document.activeElement?.closest('[role="dialog"]');
+      if (event.key === 'Escape' && activeDialog === drawerRef.current) {
         event.stopPropagation();
         onClose();
+        return;
+      }
+
+      if (
+        !event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        isDocumentManagerOpen
+      ) {
+        return;
+      }
+      if (activeDialog && activeDialog !== drawerRef.current) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+      ) {
+        return;
+      }
+      if (event.key === 'ArrowLeft' && canNavigatePrevious && onNavigatePrevious) {
+        event.preventDefault();
+        onNavigatePrevious();
+      } else if (event.key === 'ArrowRight' && canNavigateNext && onNavigateNext) {
+        event.preventDefault();
+        onNavigateNext();
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [
+    canNavigateNext,
+    canNavigatePrevious,
+    isDocumentManagerOpen,
+    onClose,
+    onNavigateNext,
+    onNavigatePrevious,
+  ]);
 
   // Move focus into the drawer on open so keyboard/screen-reader users land inside the modal.
   useEffect(() => {
@@ -206,8 +253,12 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           <ClinicalPanelHeading
             bedId={bedId}
             patientName={patientName}
+            patientAge={patientAge}
+            diagnosis={diagnosis}
+            admissionDate={admissionDate}
+            censusDate={censusDate}
             isWide={isWide}
-            onToggleWidth={() => setIsWide(wide => !wide)}
+            onToggleWidth={toggleWidth}
             onClose={onClose}
           />
           <div
@@ -227,7 +278,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 onClick={onNavigatePrevious}
                 disabled={!canNavigatePrevious}
                 className="inline-flex size-7 items-center justify-center rounded text-slate-500 hover:bg-white hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:text-slate-300"
-                title="Paciente anterior"
+                title="Paciente anterior (Alt + ←)"
                 aria-label="Ir al paciente anterior"
               >
                 <ChevronLeft size={15} />
@@ -237,7 +288,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 onClick={onNavigateNext}
                 disabled={!canNavigateNext}
                 className="inline-flex size-7 items-center justify-center rounded text-slate-500 hover:bg-white hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:text-slate-300"
-                title="Paciente siguiente"
+                title="Paciente siguiente (Alt + →)"
                 aria-label="Ir al paciente siguiente"
               >
                 <ChevronRight size={15} />

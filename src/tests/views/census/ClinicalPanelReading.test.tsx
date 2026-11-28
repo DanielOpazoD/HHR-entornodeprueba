@@ -251,4 +251,25 @@ describe('Clinical panel reading density', () => {
     expect(screen.getByText('Cama R1')).toBeVisible();
     expect(screen.queryByText(/Eloísa en vivo|no se guarda en HHR/)).not.toBeInTheDocument();
   });
+
+  it('shows age, stay duration and diagnosis cleanly below the patient name at 12 px or more', () => {
+    const { container } = render(
+      <ClinicalPanelHeading
+        patientName="Paciente de prueba"
+        bedId="R1"
+        patientAge="58"
+        diagnosis="Neumonía adquirida en la comunidad"
+        admissionDate="2026-07-13"
+        censusDate="2026-07-17"
+        isWide={false}
+        onToggleWidth={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Cama R1')).toBeVisible();
+    expect(screen.getByText('58a')).toBeVisible();
+    expect(screen.getByText('4 días')).toBeVisible();
+    expect(screen.getByText('Neumonía adquirida en la comunidad')).toBeVisible();
+    expect(smallOrShoutedClasses(container)).toEqual([]);
+  });
 });
