@@ -1,3 +1,4 @@
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,7 +13,6 @@ vi.mock('@/context/UIContext', () => ({
 }));
 
 import { panelResult } from '../clinicalPanelDrawer.fixture';
-import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerMenuEntry } from '@/features/census/components/clinical-explorer/ClinicalExplorerMenuEntry';
 import { ClinicalExplorerBar } from '@/features/census/components/clinical-explorer/ClinicalExplorerBar';
 import {
@@ -78,10 +78,12 @@ describe('clinical explorer entries', () => {
   it('the «⋯» menu entry renders in the toolbar target and opens on the first patient', () => {
     const target = document.createElement('div');
     document.body.append(target);
-    const patients = listClinicalExplorerPatients({
-      visibleBeds: BEDS.filter(bed => !bed.isExtra),
-      beds: { H3C1: eligible, R1: { ...eligible, bedId: 'R1', patientName: 'Primero' } },
-    });
+    const patients = listClinicalExplorerPatients(
+      buildTestCensusRows({
+        H3C1: eligible,
+        R1: { ...eligible, bedId: 'R1', patientName: 'Primero' },
+      })
+    );
     render(
       <CensusToolbarMenuTargetContext.Provider value={target}>
         <ClinicalExplorerMenuEntry censusDate={DATE} patients={patients} />

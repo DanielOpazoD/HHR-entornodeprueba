@@ -1,3 +1,4 @@
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import { setSessionGeneration } from '@/services/session/sessionStorageTransition';
 import { useState, type ComponentProps } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -42,24 +43,22 @@ vi.mock('@/features/radiology/dicom-viewer/DicomViewerDialog', () => ({
   ),
 }));
 
-import { BEDS } from '@/constants/beds';
 import { ClinicalExplorerImaging } from '@/features/census/components/clinical-explorer/ClinicalExplorerImaging';
 import { listClinicalExplorerPatients } from '@/features/census/controllers/clinicalExplorerController';
 import type { MMRADExam } from '@/features/radiology/services/mmradService';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 const RUT = '12.345.678-5';
-const [patient] = listClinicalExplorerPatients({
-  visibleBeds: BEDS.filter(bed => !bed.isExtra),
-  beds: {
+const [patient] = listClinicalExplorerPatients(
+  buildTestCensusRows({
     H3C1: DataFactory.createMockPatient('H3C1', {
       patientName: 'PACIENTE SINTÉTICO',
       rut: RUT,
       clinicalEpisodeId: 'ep-1',
       admissionDate: '2026-10-28',
     }),
-  },
-});
+  })
+);
 
 const exam = (overrides: Partial<MMRADExam>): MMRADExam => ({
   nombre_examen: 'Rx tórax AP',

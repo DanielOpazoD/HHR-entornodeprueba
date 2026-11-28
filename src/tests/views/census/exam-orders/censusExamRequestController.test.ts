@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { buildTestCensusRows } from '../censusBedRows.testSupport';
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { BedType } from '@/types/domain/beds';
@@ -14,23 +15,25 @@ describe('listCensusExamRequestCandidates', () => {
       rut: '11.111.111-1',
       clinicalEpisodeId: 'ep-madre',
     });
-    const candidates = listCensusExamRequestCandidates({
-      visibleBeds: [bed('R1'), bed('R2'), bed('R3')],
-      beds: {
-        R1: {
-          ...mother,
-          clinicalCrib: DataFactory.createMockPatient('R1', {
-            patientName: 'RN SINTETICO',
-            rut: '33.333.333-3',
-            clinicalEpisodeId: 'ep-rn',
-            bedMode: 'Cuna',
-          }),
+    const candidates = listCensusExamRequestCandidates(
+      buildTestCensusRows(
+        {
+          R1: {
+            ...mother,
+            clinicalCrib: DataFactory.createMockPatient('R1', {
+              patientName: 'RN SINTETICO',
+              rut: '33.333.333-3',
+              clinicalEpisodeId: 'ep-rn',
+              bedMode: 'Cuna',
+            }),
+          },
+          // The same patient and episode in a second bed is still one person.
+          R2: { ...mother, bedId: 'R2' },
+          R3: DataFactory.createMockPatient('R3', { patientName: '', rut: '' }),
         },
-        // The same patient and episode in a second bed is still one person.
-        R2: { ...mother, bedId: 'R2' },
-        R3: DataFactory.createMockPatient('R3', { patientName: '', rut: '' }),
-      },
-    });
+        [bed('R1'), bed('R2'), bed('R3')]
+      )
+    );
 
     expect(candidates.map(({ key, label }) => [key, label])).toEqual([
       ['episode:ep-madre', 'R1'],
@@ -39,26 +42,28 @@ describe('listCensusExamRequestCandidates', () => {
   });
 
   it('never reads a passport as a RUT', () => {
-    const candidates = listCensusExamRequestCandidates({
-      visibleBeds: [bed('R1'), bed('R2')],
-      beds: {
-        R1: DataFactory.createMockPatient('R1', {
-          patientName: 'CON RUT',
-          rut: '11.111.111-1',
-          clinicalEpisodeId: undefined,
-          admissionDate: '2026-11-08',
-          admissionTime: '08:15',
-        }),
-        R2: DataFactory.createMockPatient('R2', {
-          patientName: 'CON PASAPORTE',
-          rut: '11111111-1',
-          documentType: 'Pasaporte',
-          clinicalEpisodeId: undefined,
-          admissionDate: '2026-11-08',
-          admissionTime: '08:15',
-        }),
-      },
-    });
+    const candidates = listCensusExamRequestCandidates(
+      buildTestCensusRows(
+        {
+          R1: DataFactory.createMockPatient('R1', {
+            patientName: 'CON RUT',
+            rut: '11.111.111-1',
+            clinicalEpisodeId: undefined,
+            admissionDate: '2026-11-08',
+            admissionTime: '08:15',
+          }),
+          R2: DataFactory.createMockPatient('R2', {
+            patientName: 'CON PASAPORTE',
+            rut: '11111111-1',
+            documentType: 'Pasaporte',
+            clinicalEpisodeId: undefined,
+            admissionDate: '2026-11-08',
+            admissionTime: '08:15',
+          }),
+        },
+        [bed('R1'), bed('R2')]
+      )
+    );
 
     expect(candidates.map(candidate => candidate.patient.patientName)).toEqual([
       'CON RUT',
@@ -74,10 +79,9 @@ describe('listCensusExamRequestCandidates', () => {
         clinicalEpisodeId: undefined,
         admissionDate: '2026-11-08',
       });
-    const candidates = listCensusExamRequestCandidates({
-      visibleBeds: [bed('NEO1'), bed('NEO2')],
-      beds: { NEO1: twin('NEO1'), NEO2: twin('NEO2') },
-    });
+    const candidates = listCensusExamRequestCandidates(
+      buildTestCensusRows({ NEO1: twin('NEO1'), NEO2: twin('NEO2') }, [bed('NEO1'), bed('NEO2')])
+    );
 
     expect(candidates).toEqual([]);
   });
@@ -91,10 +95,13 @@ describe('listCensusExamRequestCandidates', () => {
         admissionDate: '2026-11-08',
         admissionTime,
       });
-    const candidates = listCensusExamRequestCandidates({
-      visibleBeds: [bed('R1'), bed('R2'), bed('R3')],
-      beds: { R1: stay('R1', '07:00'), R2: stay('R2', '19:40'), R3: stay('R3') },
-    });
+    const candidates = listCensusExamRequestCandidates(
+      buildTestCensusRows({ R1: stay('R1', '07:00'), R2: stay('R2', '19:40'), R3: stay('R3') }, [
+        bed('R1'),
+        bed('R2'),
+        bed('R3'),
+      ])
+    );
 
     expect(candidates.map(candidate => candidate.label)).toEqual(['R1', 'R2']);
     expect(new Set(candidates.map(candidate => candidate.key)).size).toBe(2);
