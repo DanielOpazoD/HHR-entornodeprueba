@@ -86,6 +86,7 @@ export function usePatientSelection(): UsePatientSelectionReturn {
   useEffect(() => cancelHistory, [cancelHistory]);
 
   const selectPatient = useCallback(async (patient: MasterPatient) => {
+    setEpisodeDocuments({});
     const cacheKey = buildPatientHistoryCacheKey(patient);
     const selectionRevision = ++selectionRevisionRef.current;
     for (const [key, request] of historyRequestRef.current) {
@@ -192,44 +193,80 @@ export function usePatientSelection(): UsePatientSelectionReturn {
     setEpisodeDocuments({});
   }, [cancelHistory]);
 
-  const loadEpisodeDocuments = useCallback(async (compositeKey: string) => {
-    const parsed = parsePatientSelectionEpisodeLookupKey(compositeKey);
-    if (!parsed) {
-      globalPatientSearchLogger.warn(`Malformed episode key: ${compositeKey}`);
-      return;
-    }
-
-    // Prevent concurrent loading for the same key
-    setEpisodeDocuments(prev => {
-      if (prev[compositeKey]?.isLoading || prev[compositeKey]?.docs.length) return prev;
-      return { ...prev, [compositeKey]: { episodeKey: compositeKey, docs: [], isLoading: true } };
-    });
-
-    try {
-      const docMod = await loadClinicalDocPort();
-      const candidateKeys = buildPatientSelectionDocumentLookupKeys(parsed);
-
-      let foundDocs: ClinicalDocSummary[] = [];
-      for (const candidateKey of candidateKeys) {
-        const docs = await docMod.defaultClinicalDocumentPort.listByEpisode(candidateKey);
-        if (docs.length > 0) {
-          foundDocs = summarizeClinicalDocuments(docs, candidateKey);
-          break;
-        }
+  const loadEpisodeDocuments = useCallback(
+    async (compositeKey: string) => {
+      const parsed = parsePatientSelectionEpisodeLookupKey(compositeKey);
+      if (!parsed) {
+        globalPatientSearchLogger.warn(`Malformed episode key: ${compositeKey}`);
+        return;
       }
 
-      setEpisodeDocuments(prev => ({
-        ...prev,
-        [compositeKey]: { episodeKey: compositeKey, docs: foundDocs, isLoading: false },
-      }));
-    } catch (err) {
-      globalPatientSearchLogger.warn(`Failed to load documents for ${compositeKey}`, err);
-      setEpisodeDocuments(prev => ({
-        ...prev,
-        [compositeKey]: { episodeKey: compositeKey, docs: [], isLoading: false, loadFailed: true },
-      }));
-    }
-  }, []);
+      const revision = selectionRevisionRef.current;
+      const admissionDates = new Set([
+        ...(selectedPatient?.master.hospitalizations ?? [])
+          .filter(event => event.type === 'Ingreso')
+          .map(event => event.date),
+        ...(selectedPatient?.timelineState.groupedEpisodes ?? [])
+          .filter(episode => episode.admission.type === 'Ingreso')
+          .map(episode => episode.admission.date),
+      ]);
+
+      setEpisodeDocuments(prev => {
+        if (prev[compositeKey]?.isLoading || prev[compositeKey]?.docs.length) return prev;
+        return { ...prev, [compositeKey]: { episodeKey: compositeKey, docs: [], isLoading: true } };
+      });
+
+      try {
+        const docMod = await loadClinicalDocPort();
+        const candidateKeys = buildPatientSelectionDocumentLookupKeys(parsed);
+
+        let foundDocs: ClinicalDocSummary[] = [];
+        for (const candidateKey of candidateKeys) {
+          if (revision !== selectionRevisionRef.current) return;
+          const candidateDate = parsePatientSelectionEpisodeLookupKey(candidateKey)?.admissionDate;
+          const exactDay = candidateDate === parsed.admissionDate;
+          if (!candidateDate || (!exactDay && admissionDates.has(candidateDate))) continue;
+          const records = await docMod.defaultClinicalDocumentPort.listByEpisode(candidateKey);
+          // An adjacent key is only a lookup hint. The saved admission or originating census
+          // must place a legacy document in the requested stay.
+          const docs = records.filter(document => {
+            if (!exactDay)
+              return (
+                (document.admissionDate || document.sourceDailyRecordDate) === parsed.admissionDate
+              );
+            return (
+              !document.admissionDate ||
+              document.admissionDate === parsed.admissionDate ||
+              !admissionDates.has(document.admissionDate)
+            );
+          });
+          if (docs.length > 0) {
+            foundDocs = summarizeClinicalDocuments(docs, candidateKey);
+            break;
+          }
+        }
+
+        if (revision !== selectionRevisionRef.current) return;
+        setEpisodeDocuments(prev => ({
+          ...prev,
+          [compositeKey]: { episodeKey: compositeKey, docs: foundDocs, isLoading: false },
+        }));
+      } catch (err) {
+        if (revision !== selectionRevisionRef.current) return;
+        globalPatientSearchLogger.warn(`Failed to load documents for ${compositeKey}`, err);
+        setEpisodeDocuments(prev => ({
+          ...prev,
+          [compositeKey]: {
+            episodeKey: compositeKey,
+            docs: [],
+            isLoading: false,
+            loadFailed: true,
+          },
+        }));
+      }
+    },
+    [selectedPatient]
+  );
 
   /** Generate a clinical document PDF and open it in a new browser tab for preview. */
   const downloadDocumentPdf = useCallback(async (docId: string, _docType: string) => {

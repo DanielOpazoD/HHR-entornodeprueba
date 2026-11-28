@@ -157,6 +157,7 @@ describe('usePatientSelection', () => {
         ? [
             {
               id: 'doc-epicrisis-1',
+              admissionDate: '2026-04-15',
               documentType: 'epicrisis',
               status: 'draft',
               audit: {
@@ -188,6 +189,35 @@ describe('usePatientSelection', () => {
       createdBy: 'Degaro',
     });
   });
+  it('keeps an adjacent readmission document in its own stay', async () => {
+    const first = '1-9__2025-01-01';
+    const next = '1-9__2025-01-02';
+    mockGetPatientMovementHistory.mockResolvedValue({ history: null, source: 'server' });
+    mockListClinicalDocumentsByEpisode.mockImplementation(async key =>
+      key === next ? [{ id: 'second-stay', episodeKey: next, admissionDate: '2025-01-02' }] : []
+    );
+    const { result } = renderHook(() => usePatientSelection());
+    await act(async () => {
+      await result.current.selectPatient({
+        ...basePatient,
+        rut: '1-9',
+        hospitalizations: [
+          { id: 'first', type: 'Ingreso', date: '2025-01-01', diagnosis: '' },
+          { id: 'out', type: 'Egreso', date: '2025-01-01', diagnosis: '' },
+          { id: 'second', type: 'Ingreso', date: '2025-01-02', diagnosis: '' },
+        ],
+      });
+    });
+    await act(async () => {
+      await result.current.loadEpisodeDocuments(first);
+    });
+    expect(result.current.episodeDocuments[first]?.docs).toEqual([]);
+    await act(async () => {
+      await result.current.loadEpisodeDocuments(next);
+    });
+    expect(result.current.episodeDocuments[next]?.docs.map(doc => doc.id)).toEqual(['second-stay']);
+  });
+
   it('reports a failed document read as a failure, never as an episode without documents', async () => {
     mockListClinicalDocumentsByEpisode.mockRejectedValueOnce(new Error('synthetic read failure'));
     const { result } = renderHook(() => usePatientSelection());
