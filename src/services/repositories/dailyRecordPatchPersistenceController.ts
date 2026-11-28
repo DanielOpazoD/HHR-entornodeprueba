@@ -34,52 +34,45 @@ export const preparePatchedRecordPersistence = (
           ...patch,
           rayenSyncHistory: mergeRayenSyncHistory(current.rayenSyncHistory, patch.rayenSyncHistory),
         };
-  const updatedForInvariants = applyPatches(current, inputPatch);
-  assertAdmissionDatePersistencePolicy(date, updatedForInvariants, current, {
+  let updated = applyPatches(current, inputPatch);
+  assertAdmissionDatePersistencePolicy(date, updated, current, {
     changedPaths: Object.keys(inputPatch),
   });
   const mergedPatches: DailyRecordPatch = { ...inputPatch };
-  ensureDailyRecordDateTimestamp(updatedForInvariants);
+  ensureDailyRecordDateTimestamp(updated);
 
-  if (updatedForInvariants.dateTimestamp != null) {
-    mergedPatches.dateTimestamp = updatedForInvariants.dateTimestamp;
+  if (updated.dateTimestamp != null) {
+    mergedPatches.dateTimestamp = updated.dateTimestamp;
   }
 
-  const shouldSkipStructuralNormalization = isClinicalEventsOnlyDailyRecordPatch(mergedPatches);
-  if (!shouldSkipStructuralNormalization) {
-    Object.assign(mergedPatches, buildDailyRecordClinicalEpisodeIdPatches(updatedForInvariants));
+  if (!isClinicalEventsOnlyDailyRecordPatch(mergedPatches)) {
+    Object.assign(mergedPatches, buildDailyRecordClinicalEpisodeIdPatches(updated));
+    const normalized = normalizeDailyRecordInvariants(applyPatches(current, mergedPatches));
+    const movementConsistency = normalizeMovementBedConsistency(normalized.record);
+    Object.assign(mergedPatches, normalized.patches, movementConsistency.patches);
+
+    const repairPaths = [
+      ...Object.keys(normalized.patches),
+      ...listMovementRepairsWorthReviewing(movementConsistency.patches, current),
+    ];
+    if (repairPaths.length > 0) {
+      // Diagnostics use errorLogs, outside the outbox's dailyRecords/syncQueue transaction.
+      Dexie.ignoreTransaction(() =>
+        logError(
+          'Invariant repair applied on updatePartial',
+          undefined,
+          buildInvariantRepairReviewContext({
+            date,
+            operation: 'updatePartial',
+            repairPaths,
+            touchedPaths: Object.keys(inputPatch),
+          })
+        )
+      );
+    }
+    updated = applyPatches(current, mergedPatches);
   }
 
-  const normalized = normalizeDailyRecordInvariants(applyPatches(current, mergedPatches));
-  const movementConsistency = normalizeMovementBedConsistency(normalized.record);
-
-  if (!shouldSkipStructuralNormalization) {
-    Object.assign(mergedPatches, normalized.patches);
-    Object.assign(mergedPatches, movementConsistency.patches);
-  }
-
-  const repairPaths = [
-    ...Object.keys(normalized.patches),
-    ...listMovementRepairsWorthReviewing(movementConsistency.patches, current),
-  ];
-
-  if (!shouldSkipStructuralNormalization && repairPaths.length > 0) {
-    // Diagnostics use errorLogs, outside the outbox's dailyRecords/syncQueue transaction.
-    Dexie.ignoreTransaction(() =>
-      logError(
-        'Invariant repair applied on updatePartial',
-        undefined,
-        buildInvariantRepairReviewContext({
-          date,
-          operation: 'updatePartial',
-          repairPaths,
-          touchedPaths: Object.keys(inputPatch),
-        })
-      )
-    );
-  }
-
-  const updated = applyPatches(current, mergedPatches);
   touchDailyRecordLastUpdated(updated);
 
   const validatedRecord = validateAndSalvageRecord(updated, date);

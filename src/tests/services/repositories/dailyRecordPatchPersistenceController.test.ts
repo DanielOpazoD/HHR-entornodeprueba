@@ -271,6 +271,7 @@ describe('dailyRecordPatchPersistenceController', () => {
       dateTimestamp: 123,
     });
     expect(result.mergedPatches).not.toHaveProperty('beds.R2');
+    expect(normalizeDailyRecordInvariantsMock).not.toHaveBeenCalled();
     expect(logErrorMock).not.toHaveBeenCalled();
   });
 
