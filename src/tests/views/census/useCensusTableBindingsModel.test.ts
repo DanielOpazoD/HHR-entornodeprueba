@@ -139,7 +139,6 @@ describe('useCensusTableBindingsModel', () => {
         totalWidth: 1200,
         handleClearAll: vi.fn(),
         handleRowAction: vi.fn(),
-        activateEmptyBed: vi.fn(),
         handleColumnResize: vi.fn(),
         role: 'viewer',
         tableConfigLoading: true,
@@ -185,7 +184,6 @@ describe('useCensusTableBindingsModel', () => {
         totalWidth: 1200,
         handleClearAll: vi.fn(),
         handleRowAction: vi.fn(),
-        activateEmptyBed: vi.fn(),
         handleColumnResize: vi.fn(),
         role: 'doctor_urgency',
       })
@@ -246,7 +244,6 @@ describe('useCensusTableBindingsModel', () => {
         totalWidth: 1200,
         handleClearAll: vi.fn(),
         handleRowAction: vi.fn(),
-        activateEmptyBed: vi.fn(),
         handleColumnResize: vi.fn(),
         role: 'doctor_urgency',
       })
