@@ -67,12 +67,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
   const [editingDevice, setEditingDevice] = useState<string | null>(null);
   const [pendingAddition, setPendingAddition] = useState<string | null>(null);
   const [retiringDevice, setRetiringDevice] = useState<string | null>(null);
-  const externalSnapshot = JSON.stringify({ devices, deviceDetails });
-  const [draftState, setDraftState] = useState<DeviceDraftState>(() => ({
-    devices,
-    details: deviceDetails,
-    externalSnapshot,
-  }));
+  const [draftState, setDraftState] = useState<DeviceDraftState | null>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const labelId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -85,26 +80,20 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
   // Logic
   // ========================================================================
   const isEditingDevices = showMenu || Boolean(editingDevice || pendingAddition || retiringDevice);
-  const draftSnapshot = JSON.stringify({
-    devices: draftState.devices,
-    deviceDetails: draftState.details,
-  });
-
-  if (
-    draftState.externalSnapshot !== externalSnapshot ||
-    (!isEditingDevices && draftSnapshot !== externalSnapshot)
-  ) {
-    setDraftState({
-      devices,
-      details: deviceDetails,
-      externalSnapshot,
-    });
-  }
-
-  const draftDevices =
-    draftState.externalSnapshot === externalSnapshot ? draftState.devices : devices;
-  const draftDetails =
-    draftState.externalSnapshot === externalSnapshot ? draftState.details : deviceDetails;
+  // An open editor can keep successive edits until the census supplies different device data.
+  const externalSnapshot = isEditingDevices ? JSON.stringify({ devices, deviceDetails }) : null;
+  const draft = draftState?.externalSnapshot === externalSnapshot ? draftState : null;
+  if (draftState && !draft) setDraftState(null);
+  const draftDevices = draft?.devices ?? devices;
+  const draftDetails = draft?.details ?? deviceDetails;
+  const keepDraft = useCallback(
+    (selection: string[], details: DeviceDetails) => {
+      if (externalSnapshot !== null) {
+        setDraftState({ devices: selection, details, externalSnapshot });
+      }
+    },
+    [externalSnapshot]
+  );
   const normalizedDevices = useMemo(() => normalizeSelectedDevices(draftDevices), [draftDevices]);
   const vvpDevices = useMemo(() => resolveVvpDevices(normalizedDevices), [normalizedDevices]);
   const vvpCount = vvpDevices.length;
@@ -127,11 +116,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
         note: data.note,
       });
 
-      setDraftState(previous => ({
-        ...previous,
-        devices: mutation.nextDevices,
-        details: mutation.nextDetails,
-      }));
+      keepDraft(mutation.nextDevices, mutation.nextDetails);
 
       if (onRetireChangeRef.current) {
         onRetireChangeRef.current(mutation.nextDevices, mutation.nextDetails);
@@ -153,7 +138,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
       onChangeRef,
       onDetailsChangeRef,
       onRetireChangeRef,
-      setDraftState,
+      keepDraft,
       setRetiringDevice,
     ]
   );
@@ -206,19 +191,8 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
         return;
       }
 
-      const nextDevices = mutation.nextDevices;
-      if (nextDevices) {
-        setDraftState(previous => ({
-          ...previous,
-          devices: nextDevices,
-          details: mutation.nextDetails ?? previous.details,
-        }));
-      }
-      if (mutation.nextDetails && !mutation.nextDevices) {
-        setDraftState(previous => ({
-          ...previous,
-          details: mutation.nextDetails ?? previous.details,
-        }));
+      if (mutation.nextDevices || mutation.nextDetails) {
+        keepDraft(mutation.nextDevices ?? draftDevices, mutation.nextDetails ?? draftDetails);
       }
 
       if (mutation.nextDetails && onConfigChangeRef.current) {
@@ -245,12 +219,13 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     [
       editingDevice,
       pendingAddition,
+      draftDevices,
       draftDetails,
       normalizedDevices,
       onChangeRef,
       onConfigChangeRef,
       onDetailsChangeRef,
-      setDraftState,
+      keepDraft,
       setEditingDevice,
       setPendingAddition,
     ]
