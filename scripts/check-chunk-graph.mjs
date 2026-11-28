@@ -128,9 +128,13 @@ if (cycles.length > 0) {
   process.exit(1);
 }
 
-/* ── The login screen paints without the authenticated shell or Firestore ── */
+/* ── The login screen paints before loading the clinical shell and its databases ── */
 
-const LOGIN_FORBIDDEN_CHUNKS = ['app-authenticated-shell-', 'vendor-firebase-firestore-'];
+const LOGIN_FORBIDDEN_CHUNKS = [
+  'app-authenticated-shell-',
+  'vendor-firebase-firestore-',
+  'vendor-localdb-',
+];
 const entryHtml = fs.readFileSync(path.join(process.cwd(), 'dist', 'index.html'), 'utf8');
 const startupChunks = new Set(
   [...entryHtml.matchAll(/<script type="module"[^>]*src="\/assets\/([^"]+)"/g)].map(m => m[1])
@@ -159,5 +163,5 @@ if (forbiddenStartup.length > 0) {
 
 console.log(
   `[chunk-graph] ✅ No vendor→feature imports. ${vendorGraph.size} vendor chunks acyclic. ` +
-    `Startup loads ${startupChunks.size} chunks, without the authenticated shell or Firestore.`
+    `Startup loads ${startupChunks.size} chunks before the authenticated shell, Firestore and Dexie.`
 );
