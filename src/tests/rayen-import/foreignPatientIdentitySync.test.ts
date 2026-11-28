@@ -77,6 +77,31 @@ describe('passport identity across repeated census synchronizations', () => {
     expect(diff.updates).toEqual([]);
   });
 
+  it.each([undefined, 'Pasaporte'] as const)(
+    'links a legacy numeric passport with compatible source type %s',
+    documentType => {
+      const source = { ...encounter('123456785'), documentType };
+      const occupant: PatientData = {
+        ...EMPTY_PATIENT,
+        bedId: 'R2',
+        patientName: 'Paciente Sintético',
+        rut: source.run,
+        documentType: 'Pasaporte',
+        admissionDate: '2026-10-17',
+        admissionTime: '10:00',
+        handoffNote: 'Entrega del mismo paciente',
+      };
+      const { diff, result } = synchronize(record(occupant), source);
+      expect(diff.conflicts).toEqual([]);
+      expect(result.record.beds.R2).toMatchObject({
+        clinicalEpisodeId: source.encounterId,
+        documentType: 'Pasaporte',
+        pathology: source.diagnosis,
+        handoffNote: occupant.handoffNote,
+      });
+    }
+  );
+
   it('does not match a legacy passport to another identifier with the same digits', () => {
     const current = record({
       ...EMPTY_PATIENT,
@@ -91,4 +116,29 @@ describe('passport identity across repeated census synchronizations', () => {
     expect(diff.conflicts).not.toEqual([]);
     expect(result.record.beds.R2).toMatchObject({ rut: 'A9876543', patientName: 'Otra persona' });
   });
+
+  it.each([
+    ['Pasaporte', 'RUT'],
+    ['RUT', 'Pasaporte'],
+  ] as const)(
+    'keeps a legacy %s separate from an explicit %s with the same digits',
+    (stored, incoming) => {
+      const occupant: PatientData = {
+        ...EMPTY_PATIENT,
+        bedId: 'R2',
+        patientName: 'Paciente local',
+        rut: '123456785',
+        documentType: stored,
+        pathology: 'Diagnóstico local',
+        handoffNote: 'Entrega del paciente local',
+      };
+      const source = { ...encounter('123456785'), documentType: incoming };
+      const { diff, result } = synchronize(record(occupant), source);
+      expect(diff.conflicts).toContainEqual(
+        expect.objectContaining({ bedId: 'R2', code: 'occupied-local-bed' })
+      );
+      expect(diff.updates).toEqual([]);
+      expect(result.record.beds.R2).toEqual(occupant);
+    }
+  );
 });
