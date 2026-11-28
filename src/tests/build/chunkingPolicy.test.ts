@@ -566,6 +566,7 @@ describe('chunkingPolicy', () => {
       'census-view'
     );
     expect(chunkForModule('/repo/src/utils/htmlEscape.ts')).toBe('htmlEscape');
+    expect(chunkForModule('/repo/src/components/ui/Time24Input.tsx')).toBe('Time24Input');
     expect(
       chunkForModule('/repo/src/services/storage/firestore/firestoreDatabaseProvider.ts')
     ).toBe('firestoreDatabaseProvider');
