@@ -78,7 +78,6 @@ export const useCensusTableBindingsModel = ({
       clinicalDocumentCountsByBedId,
       dischargedRuts,
       onAction: tableViewModel.handleRowAction,
-      onActivateEmptyBed: tableViewModel.activateEmptyBed,
       totalWidth: tableViewModel.totalWidth,
     });
   }, [
@@ -88,7 +87,6 @@ export const useCensusTableBindingsModel = ({
     dischargedRuts,
     readOnly,
     accessProfile,
-    tableViewModel.activateEmptyBed,
     tableViewModel.bedTypes,
     tableViewModel.beds,
     tableViewModel.canDeleteRecord,

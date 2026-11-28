@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import type { TableColumnConfig } from '@/context/TableConfigContext';
-import { useEmptyBedActivation } from '../components/useEmptyBedActivation';
 import { useCensusTableDependencies } from './useCensusTableDependencies';
 import { useCensusTableModel } from './useCensusTableModel';
 
@@ -13,7 +12,6 @@ interface UseCensusTableRuntimeParams {
 export const useCensusTableRuntime = ({ currentDateString }: UseCensusTableRuntimeParams) => {
   const dependencies = useCensusTableDependencies();
   const { columns } = dependencies.config;
-  const { activateEmptyBed } = useEmptyBedActivation();
   const tableModel = useCensusTableModel({
     currentDateString,
     role: dependencies.role,
@@ -37,7 +35,6 @@ export const useCensusTableRuntime = ({ currentDateString }: UseCensusTableRunti
     ...dependencies,
     columns,
     tableConfigLoading: dependencies.tableConfigLoading,
-    activateEmptyBed,
     handleColumnResize,
     ...tableModel,
   };
