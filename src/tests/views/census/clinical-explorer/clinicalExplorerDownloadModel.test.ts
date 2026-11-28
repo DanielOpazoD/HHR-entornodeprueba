@@ -106,6 +106,38 @@ describe('download range on the hospital calendar', () => {
 });
 
 describe('Syslab results', () => {
+  it('exports ten days in one pass over their 120 results', () => {
+    let inspected = 0;
+    const comparison = Object.fromEntries(
+      Array.from({ length: 12 }, (_, index) => {
+        const name = `Variable ${index}`;
+        const columns = Object.fromEntries(
+          Array.from({ length: 10 }, (_, day) => [
+            `${String(day + 1).padStart(2, '0')}/11/2026 09:00`,
+            row(name, '1'),
+          ])
+        );
+        return [
+          name,
+          new Proxy(columns, {
+            ownKeys(target) {
+              const keys = Reflect.ownKeys(target);
+              inspected += keys.length;
+              return keys;
+            },
+          }),
+        ];
+      })
+    );
+    const groups = buildLabReportGroups(
+      { ...analysis, comparison },
+      { from: '2026-11-01', to: '2026-11-10' }
+    );
+    expect(groups).toHaveLength(10);
+    expect(groups.every(group => group.rows.length === 12)).toBe(true);
+    expect(inspected).toBe(120);
+  });
+
   it('keeps only the reports inside the range, one block per report, oldest first', () => {
     const groups = buildLabReportGroups(analysis, { from: '2026-11-01', to: '2026-11-05' });
     expect(groups.map(group => [group.dayIso, group.time])).toEqual([

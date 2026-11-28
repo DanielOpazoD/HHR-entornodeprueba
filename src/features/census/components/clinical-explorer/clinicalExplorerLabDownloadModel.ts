@@ -2,7 +2,8 @@ import type { SyslabHospitalizationReports } from '@/features/laboratory/hospita
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 import { countPendingInRange, pendingReportDays } from './clinicalExplorerDownloadScope';
-import { buildLabDayRows, parseColumnKey, type LabDayRow } from './clinicalExplorerLabModel';
+import { formatLabResult } from '@/features/laboratory';
+import { compareVariableNames, parseColumnKey } from './clinicalExplorerLabModel';
 import {
   outcome,
   pluralCount,
@@ -64,6 +65,15 @@ export const labProgressText = (
   return 'Consultando Syslab…';
 };
 
+interface LabDayRow {
+  columnKey: string;
+  name: string;
+  time: string;
+  display: string;
+  unit: string;
+  refValue: string;
+}
+
 /** One Syslab report (one order): its stamp and every result, in clinical order. */
 export interface LabReportGroup {
   columnKey: string;
@@ -77,25 +87,29 @@ export const buildLabReportGroups = (
   analysis: LabAnalysisData,
   range: DownloadRange
 ): LabReportGroup[] => {
-  const days = new Set<string>();
-  for (const columns of Object.values(analysis.comparison)) {
-    for (const columnKey of Object.keys(columns)) {
+  const groups = new Map<string, LabReportGroup>();
+  for (const [name, columns] of Object.entries(analysis.comparison)) {
+    for (const [columnKey, row] of Object.entries(columns)) {
       const when = parseColumnKey(columnKey);
-      if (when && when.dayIso >= range.from && when.dayIso <= range.to) days.add(when.dayIso);
+      if (!when || when.dayIso < range.from || when.dayIso > range.to) continue;
+      let group = groups.get(columnKey);
+      if (!group) {
+        group = { columnKey, ...when, rows: [] };
+        groups.set(columnKey, group);
+      }
+      const { display, displayUnit } = formatLabResult(row.result, row.unit);
+      group.rows.push({
+        columnKey,
+        name,
+        time: when.time,
+        display,
+        unit: displayUnit || row.unit,
+        refValue: row.refValue,
+      });
     }
   }
-  const groups = new Map<string, LabReportGroup>();
-  for (const dayIso of [...days].sort()) {
-    for (const row of buildLabDayRows(analysis, dayIso)) {
-      const group = groups.get(row.columnKey) ?? {
-        columnKey: row.columnKey,
-        dayIso,
-        time: row.time,
-        rows: [],
-      };
-      group.rows.push(row);
-      groups.set(row.columnKey, group);
-    }
+  for (const group of groups.values()) {
+    group.rows.sort((a, b) => compareVariableNames(a.name, b.name));
   }
   return [...groups.values()].sort(
     (a, b) =>
