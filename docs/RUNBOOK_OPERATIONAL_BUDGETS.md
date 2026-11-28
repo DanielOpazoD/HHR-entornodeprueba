@@ -112,8 +112,7 @@ Los budgets de degradación local se derivan desde `src/services/storage/indexed
 Snapshot operativo canónico:
 
 - `getLocalPersistenceRuntimeSnapshot()`
-- `runtimeState = ok | recoverable | blocked`
-- `stickyFallbackMode = true` debe tratarse como persistencia local bloqueada para la sesión
+- `runtimeState = ok | recoverable`. El modo en memoria reintenta la apertura con el presupuesto indicado arriba.
 
 ## Auth Bootstrap
 

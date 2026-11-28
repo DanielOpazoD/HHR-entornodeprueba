@@ -11,9 +11,8 @@ describe('localPersistenceRuntimeSnapshot contract', () => {
       expect.objectContaining({
         indexedDbAvailable: expect.any(Boolean),
         fallbackMode: expect.any(Boolean),
-        stickyFallbackMode: expect.any(Boolean),
       })
     );
-    expect(['ok', 'recoverable', 'blocked']).toContain(snapshot.runtimeState);
+    expect(snapshot.runtimeState).toBe(snapshot.fallbackMode ? 'recoverable' : 'ok');
   });
 });

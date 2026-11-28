@@ -1,5 +1,4 @@
 import { getIndexedDbRecoveryBudgetSnapshot } from './indexedDbRecoveryBudgets';
-import { shouldUseStickyIndexedDbFallback } from './indexedDbRecoveryPolicy';
 import { resolveIndexedDbErrorDetails } from './indexedDbCoreSupport';
 import {
   recordIndexedDbFallbackMode,
@@ -9,15 +8,12 @@ import {
 export interface IndexedDbInitialOpenRecoveryOutcome<TDatabase> {
   database: TDatabase;
   fallbackMode: boolean;
-  stickyFallbackMode: boolean;
-  shouldScheduleBackgroundRecovery: boolean;
 }
 
 export interface IndexedDbInitialOpenRecoveryOptions<TDatabase> {
   error: unknown;
   activateMockFallback: () => TDatabase;
   getBudgetSnapshot?: () => object;
-  shouldUseStickyFallback?: (error: unknown) => boolean;
   recordRecoveryNotice?: typeof recordIndexedDbRecoveryNotice;
   recordFallbackMode?: typeof recordIndexedDbFallbackMode;
 }
@@ -33,7 +29,6 @@ export const recoverIndexedDbInitialOpenFailure = async <TDatabase>({
   error,
   activateMockFallback,
   getBudgetSnapshot = getIndexedDbRecoveryBudgetSnapshot,
-  shouldUseStickyFallback = shouldUseStickyIndexedDbFallback,
   recordRecoveryNotice = recordIndexedDbRecoveryNotice,
   recordFallbackMode = recordIndexedDbFallbackMode,
 }: IndexedDbInitialOpenRecoveryOptions<TDatabase>): Promise<
@@ -56,7 +51,5 @@ export const recoverIndexedDbInitialOpenFailure = async <TDatabase>({
   return {
     database: activateMockFallback(),
     fallbackMode: true,
-    stickyFallbackMode: shouldUseStickyFallback(error),
-    shouldScheduleBackgroundRecovery: true,
   };
 };

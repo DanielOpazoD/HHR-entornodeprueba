@@ -111,7 +111,6 @@ describe('runMockFallbackRecovery', () => {
       currentDatabase: fakeDatabase(),
       createDatabase: vi.fn(),
       attachDatabaseEvents: vi.fn(),
-      resetRecoveryTracking: vi.fn(),
     });
 
     expect(result.database).toBe(database);
@@ -129,7 +128,6 @@ describe('runMockFallbackRecovery', () => {
       currentDatabase: fakeDatabase(),
       createDatabase: vi.fn(),
       attachDatabaseEvents: vi.fn(),
-      resetRecoveryTracking: vi.fn(),
     });
 
     expect(result.fallbackMode).toBe(true);
@@ -173,20 +171,16 @@ describe('runFreshOpenAttempt', () => {
 
     expect(result.database).toBe(database);
     expect(result.fallbackMode).toBe(false);
-    expect(result.shouldResetRecoveryTracking).toBe(true);
-    expect(result.shouldScheduleBackgroundRecovery).toBe(false);
     expect(recoverIndexedDbInitialOpenRuntimeFailureMock).not.toHaveBeenCalled();
   });
 
-  it('hands off to the in-memory recovery when open throws and forwards its flags', async () => {
+  it('hands off to the in-memory recovery when open throws and returns the fallback database', async () => {
     const database = fakeDatabase();
     const error = new Error('boom');
     openIndexedDbWithRetriesMock.mockRejectedValueOnce(error);
     recoverIndexedDbInitialOpenRuntimeFailureMock.mockResolvedValueOnce({
       database,
       fallbackMode: true,
-      stickyFallbackMode: true,
-      shouldScheduleBackgroundRecovery: true,
     });
 
     const result = await runFreshOpenAttempt({ database });
@@ -195,9 +189,6 @@ describe('runFreshOpenAttempt', () => {
     expect(result).toEqual({
       database,
       fallbackMode: true,
-      stickyFallbackMode: true,
-      shouldResetRecoveryTracking: false,
-      shouldScheduleBackgroundRecovery: true,
     });
   });
 });
