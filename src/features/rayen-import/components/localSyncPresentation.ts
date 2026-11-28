@@ -78,7 +78,11 @@ const resolveQuarantineRecovery = (
   now: number
 ): QuarantinedOperationView['recovery'] => {
   // The closed window explains the stop first: its edits left the stored day for the same reason.
-  if (!isAdmin && isClosedNurseWindowRefusal(operation, now)) return 'editing_window_closed';
+  if (
+    (!isAdmin || (operation.projectionReleased && operation.writerRole)) &&
+    isClosedNurseWindowRefusal(operation, now)
+  )
+    return 'editing_window_closed';
   // A closed session cleared the day these edits were made on: like a write without a known base,
   // they cannot be resent as they are, only reviewed and discarded.
   if (operation.projectionReleased || requiresDailyRecordBaseReview(operation))

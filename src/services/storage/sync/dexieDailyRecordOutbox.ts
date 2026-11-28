@@ -312,7 +312,7 @@ export const saveDailyRecordInOutbox = (
       // First: this may release a write without its copy, which must not be reused below.
       const holders = await listDailyRecordProjectionHolders(record.date);
       const existing = task.key
-        ? await findReusableSyncTask(task.type, task.key, task.ownerKey)
+        ? await findReusableSyncTask(task.type, task.key, task.ownerKey, task)
         : null;
       const stored = await hospitalDB.dailyRecords.get(record.date);
       if (!patchWrite && isOpaqueChangedPaths(task.syncContract?.changedPaths ?? [])) {

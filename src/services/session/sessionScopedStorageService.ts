@@ -1,4 +1,5 @@
 import { getTabOwnerKey } from '@/services/session/authoringSession';
+import type { UserRole } from '@/types/authRoleTypes';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import {
   getLogoutGeneration,
@@ -137,7 +138,7 @@ const recordSyncQueueOwnershipTelemetry = (
   });
 };
 
-export const reconcileAuthorizedSessionOwner = (ownerKey: string): Promise<void> =>
+export const reconcileAuthorizedSessionOwner = (ownerKey: string, role?: UserRole): Promise<void> =>
   runSessionStorageTransition(async () => {
     if (pendingLocalAuthClosure) {
       await pendingLocalAuthClosure();
@@ -161,7 +162,7 @@ export const reconcileAuthorizedSessionOwner = (ownerKey: string): Promise<void>
     setStoredSessionOwnerKey(ownerKey);
     const generation = localStorage.getItem(SESSION_GENERATION_KEY) || crypto.randomUUID();
     localStorage.setItem(SESSION_GENERATION_KEY, generation);
-    setSessionGeneration(generation, ownerKey);
+    setSessionGeneration(generation, ownerKey, role);
     failedCleanupGeneration = undefined;
     setSessionCleanupFailed(false);
     if (!previousOwnerKey || previousOwnerKey === ownerKey) return;

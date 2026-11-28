@@ -33,6 +33,7 @@ export interface SyncQueueOperation {
   origin?: SyncQueueOperationSnapshot['origin'];
   recoveryPolicy?: SyncQueueOperationSnapshot['recoveryPolicy'];
   projectionReleased?: SyncQueueOperationSnapshot['projectionReleased'];
+  writerRole?: SyncQueueOperationSnapshot['writerRole'];
 }
 
 export const EMPTY_SYNC_QUEUE_STATS: SyncQueueStats = {

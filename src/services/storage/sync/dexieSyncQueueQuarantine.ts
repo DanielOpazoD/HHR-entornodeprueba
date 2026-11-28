@@ -78,16 +78,24 @@ export const listDailyRecordProjectionHolders = async (date: string): Promise<Sy
 export const findReusableSyncTask = async (
   type: SyncTask['type'],
   key: string,
-  ownerKey?: string | null
-): Promise<SyncTask | null> =>
-  (await hospitalDB.syncQueue.where('key').equals(key).toArray()).find(
-    task =>
-      task.type === type &&
-      matchesOwner(ownerKey, task.ownerKey) &&
-      REUSABLE_TASK_STATES.has(task.status) &&
-      // A fresh edit lands on the stored day, which no longer holds a released task's edits.
-      !task.projectionReleased
-  ) || null;
+  ownerKey?: string | null,
+  author?: Pick<SyncTask, 'writerRole'>
+): Promise<SyncTask | null> => {
+  const rows = (await hospitalDB.syncQueue.where('key').equals(key).toArray()).filter(
+    task => task.type === type && matchesOwner(ownerKey, task.ownerKey) && !task.projectionReleased
+  );
+  // Only the latest day write can absorb a fresh edit. Folding across a role change would
+  // give the wrong author to part of the send, or reorder edits when a role changes back.
+  if (type === 'UPDATE_DAILY_RECORD' && author) {
+    const latest = rows.findLast(task => task.status !== 'RETIRED');
+    return latest &&
+      latest.writerRole === author.writerRole &&
+      REUSABLE_TASK_STATES.has(latest.status)
+      ? latest
+      : null;
+  }
+  return rows.find(task => REUSABLE_TASK_STATES.has(task.status)) ?? null;
+};
 
 /**
  * Revive una tarea FAILED/CONFLICT como PENDING limpia. Es la única salida que reactiva trabajo de

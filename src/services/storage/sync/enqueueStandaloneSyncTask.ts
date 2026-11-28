@@ -42,7 +42,7 @@ const enqueueWithinTransaction = async (
   const syncContract = buildSyncTaskContract(type, payload, meta?.syncContract);
 
   if (key) {
-    const existing = await store.findReusableTask(type, key, ownerKey);
+    const existing = await store.findReusableTask(type, key, ownerKey, options.authoringSession);
     if (existing?.id) {
       const mergedSyncContract = mergeSyncTaskContracts(existing.syncContract, syncContract);
       await store.update(existing.id, {
@@ -87,6 +87,7 @@ const enqueueWithinTransaction = async (
     retryCount: 0,
     key,
     ownerKey: taskOwnerKey,
+    writerRole: options.authoringSession.writerRole,
     contexts: contextMeta.contexts,
     origin: meta?.origin || 'direct_queue',
     recoveryPolicy: contextMeta.recoveryPolicy,
