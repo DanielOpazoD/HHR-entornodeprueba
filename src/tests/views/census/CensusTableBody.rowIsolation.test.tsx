@@ -126,11 +126,11 @@ it('isolates edits and server confirmations while crib removal uses the latest r
     onAction,
     onActivateEmptyBed,
   };
-  const table = (presence: Record<string, boolean>, recordLastUpdated = '2026-02-20T11:59:59Z') => (
+  const table = (counts: Record<string, number>, recordLastUpdated = '2026-02-20T11:59:59Z') => (
     <table>
       <CensusTableBody
         {...props}
-        clinicalDocumentPresenceByBedId={presence}
+        clinicalDocumentCountsByBedId={counts}
         recordLastUpdated={recordLastUpdated}
       />
     </table>
@@ -138,28 +138,32 @@ it('isolates edits and server confirmations while crib removal uses the latest r
   const { rerender } = render(table({}));
   expect(patientRowRender).toHaveBeenCalledTimes(20);
   expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
-  rerender(table({ BED0: true }));
+  rerender(table({ BED0: 1 }));
   expect(patientRowRender).toHaveBeenCalledTimes(21);
   expect(patientRowRender).toHaveBeenLastCalledWith('BED0');
   expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
-  rerender(table({ BED0: true }));
+  rerender(table({ BED0: 1 }));
   expect(patientRowRender).toHaveBeenCalledTimes(21);
+  expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
+  rerender(table({ BED0: 2 }));
+  expect(patientRowRender).toHaveBeenCalledTimes(22);
+  expect(patientRowRender).toHaveBeenLastCalledWith('BED0');
   expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
   occupiedRows[0] = {
     ...occupiedRows[0],
     data: { ...occupiedRows[0].data, patientName: 'Edited Patient' },
   };
   props.unifiedRows = [...occupiedRows, ...emptyRows];
-  rerender(table({ BED0: true }, '2026-02-20T12:00:00Z'));
-  expect(patientRowRender).toHaveBeenCalledTimes(22);
+  rerender(table({ BED0: 2 }, '2026-02-20T12:00:00Z'));
+  expect(patientRowRender).toHaveBeenCalledTimes(23);
   expect(patientRowRender).toHaveBeenLastCalledWith('BED0');
   // Editing an occupied bed must not invalidate React.memo on any empty bed row.
   expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
-  rerender(table({ BED0: true }, '2026-02-20T12:00:01Z'));
-  expect(patientRowRender).toHaveBeenCalledTimes(22);
+  rerender(table({ BED0: 2 }, '2026-02-20T12:00:01Z'));
+  expect(patientRowRender).toHaveBeenCalledTimes(23);
   expect(emptyBedRowRender).toHaveBeenCalledTimes(10);
   confirm.mockImplementationOnce(async () => {
-    rerender(table({ BED0: true }, '2026-02-20T12:00:02Z'));
+    rerender(table({ BED0: 2 }, '2026-02-20T12:00:02Z'));
     return true;
   });
   fireEvent.click(screen.getByRole('button', { name: 'BED1' }));

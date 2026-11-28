@@ -60,16 +60,13 @@ describe('useClinicalDocumentPresenceByBed', () => {
       { wrapper }
     );
 
-    expect(result.current).toEqual({
-      byBedId: {},
-      infoByBedId: {},
-    });
+    expect(result.current).toEqual({});
     expect(executeListClinicalDocumentsByEpisodeKeys).not.toHaveBeenCalled();
   });
 
-  it('returns empty fallback when the query fails', async () => {
+  it('leaves the count unknown when the first read fails', async () => {
     vi.mocked(executeListClinicalDocumentsByEpisodeKeys).mockRejectedValueOnce(new Error('denied'));
-    const { wrapper } = createQueryClientTestWrapper();
+    const { wrapper, queryClient } = createQueryClientTestWrapper();
 
     const { result } = renderHook(
       () =>
@@ -81,18 +78,8 @@ describe('useClinicalDocumentPresenceByBed', () => {
       { wrapper }
     );
 
-    await waitFor(() => {
-      expect(executeListClinicalDocumentsByEpisodeKeys).toHaveBeenCalledTimes(1);
-    });
-    await waitFor(() => {
-      expect(result.current).toEqual({
-        byBedId: { R1: false },
-        infoByBedId: {
-          R1: { present: false, totalCount: 0, draftCount: 0 },
-        },
-      });
-    });
-
+    await waitFor(() => expect(queryClient.getQueryCache().getAll()[0].state.status).toBe('error'));
+    expect(result.current).not.toHaveProperty('R1');
     expect(warnMock).toHaveBeenCalled();
   });
 
@@ -126,18 +113,18 @@ describe('useClinicalDocumentPresenceByBed', () => {
       { wrapper }
     );
 
-    await waitFor(() => expect(result.current.byBedId.R1).toBe(true));
+    await waitFor(() => expect(result.current.R1).toBe(1));
     await queryClient.invalidateQueries({ queryKey: ['clinicalDocuments', 'presenceByBed'] });
 
     expect(executeListClinicalDocumentsByEpisodeKeys).toHaveBeenCalledTimes(2);
-    expect(result.current.byBedId.R1).toBe(true);
+    expect(result.current.R1).toBe(1);
     expect(warnMock).toHaveBeenCalledWith(
       'Failed to resolve clinical document presence',
       'No se pudo actualizar la presencia documental.'
     );
 
     await queryClient.invalidateQueries({ queryKey: ['clinicalDocuments', 'presenceByBed'] });
-    await waitFor(() => expect(result.current.byBedId.R1).toBe(false));
+    await waitFor(() => expect(result.current.R1).toBe(0));
   });
 
   it('caches only presence fields and keeps badge data stable when document content changes', async () => {
@@ -175,7 +162,7 @@ describe('useClinicalDocumentPresenceByBed', () => {
         }),
       { wrapper }
     );
-    await waitFor(() => expect(result.current.byBedId.R1).toBe(true));
+    await waitFor(() => expect(result.current.R1).toBe(1));
     const query = queryClient.getQueryCache().getAll()[0];
     const cached = query.state.data;
     const badges = result.current;
@@ -211,12 +198,7 @@ describe('useClinicalDocumentPresenceByBed', () => {
     );
 
     await waitFor(() => {
-      expect(result.current).toEqual({
-        byBedId: { R1: false },
-        infoByBedId: {
-          R1: { present: false, totalCount: 0, draftCount: 0 },
-        },
-      });
+      expect(result.current).toEqual({ R1: 0 });
     });
   });
 
@@ -245,12 +227,7 @@ describe('useClinicalDocumentPresenceByBed', () => {
     );
 
     await waitFor(() => {
-      expect(result.current).toEqual({
-        byBedId: { R1: true },
-        infoByBedId: {
-          R1: { present: true, totalCount: 1, draftCount: 1 },
-        },
-      });
+      expect(result.current).toEqual({ R1: 1 });
     });
   });
 

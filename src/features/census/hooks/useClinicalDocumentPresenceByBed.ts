@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryClient';
-import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
+import type {
+  ClinicalDocumentCountsByBed,
+  UnifiedBedRow,
+} from '@/features/census/types/censusTableTypes';
 import {
   projectClinicalDocumentPresence,
   buildBedEpisodeBindings,
-  buildClinicalDocumentPresenceProjection,
-  type ClinicalDocumentPresenceInfo,
+  countActiveClinicalDocumentsByBed,
 } from '@/features/census/controllers/clinicalDocumentPresenceController';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 import { clinicalDocumentPresenceLogger } from '@/features/census/hooks/censusHookLoggers';
@@ -22,16 +24,11 @@ interface UseClinicalDocumentPresenceByBedParams {
 const loadClinicalDocumentUseCases = () =>
   import('@/application/clinical-documents/clinicalDocumentUseCases');
 
-export interface ClinicalDocumentPresenceResult {
-  byBedId: Record<string, boolean>;
-  infoByBedId: Record<string, ClinicalDocumentPresenceInfo>;
-}
-
 export const useClinicalDocumentPresenceByBed = ({
   unifiedRows,
   currentDateString,
   enabled,
-}: UseClinicalDocumentPresenceByBedParams): ClinicalDocumentPresenceResult => {
+}: UseClinicalDocumentPresenceByBedParams): ClinicalDocumentCountsByBed => {
   const bindings = useMemo(() => buildBedEpisodeBindings(unifiedRows), [unifiedRows]);
   const episodeKeys = useMemo(
     () =>
@@ -77,11 +74,11 @@ export const useClinicalDocumentPresenceByBed = ({
     retry: false,
   });
 
-  return useMemo((): ClinicalDocumentPresenceResult => {
-    if (!enabled || bindings.length === 0) {
-      return { byBedId: {}, infoByBedId: {} };
+  return useMemo(() => {
+    if (!enabled || query.data === undefined) {
+      return {};
     }
 
-    return buildClinicalDocumentPresenceProjection(bindings, query.data);
+    return countActiveClinicalDocumentsByBed(bindings, query.data);
   }, [bindings, enabled, query.data]);
 };

@@ -131,7 +131,7 @@ const Census = () => {
           columns={columns}
           visibleColumnCount={12}
           bedTypes={{ [bed.id]: bed.type }}
-          clinicalDocumentPresenceByBedId={{}}
+          clinicalDocumentCountsByBedId={{}}
           onAction={() => {}}
           onActivateEmptyBed={() => {}}
         />

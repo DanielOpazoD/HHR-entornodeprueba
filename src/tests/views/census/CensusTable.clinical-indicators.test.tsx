@@ -49,7 +49,7 @@ vi.mock('@/context/useDailyRecordScopedActions', () => ({
 }));
 
 vi.mock('@/features/census/hooks/useClinicalDocumentPresenceByBed', () => ({
-  useClinicalDocumentPresenceByBed: vi.fn(() => ({ byBedId: {}, infoByBedId: {} })),
+  useClinicalDocumentPresenceByBed: vi.fn(),
 }));
 
 vi.mock('@/features/census/hooks/usePendingBedClearIds', () => ({
@@ -243,6 +243,7 @@ describe('CensusTable clinical indicators', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useClinicalDocumentPresenceByBed).mockReturnValue({});
     vi.useRealTimers();
     patientRowMock.mockClear();
     applyDefaultMocks();
@@ -326,24 +327,17 @@ describe('CensusTable clinical indicators', () => {
         R1: patient,
       })
     );
-    vi.mocked(useClinicalDocumentPresenceByBed).mockReturnValue({
-      byBedId: { R1: true },
-      infoByBedId: { R1: { present: true, totalCount: 1, draftCount: 0 } },
-    });
+    vi.mocked(useClinicalDocumentPresenceByBed).mockReturnValue({ R1: 2 });
 
     render(<CensusTable currentDateString="2025-01-08" />);
 
-    expect(
-      patientRowMock.mock.calls.some(call => {
-        const props = call[0] as {
-          indicators?: { hasClinicalDocument?: boolean; isNewAdmission?: boolean };
-        };
-        return (
-          props.indicators?.hasClinicalDocument === true &&
-          props.indicators?.isNewAdmission === true
-        );
+    expect(patientRowMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bed: expect.objectContaining({ id: 'R1' }),
+        clinicalDocumentCount: 2,
+        indicators: { hasClinicalDocument: true, isNewAdmission: true },
       })
-    ).toBe(true);
+    );
   });
 
   describe('split-day marker for the vitals window (D10)', () => {

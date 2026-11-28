@@ -220,7 +220,7 @@ const Census = () => {
           visibleColumnCount={12}
           bedTypes={{ [bed.id]: bed.type }}
           role="nurse_hospital"
-          clinicalDocumentPresenceByBedId={{}}
+          clinicalDocumentCountsByBedId={{}}
           onAction={() => {}}
           onActivateEmptyBed={() => {}}
         />
