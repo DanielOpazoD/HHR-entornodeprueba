@@ -1,7 +1,7 @@
 /** Privacy-preserving bridge for official Eloisa hospitalization reports. */
 
 import { requestViaBridgeChannel } from '@/services/transport/extensionRequestChannel';
-import { hasNonRutLetter, normalizeRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, normalizeForeignDocument, normalizeRut } from '@/utils/rutUtils';
 
 export const RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE = 'HHR_RAYEN_EPICRISIS_DOWNLOAD_REQUEST';
 export const RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE = 'HHR_RAYEN_EPICRISIS_DOWNLOAD_RESULT';
@@ -18,7 +18,7 @@ export interface RayenHospitalizationEpisode {
   active?: boolean;
   /** Index identity is transient evidence for disambiguating administrative rows, including RN. */
   patientName?: string;
-  /** Eloísa: 2 = own RUN, 4 = maternal/progenitor RUN. Never infer this from the name. */
+  /** Eloísa PrefferedPeridentEnum: 2=RUN, 3=Otro ID, 4=RUN materno, 9=Pasaporte, 10=Doc país origen, 11=FONASA. */
   identifierType?: number;
 }
 
@@ -34,11 +34,14 @@ export interface RayenHospitalizationReportResult {
 interface RayenHospitalizationReportRequest {
   operation: 'list' | 'download';
   patientRun: string;
+  patientDocumentType?: 'RUT' | 'Pasaporte';
   clinicalEpisodeId?: string;
   admissionDate?: string;
   censusDate?: string;
   documentType?: RayenHospitalizationDocumentType;
 }
+
+const KNOWN_ELOISA_IDENTIFIER_TYPES = [2, 3, 4, 9, 10, 11];
 
 const parseEpisode = (value: unknown): RayenHospitalizationEpisode | null => {
   if (!value || typeof value !== 'object') return null;
@@ -55,7 +58,7 @@ const parseEpisode = (value: unknown): RayenHospitalizationEpisode | null => {
     ...(typeof row.patientName === 'string' && row.patientName.trim()
       ? { patientName: row.patientName.trim() }
       : {}),
-    ...([2, 4].includes(Number(row.identifierType))
+    ...(KNOWN_ELOISA_IDENTIFIER_TYPES.includes(Number(row.identifierType))
       ? { identifierType: Number(row.identifierType) }
       : {}),
   };
@@ -65,11 +68,16 @@ const requestHospitalizationReport = (
   request: RayenHospitalizationReportRequest,
   timeoutMs: number
 ): Promise<RayenHospitalizationReportResult> => {
-  const patientRun = hasNonRutLetter(request.patientRun) ? '' : normalizeRut(request.patientRun);
+  const isPassport = request.patientDocumentType === 'Pasaporte';
+  const patientDocument = isPassport ? normalizeForeignDocument(request.patientRun) : '';
+  const hasValidPassport = Boolean(isPassport && patientDocument && /\d/.test(patientDocument));
+  // A passport (even purely numeric) is never sent or queried as a Chilean RUN (ID-01).
+  const patientRun =
+    isPassport || hasNonRutLetter(request.patientRun) ? '' : normalizeRut(request.patientRun);
   const clinicalEpisodeId = request.clinicalEpisodeId?.trim() || '';
   const hasValidRun = /^[0-9]{6,8}[0-9K]$/.test(patientRun);
   const hasValidEpisode = /^\d+$/.test(clinicalEpisodeId);
-  if (typeof window === 'undefined' || (!hasValidRun && !hasValidEpisode)) {
+  if (typeof window === 'undefined' || (!hasValidRun && !hasValidEpisode && !hasValidPassport)) {
     return Promise.resolve({
       ok: false,
       error: 'El paciente no tiene un RUN ni un episodio válido para buscar informes.',
@@ -85,6 +93,12 @@ const requestHospitalizationReport = (
       documentType: request.documentType,
       encId: clinicalEpisodeId || undefined,
       patientRun,
+      ...(isPassport
+        ? {
+            patientDocument: patientDocument || undefined,
+            patientDocumentType: 'Pasaporte' as const,
+          }
+        : {}),
       admissionDate: request.admissionDate,
       censusDate: request.censusDate,
     },
@@ -112,7 +126,7 @@ const requestHospitalizationReport = (
 export const requestRayenHospitalizationEpisodes = (
   request: Pick<
     RayenHospitalizationReportRequest,
-    'patientRun' | 'clinicalEpisodeId' | 'admissionDate' | 'censusDate'
+    'patientRun' | 'patientDocumentType' | 'clinicalEpisodeId' | 'admissionDate' | 'censusDate'
   >,
   timeoutMs = 15000
 ): Promise<RayenHospitalizationReportResult> =>

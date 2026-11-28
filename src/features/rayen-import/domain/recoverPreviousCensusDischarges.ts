@@ -1,4 +1,4 @@
-import { isValidRut, normalizeRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, isSameForeignDocument, isValidRut, normalizeRut } from '@/utils/rutUtils';
 import { normalizePatientRut } from './censusPatientIdentityIndex';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -67,6 +67,7 @@ export const recoverPreviousCensusDischarges = async (
       candidates.map(({ patient, lookupRun }) => ({
         run: lookupRun,
         encounterId: patient.clinicalEpisodeId!,
+        ...(patient.documentType === 'Pasaporte' ? { documentType: 'Pasaporte' as const } : {}),
       }))
     );
   } catch {
@@ -74,12 +75,17 @@ export const recoverPreviousCensusDischarges = async (
   }
   const recovered = await Promise.all(
     candidates.map(async ({ patient, lookupRun }): Promise<EgresoReportRow[]> => {
+      const isPassport = patient.documentType === 'Pasaporte';
       const matches = results.filter(
         result =>
-          // The extension echoes the queried document without letters: the exact episode
-          // decides, and the echo only confirms that this answer belongs to this query.
+          // Exact episode ID isolates the person. Accept exact foreign-document echoes and
+          // legacy letterless echoes from older extensions, while rejecting any mismatched letter.
           result.encounterId === patient.clinicalEpisodeId &&
-          normalizeRut(result.run) === normalizeRut(lookupRun)
+          (isPassport
+            ? isSameForeignDocument(result.run, lookupRun) ||
+              (!hasNonRutLetter(result.run ?? '') &&
+                normalizeRut(result.run) === normalizeRut(lookupRun))
+            : normalizeRut(result.run) === normalizeRut(lookupRun))
       );
       const result = matches.length === 1 ? matches[0] : undefined;
       if (!result) return [];

@@ -7,15 +7,35 @@ import type { CorrectedEgresoFields } from '../mapping/reportEgresoDateTime';
 import { correctedEgresoFields } from '../mapping/reportEgresoDateTime';
 import { applyEgresoReport } from './applyEgresoReport';
 import { confirmHospitalDischarge } from './dischargeVerification';
-import { normalizeRut } from '@/utils/rutUtils';
+import {
+  hasNonRutLetter,
+  isSameForeignDocument,
+  normalizeForeignDocument,
+  normalizeRut,
+} from '@/utils/rutUtils';
 
 const lookupKey = (rut: string | undefined, encounterId: string | undefined): string =>
-  `${normalizeRut(rut)}::${String(encounterId || '').trim()}`;
+  `${hasNonRutLetter(rut ?? '') ? normalizeForeignDocument(rut) : normalizeRut(rut)}::${String(encounterId || '').trim()}`;
+
+const matchesPendingLookup = (
+  pending: Pick<PendingDischarge, 'rut' | 'encounterId'>,
+  result: Pick<EgresoLookupResult, 'run' | 'encounterId'>
+): boolean => {
+  const expectedEpisode = String(pending.encounterId || '').trim();
+  const returnedEpisode = String(result.encounterId || '').trim();
+  if (!expectedEpisode || expectedEpisode !== returnedEpisode) return false;
+  if (isSameForeignDocument(pending.rut, result.run)) return true;
+  return (
+    !hasNonRutLetter(result.run ?? '') &&
+    Boolean(normalizeRut(pending.rut)) &&
+    normalizeRut(pending.rut) === normalizeRut(result.run)
+  );
+};
 
 const reportEgresoKey = (egreso: ReportEgreso): string =>
   egreso.encounterId?.trim() ||
   [
-    normalizeRut(egreso.run),
+    hasNonRutLetter(egreso.run) ? normalizeForeignDocument(egreso.run) : normalizeRut(egreso.run),
     egreso.patientName.trim().toLocaleUpperCase(),
     egreso.correctedDay ?? '',
     egreso.correctedTime ?? '',
@@ -65,8 +85,8 @@ const eligibleLookups = (
 ): Map<string, EligibleLookup> => {
   const eligible = new Map<string, EligibleLookup>();
   for (const result of lookupResults) {
-    const pending = diff.pendingAdministrativeDischarges.find(
-      entry => lookupKey(entry.rut, entry.encounterId) === lookupKey(result.run, result.encounterId)
+    const pending = diff.pendingAdministrativeDischarges.find(entry =>
+      matchesPendingLookup(entry, result)
     );
     if (
       !pending?.encounterId ||
@@ -75,7 +95,7 @@ const eligibleLookups = (
     ) {
       continue;
     }
-    eligible.set(lookupKey(result.run, result.encounterId), { result, pending });
+    eligible.set(lookupKey(pending.rut, pending.encounterId), { result, pending });
   }
   return eligible;
 };

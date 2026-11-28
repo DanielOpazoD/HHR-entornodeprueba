@@ -8,7 +8,7 @@ import {
 } from '../bridge/extensionHealthBridge';
 import { createPatientFlowRequestCache } from '../domain/patientFlowRequestCache';
 import { isRayenTimeoutMessage } from '../domain/rayenSyncPerformance';
-import { normalizeRut } from '@/utils/rutUtils';
+import { hasNonRutLetter, isSameForeignDocument, normalizeRut } from '@/utils/rutUtils';
 import type { EgresoLookupResult } from '../contracts/egresoLookup';
 
 interface EvidenceCounters {
@@ -109,11 +109,16 @@ export const createRayenSnapshotEvidenceClient = (
           batch.forEach((target, index) => {
             const run = typeof target === 'string' ? target : target.run;
             const encounterId = typeof target === 'string' ? '' : target.encounterId;
+            const isPassport = typeof target !== 'string' && target.documentType === 'Pasaporte';
             const result = response[index];
+            const documentMatches = isPassport
+              ? isSameForeignDocument(result?.run, run) ||
+                (Boolean(encounterId) &&
+                  !hasNonRutLetter(result?.run ?? '') &&
+                  normalizeRut(result?.run) === normalizeRut(run))
+              : normalizeRut(result?.run) === normalizeRut(run);
             const matches =
-              result &&
-              normalizeRut(result.run) === normalizeRut(run) &&
-              (!encounterId || result.encounterId === encounterId);
+              result && documentMatches && (!encounterId || result.encounterId === encounterId);
             results[start + index] = matches
               ? result
               : { run, encounterId, error: 'La consulta de este egreso quedó pendiente.' };

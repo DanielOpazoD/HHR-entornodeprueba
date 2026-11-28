@@ -1,5 +1,11 @@
 import { isCalendarDate } from '@/utils/clinicalDateUtils';
-import { hasNonRutLetter, hasPassportShapeBeforeLetterRule, normalizeRut } from '@/utils/rutUtils';
+import {
+  hasNonRutLetter,
+  hasPassportShapeBeforeLetterRule,
+  isSameForeignDocument,
+  isValidRut,
+  normalizeRut,
+} from '@/utils/rutUtils';
 import { correctedEgresoFields } from '../mapping/reportEgresoDateTime';
 import type { RayenHospitalizationReportResult } from '../bridge/hospitalizationReportsBridge';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
@@ -118,11 +124,17 @@ export const recoverHistoricalReportEpisodes = async (
       const report = await dependencies.fetchStatisticalDischarge(episode.encId);
       if (!report.base64 || report.error) return row;
       const evidence = parseStatisticalDischargeEvidence(
-        await dependencies.extractText(decodePdfBase64(report.base64))
+        await dependencies.extractText(decodePdfBase64(report.base64)),
+        { allowForeignDocument: !isValidRut(row.run) }
       );
+      const evidenceDocumentMatches = evidence
+        ? evidence.identifierKind === 'foreign-document'
+          ? isSameForeignDocument(evidence.run, row.run)
+          : evidence.run === normalizeRut(row.run)
+        : false;
       if (
         !evidence ||
-        evidence.run !== normalizeRut(row.run) ||
+        !evidenceDocumentMatches ||
         // clinical-clock-allow instant-calendar-slice: Parsed report admissionAt is unzoned hospital wall time, matched to an episode calendar date.
         evidence.admissionAt.slice(0, 10) !== episode.startDate ||
         // clinical-clock-allow instant-calendar-slice: Parsed report dischargeAt is unzoned hospital wall time, matched to an episode calendar date.

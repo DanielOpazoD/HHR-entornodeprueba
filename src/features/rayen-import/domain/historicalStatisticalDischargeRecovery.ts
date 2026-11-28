@@ -1,4 +1,4 @@
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameForeignDocument, isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { PatientFlowReportResult } from '../bedTraceabilityResolver';
 import {
@@ -50,9 +50,19 @@ export const recoverLocalBedFromStatisticalDischarge = async (
     const report = await fetchReport(candidate.encounter.encounterId);
     if (!report.base64 || report.error) return null;
     const text = await extractText(decodePdfBase64(report.base64));
-    const evidence = parseStatisticalDischargeEvidence(text);
+    const isPassport = candidate.encounter.documentType === 'Pasaporte';
+    const evidence = parseStatisticalDischargeEvidence(text, {
+      allowForeignDocument: isPassport || !isValidRut(candidate.encounter.run),
+    });
     if (!evidence) return { reason: 'el egreso individual quedó sin verificar.' };
-    if (evidence.run !== normalizeRut(candidate.encounter.run)) {
+    if (isPassport && evidence.identifierKind !== 'foreign-document') {
+      return { reason: 'el documento del egreso individual no coincide.' };
+    }
+    const documentMatches =
+      evidence.identifierKind === 'foreign-document'
+        ? isSameForeignDocument(evidence.run, candidate.encounter.run)
+        : evidence.run === normalizeRut(candidate.encounter.run);
+    if (!documentMatches) {
       return { reason: 'el RUN del egreso individual no coincide.' };
     }
     if (!confirmsHospitalizationAt(evidence, cutoff)) {

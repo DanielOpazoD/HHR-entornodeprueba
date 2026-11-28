@@ -14,7 +14,10 @@ import { DischargeRowView } from '@/features/census/components/DischargeRowView'
 import { buildDischargeClinicalDocumentsPatientSnapshot } from '@/features/census/controllers/movementClinicalDocumentsController';
 import { DeferredHospitalizationReportsDialog } from '@/features/census/components/DeferredHospitalizationReportsDialog';
 import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
-import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
+import {
+  resolveMovementDocumentType,
+  resolveMovementHistoricalAdmissionDate,
+} from '@/types/domain/movements';
 
 const dischargeBedLabel = (item: DischargeData): string => {
   const name = normalizeCribDisplayText(item.bedName);
@@ -135,6 +138,7 @@ export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
           onClose={() => setShowHospitalizationReports(false)}
           patientName={item.patientName}
           patientRun={item.rut}
+          patientDocumentType={resolveMovementDocumentType(item)}
           currentEpisodeId={item.clinicalEpisodeId}
           admissionDate={resolveMovementHistoricalAdmissionDate(item)}
           censusDate={item.movementDate || recordDate}

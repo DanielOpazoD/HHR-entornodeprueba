@@ -11,7 +11,10 @@ import type { TransferRowViewModel } from '@/features/census/types/censusMovemen
 import { TransferRowView } from '@/features/census/components/TransferRowView';
 import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
 import { DeferredHospitalizationReportsDialog } from './DeferredHospitalizationReportsDialog';
-import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
+import {
+  resolveMovementDocumentType,
+  resolveMovementHistoricalAdmissionDate,
+} from '@/types/domain/movements';
 
 interface TransferRowActionHandlers {
   undoTransfer: (id: string) => void | Promise<void>;
@@ -100,6 +103,7 @@ export const TransferRow: React.FC<TransferRowProps> = React.memo(
             onClose={() => setShowHospitalizationReports(false)}
             patientName={item.patientName}
             patientRun={item.rut}
+            patientDocumentType={resolveMovementDocumentType(item)}
             currentEpisodeId={item.clinicalEpisodeId}
             admissionDate={resolveMovementHistoricalAdmissionDate(item)}
             censusDate={item.movementDate || recordDate}

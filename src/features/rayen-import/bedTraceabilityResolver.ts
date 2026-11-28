@@ -7,12 +7,16 @@ import type { RayenCensusSnapshot, RayenEncounter } from './contracts/rayenSnaps
 import type { EgresoLookupResult } from './contracts/egresoLookup';
 import { censusNightCloseTimestamp, toIsoCensusDay } from './domain/censusDayPolicy';
 import { isOccupiedCensusPatient as isOccupied } from './domain/censusReconciliationPredicates';
-import { latestPatientFlowMovement, patientRunFromFlowReport } from './mapping/parsePatientFlow';
+import {
+  latestPatientFlowMovement,
+  patientIdentifierFromFlowReport,
+  patientRunFromFlowReport,
+} from './mapping/parsePatientFlow';
 import {
   absoluteInstantInRapaNui,
   encounterWallClockInRapaNui,
 } from './mapping/encounterWallClock';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameForeignDocument, normalizeRut } from '@/utils/rutUtils';
 import { historicalEncounterFromLocal } from './domain/historicalEncounterFromLocal';
 import type { ClinicalReadErrorCode } from '@/types/domain/rayenSync';
 
@@ -86,9 +90,15 @@ export const resolveOccupiedBedTraceability = async (
         const report = await dependencies.fetchReport(encounterId);
         if (!report.base64 || report.error) return;
         const reportText = await extractText(base64ToArrayBuffer(report.base64));
+        const isPassport = encounter.documentType === 'Pasaporte';
         const reportRun = patientRunFromFlowReport(reportText);
-        const encounterRun = normalizeRut(encounter.run);
-        if (!reportRun || !encounterRun || reportRun !== encounterRun) return;
+        const identityMatches = isPassport
+          ? !reportRun &&
+            isSameForeignDocument(patientIdentifierFromFlowReport(reportText), encounter.run)
+          : Boolean(
+              reportRun && normalizeRut(encounter.run) && reportRun === normalizeRut(encounter.run)
+            );
+        if (!identityMatches) return;
         const movement = latestPatientFlowMovement(reportText, {
           notBefore: admissionCutoff,
           notAfter: effectiveCutoff,
@@ -123,14 +133,17 @@ export interface BedTraceabilityChainResult {
 const lookupConfirmsActiveEpisode = (
   results: EgresoLookupResult[],
   episodeId: string,
-  rut: string
+  rut: string,
+  documentType?: PatientData['documentType']
 ): boolean => {
+  const isPassport = documentType === 'Pasaporte';
   const normalizedRut = normalizeRut(rut);
   const exact = results.find(
     result =>
       String(result.encounterId ?? '').trim() === episodeId &&
-      Boolean(normalizedRut) &&
-      normalizeRut(result.run) === normalizedRut
+      (isPassport
+        ? isSameForeignDocument(result.run, rut)
+        : Boolean(normalizedRut) && normalizeRut(result.run) === normalizedRut)
   );
   return Boolean(
     exact?.egreso &&
@@ -167,7 +180,7 @@ export const recoverMissingSnapshotPlacements = async (
     if (
       !isOccupied(patient) ||
       patient.clinicalEpisodeId?.trim() !== encounterId ||
-      !lookupConfirmsActiveEpisode(lookupResults, encounterId, patient.rut)
+      !lookupConfirmsActiveEpisode(lookupResults, encounterId, patient.rut, patient.documentType)
     ) {
       return [];
     }
@@ -183,8 +196,14 @@ export const recoverMissingSnapshotPlacements = async (
           const report = await dependencies.fetchReport(encounterId);
           if (!report.base64 || report.error) return;
           const text = await extractText(base64ToArrayBuffer(report.base64));
+          const isPassport = patient.documentType === 'Pasaporte';
+          const reportRun = patientRunFromFlowReport(text);
           const expectedRut = normalizeRut(patient.rut);
-          if (!expectedRut || patientRunFromFlowReport(text) !== expectedRut) return;
+          const identityMatches = isPassport
+            ? !reportRun &&
+              isSameForeignDocument(patientIdentifierFromFlowReport(text), patient.rut)
+            : Boolean(expectedRut && reportRun === expectedRut);
+          if (!identityMatches) return;
           const localEncounter = historicalEncounterFromLocal(patient);
           const admissionCutoff = encounterWallClockInRapaNui(localEncounter.admissionDatetime);
           const movement = latestPatientFlowMovement(text, {

@@ -37,6 +37,7 @@ interface ClinicalPanelTriggerProps {
   triggerKey?: string;
   patientName: string;
   patientRun: string;
+  patientDocumentType?: 'RUT' | 'Pasaporte';
   clinicalEpisodeId?: string;
   encounterRouteHint?: 'medical' | 'nurse';
   admissionDate?: string;
@@ -151,6 +152,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   triggerKey = bedId,
   patientName,
   patientRun,
+  patientDocumentType,
   clinicalEpisodeId,
   encounterRouteHint,
   admissionDate,
@@ -236,6 +238,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
           onClose={() => setAreReportsOpen(false)}
           patientName={patientName}
           patientRun={patientRun}
+          patientDocumentType={patientDocumentType}
           currentEpisodeId={episode}
           admissionDate={admissionDate}
           censusDate={censusDate}

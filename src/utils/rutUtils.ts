@@ -96,15 +96,23 @@ export const isSameRut = (left?: string, right?: string): boolean =>
   !hasNonRutLetter(left ?? '') &&
   !hasNonRutLetter(right ?? '');
 
-/** A passport's text without spaces, dots, dashes or case. */
-const passportText = (value?: string): string => (value ?? '').toUpperCase().replace(/[\s.-]/g, '');
+/** Canonical text for a passport or foreign document (spaces, dots, dashes and case ignored). */
+export const normalizeForeignDocument = (value?: string): string =>
+  (value ?? '').toUpperCase().replace(/[\s.-]/g, '');
+
+/** Two passport/foreign documents match exactly when their non-empty canonical text with digits agrees. */
+export const isSameForeignDocument = (left?: string, right?: string): boolean => {
+  const normalizedLeft = normalizeForeignDocument(left);
+  const normalizedRight = normalizeForeignDocument(right);
+  return Boolean(normalizedLeft && /\d/.test(normalizedLeft) && normalizedLeft === normalizedRight);
+};
 
 /** The same document: the same RUT, or the same passport text (separators and case aside). */
 export const isSameDocument = (left?: string, right?: string): boolean =>
   isSameRut(left, right) ||
   (hasNonRutLetter(left ?? '') &&
     hasNonRutLetter(right ?? '') &&
-    passportText(left) === passportText(right));
+    normalizeForeignDocument(left) === normalizeForeignDocument(right));
 
 /**
  * Map/Set key for a document: two keys are equal exactly when isSameDocument holds. A value
@@ -113,7 +121,9 @@ export const isSameDocument = (left?: string, right?: string): boolean =>
  */
 export const documentIdentityKey = (value?: string): string => {
   if (!/\d/.test(value ?? '')) return '';
-  return hasNonRutLetter(value ?? '') ? `passport:${passportText(value)}` : normalizeRut(value);
+  return hasNonRutLetter(value ?? '')
+    ? `passport:${normalizeForeignDocument(value)}`
+    : normalizeRut(value);
 };
 
 /**

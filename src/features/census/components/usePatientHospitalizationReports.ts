@@ -10,6 +10,7 @@ import {
 
 interface PatientReportContext {
   patientRun: string;
+  patientDocumentType?: 'RUT' | 'Pasaporte';
   patientName: string;
   clinicalEpisodeId?: string;
   admissionDate?: string;
@@ -67,6 +68,9 @@ export const usePatientHospitalizationReports = (): PatientHospitalizationReport
           (episode.encId === context.clinicalEpisodeId ? context.admissionDate : undefined);
         const result = await requestRayenHospitalizationDocument({
           patientRun: context.patientRun,
+          ...(context.patientDocumentType
+            ? { patientDocumentType: context.patientDocumentType }
+            : {}),
           ...(episodeAdmissionDate ? { admissionDate: episodeAdmissionDate } : {}),
           censusDate: context.censusDate,
           clinicalEpisodeId: episode.encId,

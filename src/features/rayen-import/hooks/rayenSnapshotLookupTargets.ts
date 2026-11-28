@@ -1,6 +1,6 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoLookupResult } from '../contracts/egresoLookup';
-import { normalizeRut } from '@/utils/rutUtils';
+import { isSameForeignDocument, normalizeRut } from '@/utils/rutUtils';
 
 export const collectEgresoLookupTargets = (
   diff: CensusImportDiff,
@@ -13,7 +13,13 @@ export const collectEgresoLookupTargets = (
         !existingResults.some(
           result =>
             result.encounterId === entry.encounterId &&
-            normalizeRut(result.run) === normalizeRut(String(entry.rut))
+            (entry.documentType === 'Pasaporte'
+              ? isSameForeignDocument(result.run, entry.rut)
+              : normalizeRut(result.run) === normalizeRut(String(entry.rut)))
         )
     )
-    .map(entry => ({ run: entry.rut, encounterId: entry.encounterId as string }));
+    .map(entry => ({
+      run: entry.rut,
+      encounterId: entry.encounterId as string,
+      ...(entry.documentType === 'Pasaporte' ? { documentType: 'Pasaporte' as const } : {}),
+    }));

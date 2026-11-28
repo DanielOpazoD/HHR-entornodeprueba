@@ -263,6 +263,7 @@ export const appendMissingFichaSignals = (
     diff.pendingAdministrativeDischarges.push({
       bedId,
       rut: patient.rut,
+      ...(patient.documentType === 'Pasaporte' ? { documentType: 'Pasaporte' as const } : {}),
       patientName: patient.patientName,
       signal: 'missing-from-ficha',
       encounterId: patient.clinicalEpisodeId,

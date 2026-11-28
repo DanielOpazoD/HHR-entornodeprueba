@@ -24,6 +24,7 @@ interface DischargeBadgeProps {
   verification?: RayenDischargeVerification;
   patientName: string;
   patientRun: string;
+  patientDocumentType?: 'RUT' | 'Pasaporte';
   clinicalEpisodeId?: string;
   admissionDate?: string;
   censusDate?: string;
