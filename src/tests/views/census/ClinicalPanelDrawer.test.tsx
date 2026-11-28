@@ -31,6 +31,7 @@ vi.mock('@/context/UIContext', () => ({
 import { panelResult } from './clinicalPanelDrawer.fixture';
 
 import { ClinicalPanelDrawer } from '@/features/census/components/patient-row/ClinicalPanelDrawer';
+import { CLINICAL_PANEL_WIDE_STORAGE_KEY } from '@/features/census/components/patient-row/clinicalPanelWidthPreference';
 
 const renderDrawer = (bedId: string) =>
   render(
@@ -45,6 +46,7 @@ const renderDrawer = (bedId: string) =>
 
 describe('ClinicalPanelDrawer', () => {
   beforeEach(() => {
+    window.localStorage.removeItem(CLINICAL_PANEL_WIDE_STORAGE_KEY);
     mocks.request.mockReset();
     mocks.request.mockResolvedValue(panelResult);
     mocks.clinicalAction.mockReset();
@@ -144,6 +146,69 @@ describe('ClinicalPanelDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reducir panel de lectura' }));
     expect(screen.getByRole('dialog')).toHaveClass('w-[460px]');
     expect(mocks.request).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists wide reading preference across drawer reopens', async () => {
+    const firstRender = renderDrawer('R1');
+    await screen.findByText('Evolución médica estable.');
+    expect(screen.getByRole('dialog')).toHaveClass('w-[460px]');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ampliar panel de lectura' }));
+    expect(screen.getByRole('dialog')).toHaveClass('w-[680px]');
+    expect(window.localStorage.getItem(CLINICAL_PANEL_WIDE_STORAGE_KEY)).toBe('true');
+
+    firstRender.unmount();
+
+    renderDrawer('R2');
+    await screen.findByText('Evolución médica estable.');
+    expect(screen.getByRole('dialog')).toHaveClass('w-[680px]');
+    expect(screen.getByRole('button', { name: 'Reducir panel de lectura' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('navigates between patients with Alt + ArrowLeft / ArrowRight unless typing or in nested dialogs', async () => {
+    const onPrevious = vi.fn();
+    const onNext = vi.fn();
+    render(
+      <>
+        <input aria-label="Filtro externo" />
+        <ClinicalPanelDrawer
+          bedId="H1C2"
+          patientName="Paciente de prueba"
+          clinicalEpisodeId="141121"
+          canNavigatePrevious
+          canNavigateNext
+          onNavigatePrevious={onPrevious}
+          onNavigateNext={onNext}
+          onOpenHospitalizationReports={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </>
+    );
+
+    await screen.findByText('Evolución médica estable.');
+    fireEvent.keyDown(document, { key: 'ArrowLeft', altKey: true });
+    fireEvent.keyDown(document, { key: 'ArrowRight', altKey: true });
+    expect(onPrevious).toHaveBeenCalledTimes(1);
+    expect(onNext).toHaveBeenCalledTimes(1);
+
+    // Ignored when typing inside an editable input
+    const input = screen.getByLabelText('Filtro externo');
+    input.focus();
+    fireEvent.keyDown(input, { key: 'ArrowRight', altKey: true });
+    expect(onNext).toHaveBeenCalledTimes(1);
+
+    // Ignored while nested document manager dialog is open
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Abrir Gestor documental de Paciente de prueba; 3 archivos',
+      })
+    );
+    await screen.findByRole('dialog', { name: 'Documentos de Paciente de prueba' });
+    fireEvent.keyDown(document, { key: 'ArrowLeft', altKey: true });
+    expect(onPrevious).toHaveBeenCalledTimes(1);
   });
 
   it('separates handoffs, labels inactive medications, and renders care execution', async () => {

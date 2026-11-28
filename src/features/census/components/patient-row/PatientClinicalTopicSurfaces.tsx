@@ -88,6 +88,8 @@ export const PatientClinicalTopicSurfaces: React.FC<PatientClinicalTopicSurfaces
         triggerKey={triggerKey}
         patientName={fullName}
         patientRun={patient.rut}
+        patientAge={patient.age}
+        diagnosis={patient.pathology}
         patientDocumentType={patient.documentType}
         clinicalEpisodeId={patient.clinicalEpisodeId}
         encounterRouteHint={patient.eloisaManualImportAudit?.encounterRoute}

@@ -17,10 +17,12 @@ vi.mock('@/features/census/components/patient-row/ClinicalPanelDrawer', async ()
 });
 
 import { ClinicalPanelTrigger } from '@/features/census/components/patient-row/ClinicalPanelTrigger';
+import { CLINICAL_PANEL_WIDE_STORAGE_KEY } from '@/features/census/components/patient-row/clinicalPanelWidthPreference';
 import { FichaAccess } from '@/tests/views/census/clinicalPanelFichaAccess';
 
 describe('clinical panel deferred import', () => {
   it('shows a usable drawer immediately and replaces it when the module arrives', async () => {
+    window.localStorage.setItem(CLINICAL_PANEL_WIDE_STORAGE_KEY, 'true');
     render(
       <FichaAccess patientName="Paciente de prueba" panelKey="R2:141336">
         <ClinicalPanelTrigger
@@ -37,6 +39,7 @@ describe('clinical panel deferred import', () => {
 
     fireEvent.click(trigger);
     const loadingDrawer = screen.getByTestId('clinical-panel-module-loading');
+    expect(loadingDrawer).toHaveClass('w-[680px]');
     expect(loadingDrawer).toHaveAttribute('aria-busy', 'true');
     expect(loadingDrawer).toHaveTextContent('Abriendo ficha clínica…');
     expect(loadingDrawer).toHaveFocus();
@@ -50,5 +53,6 @@ describe('clinical panel deferred import', () => {
     moduleGate.release();
     expect(await screen.findByText('Ficha clínica cargada')).toBeInTheDocument();
     expect(screen.queryByTestId('clinical-panel-module-loading')).not.toBeInTheDocument();
+    window.localStorage.removeItem(CLINICAL_PANEL_WIDE_STORAGE_KEY);
   });
 });
