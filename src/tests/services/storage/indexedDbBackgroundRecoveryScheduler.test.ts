@@ -23,14 +23,12 @@ describe('indexedDbBackgroundRecoveryScheduler', () => {
   it('schedules one recovery retry at a time and executes the retry callback', () => {
     const onRetry = vi.fn();
     const scheduler = createIndexedDbBackgroundRecoveryScheduler({
-      getStickyFallbackMode: () => false,
       onRetry,
     });
 
     scheduler.schedule();
     scheduler.schedule();
 
-    expect(scheduler.getAttempts()).toBe(1);
     expect(recordIndexedDbRecoveryNotice).toHaveBeenCalledTimes(1);
     expect(recordIndexedDbRecoveryNotice).toHaveBeenCalledWith(
       'indexeddb_recovery_retry_scheduled',
@@ -44,22 +42,15 @@ describe('indexedDbBackgroundRecoveryScheduler', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('emits a single blocked notice when sticky fallback disables recovery', () => {
-    const scheduler = createIndexedDbBackgroundRecoveryScheduler({
-      getStickyFallbackMode: () => true,
-      onRetry: vi.fn(),
-    });
-
+  it('cancels a scheduled retry after recovery and grants a fresh budget', () => {
+    const onRetry = vi.fn();
+    const scheduler = createIndexedDbBackgroundRecoveryScheduler({ onRetry });
     scheduler.schedule();
+    scheduler.reset();
+    vi.runAllTimers();
+    expect(onRetry).not.toHaveBeenCalled();
     scheduler.schedule();
-
-    expect(scheduler.getAttempts()).toBe(0);
-    expect(recordIndexedDbRecoveryNotice).toHaveBeenCalledTimes(1);
-    expect(recordIndexedDbRecoveryNotice).toHaveBeenCalledWith(
-      'indexeddb_recovery_disabled',
-      expect.any(String),
-      expect.objectContaining({ stickyFallbackMode: true, attempts: 0 }),
-      'blocked'
-    );
+    vi.advanceTimersByTime(500);
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

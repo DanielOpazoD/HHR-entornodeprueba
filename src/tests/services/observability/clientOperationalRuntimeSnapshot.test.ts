@@ -20,7 +20,6 @@ describe('clientOperationalRuntimeSnapshot', () => {
       localPersistence: {
         indexedDbAvailable: true,
         fallbackMode: false,
-        stickyFallbackMode: false,
         runtimeState: 'ok',
       },
       sync: {
@@ -61,7 +60,6 @@ describe('clientOperationalRuntimeSnapshot', () => {
       localPersistence: {
         indexedDbAvailable: true,
         fallbackMode: true,
-        stickyFallbackMode: false,
         runtimeState: 'recoverable',
       },
       sync: {

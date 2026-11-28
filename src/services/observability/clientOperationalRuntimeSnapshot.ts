@@ -67,9 +67,6 @@ export const buildClientOperationalRuntimeSnapshot = ({
     ...(sync.readState === 'unavailable'
       ? ['La cola de sincronizacion no pudo inspeccionarse desde runtime local.']
       : []),
-    ...(localPersistence.stickyFallbackMode
-      ? ['IndexedDB permanece en fallback persistente durante esta sesion.']
-      : []),
   ];
 
   return {
