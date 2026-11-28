@@ -1,5 +1,6 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { hasNurseEditingWindowClosed } from '@/utils/clinicalWallClock';
+import { canReleaseClosedWindowRefusals } from '@/shared/access/censusDayWriteAccessPolicy';
 
 /** An unchanged retry cannot recover the remote version its writer never had. */
 export const requiresDailyRecordBaseReview = (
@@ -22,12 +23,13 @@ const DAILY_RECORD_KEY = /^daily:(\d{4}-\d{2}-\d{2})$/;
  * proves no closure. The administrator has no window, so the server never refuses them for it.
  */
 export const isClosedNurseWindowRefusal = (
-  task: Pick<SyncTask, 'type' | 'key' | 'status' | 'lastErrorCode'>,
+  task: Pick<SyncTask, 'type' | 'key' | 'status' | 'lastErrorCode' | 'writerRole'>,
   now: number
 ): boolean => {
   const day = task.key?.match(DAILY_RECORD_KEY)?.[1];
   return (
     task.type === 'UPDATE_DAILY_RECORD' &&
+    (task.writerRole === undefined || canReleaseClosedWindowRefusals(task.writerRole)) &&
     task.status === 'FAILED' &&
     !!day &&
     /(?:^|\/)permission-denied$/.test(task.lastErrorCode ?? '') &&

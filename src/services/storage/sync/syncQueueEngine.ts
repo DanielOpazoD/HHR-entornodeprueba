@@ -175,7 +175,9 @@ export const createSyncQueueEngine = ({
       options.heldByConflict === undefined
         ? undefined
         : resolveHeldConflictState(options.heldByConflict, contextMeta.contexts, now);
-    const existing = key ? await store.findReusableTask(type, key, ownerKey) : null;
+    const existing = key
+      ? await store.findReusableTask(type, key, ownerKey, options.authoringSession)
+      : null;
     // The store merges this write's own intent with the pending task inside its transaction.
     const syncContract = buildSyncTaskContract(type, payload, meta?.syncContract);
 
@@ -205,6 +207,7 @@ export const createSyncQueueEngine = ({
         retryCount: 0,
         key,
         ownerKey: taskOwnerKey,
+        writerRole: options.authoringSession.writerRole,
         contexts: contextMeta.contexts,
         origin: meta?.origin || existing?.origin || 'direct_queue',
         recoveryPolicy: contextMeta.recoveryPolicy,
@@ -268,10 +271,9 @@ export const createSyncQueueEngine = ({
 
   /**
    * SAVE-04: a census day this person may no longer edit shows the server's version. Only a role
-   * with a nurse window has one to close; the administrator keeps the permission recovery. The task
-   * does not keep its writer's role, so the session's role decides, and only for tasks of the
-   * session that this document admitted, its authenticated account and the task all agree on: any
-   * divergence (another tab admitted someone else on the shared key) leaves everything as it is.
+   * with a nurse window has one to close. The store checks the original writer, and this pass
+   * checks that the same admitted account still acts as a nurse. For legacy sends without an
+   * original role the current session keeps its existing recovery.
    */
   const releaseClosedWindowRefusals = async (owner: string | null, stopped: () => boolean) => {
     if (!owner || !store.releaseClosedWindowRefusals || stopped()) return;

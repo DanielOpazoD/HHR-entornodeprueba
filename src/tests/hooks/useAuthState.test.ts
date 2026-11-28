@@ -116,7 +116,8 @@ describe('useAuthState baseline', () => {
     expect(result.current.isEditor).toBe(true);
     await waitFor(() =>
       expect(sessionScopedStorageService.reconcileAuthorizedSessionOwner).toHaveBeenCalledWith(
-        'user:u123'
+        'user:u123',
+        'editor'
       )
     );
   });

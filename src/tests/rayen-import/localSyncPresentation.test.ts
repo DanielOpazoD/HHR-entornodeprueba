@@ -141,6 +141,17 @@ describe('a census send refused after its editing window closed', () => {
   const view = (operation: SyncQueueOperation, now: number, isAdmin = false) =>
     listQuarantinedOperations([operation], { now, isAdmin })[0];
 
+  it('keeps the permission retry when the writer was an administrator', () => {
+    expect(view(refused({ writerRole: 'admin' }), closesAt)).toMatchObject({
+      recovery: 'review_authorization',
+    });
+    expect(
+      view(refused({ writerRole: 'nurse_hospital', projectionReleased: true }), closesAt, true)
+    ).toMatchObject({
+      recovery: 'editing_window_closed',
+    });
+  });
+
   it.each(['permission-denied', 'functions/permission-denied'])(
     'names the closed window, not the account, for %s (rules and authority paths)',
     code => {

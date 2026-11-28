@@ -1,12 +1,16 @@
+import type { UserRole } from '@/types/authRoleTypes';
+
 // The browser lock covers shared IndexedDB/localStorage; the promise queue is
 // also needed in a single document (and in runtimes without Web Locks).
 let pending: Promise<unknown> = Promise.resolve();
 export const SESSION_GENERATION_KEY = 'hhr_session_generation_v1';
 let admittedGeneration: string | null = null;
 let admittedOwner: string | null = null;
+let admittedRole: UserRole | undefined;
 
 /** Owner admitted by this document, never the shared key another tab can replace. */
 export const getSessionOwner = (): string | null => admittedOwner;
+export const getSessionWriterRole = (): UserRole | undefined => admittedRole;
 
 export const getSessionGeneration = (): string | null => admittedGeneration;
 export const getLogoutGeneration = (): string | null => {
@@ -45,8 +49,10 @@ export const onSessionChange = (listener: SessionChangeListener): (() => void) =
 
 export const setSessionGeneration = (
   generation: string | null,
-  owner: string | null = null
+  owner: string | null = null,
+  role?: UserRole
 ): void => {
+  admittedRole = generation && owner ? role : undefined;
   if (admittedGeneration === generation && admittedOwner === owner) return;
   admittedOwner = generation ? owner : null;
   admittedGeneration = generation;
