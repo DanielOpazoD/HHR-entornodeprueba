@@ -15,11 +15,6 @@ import type { PatientRowResolvedIndicators } from '@/features/census/controllers
 import { buildPatientMainRowViewState } from '@/features/census/controllers/patientRowMainViewController';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 
-export interface PatientRowViewContext {
-  capabilities: PatientRowCapabilities;
-  indicators: PatientRowResolvedIndicators;
-}
-
 const buildPatientRowModalOpenBindings = (runtime: PatientRowRuntime) => ({
   onOpenDemographics: runtime.uiState.openDemographics,
   onOpenClinicalDocuments: runtime.uiState.openClinicalDocuments,
@@ -47,7 +42,8 @@ interface BuildMainSectionBindingsParams {
   accessProfile?: CensusAccessProfile;
   style?: React.CSSProperties;
   runtime: PatientRowRuntime;
-  viewContext: PatientRowViewContext;
+  capabilities: PatientRowCapabilities;
+  indicators: PatientRowResolvedIndicators;
 }
 
 export const buildPatientMainSectionBindings = ({
@@ -61,14 +57,15 @@ export const buildPatientMainSectionBindings = ({
   accessProfile,
   style,
   runtime,
-  viewContext,
+  capabilities,
+  indicators,
 }: BuildMainSectionBindingsParams): PatientMainRowBindings => {
   const mainRowViewState = buildPatientMainRowViewState({
     bedId: bed.id,
     readOnly: readOnly || clinicalEditingDisabled,
     isEmpty: runtime.rowState.isEmpty,
     isBlocked: runtime.rowState.isBlocked,
-    capabilities: viewContext.capabilities,
+    capabilities,
     isUpc: data.isUPC,
     patientName: data.patientName,
   });
@@ -88,7 +85,7 @@ export const buildPatientMainSectionBindings = ({
     hasCompanion: runtime.rowState.hasCompanion,
     hasClinicalCrib: runtime.rowState.hasClinicalCrib,
     isCunaMode: runtime.rowState.isCunaMode,
-    indicators: viewContext.indicators,
+    indicators,
     mainRowViewState,
     onAction: runtime.handleAction,
     ...buildPatientRowModalOpenBindings(runtime),
@@ -139,7 +136,7 @@ interface BuildModalSectionBindingsParams {
   isSubRow: boolean;
   canUseArbitraryAdmissionDate?: boolean;
   runtime: PatientRowRuntime;
-  viewContext: PatientRowViewContext;
+  capabilities: PatientRowCapabilities;
 }
 
 export const buildPatientModalSectionBindings = ({
@@ -149,7 +146,7 @@ export const buildPatientModalSectionBindings = ({
   isSubRow,
   canUseArbitraryAdmissionDate = false,
   runtime,
-  viewContext,
+  capabilities,
 }: BuildModalSectionBindingsParams): PatientRowModalsBindings => ({
   bedId,
   data,
@@ -157,13 +154,13 @@ export const buildPatientModalSectionBindings = ({
   isSubRow,
   showDemographics: runtime.uiState.showDemographics,
   showClinicalDocuments: runtime.uiState.showClinicalDocuments,
-  canOpenClinicalDocuments: viewContext.capabilities.canOpenClinicalDocuments,
+  canOpenClinicalDocuments: capabilities.canOpenClinicalDocuments,
   showExamRequest: runtime.uiState.showExamRequest,
-  canOpenExamRequest: viewContext.capabilities.canOpenExamRequest,
+  canOpenExamRequest: capabilities.canOpenExamRequest,
   showImagingRequest: runtime.uiState.showImagingRequest,
-  canOpenImagingRequest: viewContext.capabilities.canOpenImagingRequest,
+  canOpenImagingRequest: capabilities.canOpenImagingRequest,
   showHistory: runtime.uiState.showHistory,
-  canOpenHistory: viewContext.capabilities.canOpenHistory,
+  canOpenHistory: capabilities.canOpenHistory,
   ...buildPatientRowModalCloseBindings(runtime),
   onSaveDemographics: runtime.modalSavers.onSaveDemographics,
   onSaveCribDemographics: runtime.modalSavers.onSaveCribDemographics,

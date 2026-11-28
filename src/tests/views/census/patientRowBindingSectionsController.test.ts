@@ -65,18 +65,16 @@ describe('patientRowBindingSectionsController', () => {
       },
       handleAction: vi.fn(),
     });
-    const viewContext = {
-      capabilities: {
-        canOpenClinicalDocuments: true,
-        canOpenExamRequest: true,
-        canOpenImagingRequest: true,
-        canOpenHistory: true,
-        canShowClinicalDocumentIndicator: true,
-      },
-      indicators: {
-        hasClinicalDocument: true,
-        isNewAdmission: false,
-      },
+    const capabilities = {
+      canOpenClinicalDocuments: true,
+      canOpenExamRequest: true,
+      canOpenImagingRequest: true,
+      canOpenHistory: true,
+      canShowClinicalDocumentIndicator: true,
+    };
+    const indicators = {
+      hasClinicalDocument: true,
+      isNewAdmission: false,
     };
 
     const main = buildPatientMainSectionBindings({
@@ -87,7 +85,8 @@ describe('patientRowBindingSectionsController', () => {
       readOnly: false,
       actionMenuAlign: 'top',
       runtime,
-      viewContext,
+      capabilities,
+      indicators,
     });
     const sub = buildPatientSubSectionBindings({
       data,
@@ -101,7 +100,7 @@ describe('patientRowBindingSectionsController', () => {
       currentDateString: '2026-03-05',
       isSubRow: false,
       runtime,
-      viewContext,
+      capabilities,
     });
 
     expect(main.indicators.hasClinicalDocument).toBe(true);
