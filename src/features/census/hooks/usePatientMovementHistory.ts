@@ -63,16 +63,18 @@ export const usePatientMovementHistory = ({
   }
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
+    const { signal } = controller;
     if (isOpen && patientRut) {
       const loadData = async () => {
         try {
           const result = await getPatientMovementHistoryDetailed(patientRut, {
+            signal,
             ...(admissionDate && throughDate && !showFullHistory
               ? { dateRange: { startDate: admissionDate, endDate: throughDate } }
               : { forceFullRemoteHydration: true }),
           });
-          if (!active) return;
+          if (signal.aborted) return;
           setHistory(result.history);
           setIsPartial(result.source === 'local');
           if (!result.history) {
@@ -83,18 +85,18 @@ export const usePatientMovementHistory = ({
             );
           }
         } catch (err) {
-          if (!active) return;
+          if (signal.aborted) return;
           patientHistoryLogger.warn('Error fetching patient history', err);
           setError('Error al cargar el historial.');
         } finally {
-          if (active) setIsLoading(false);
+          if (!signal.aborted) setIsLoading(false);
         }
       };
 
       void loadData();
     }
     return () => {
-      active = false;
+      controller.abort();
     };
   }, [isOpen, patientRut, retryCount, admissionDate, throughDate, showFullHistory]);
 
