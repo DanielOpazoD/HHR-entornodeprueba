@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ScoresCell } from '@/features/census/components/patient-row/ScoresCell';
+import { NursingScalesVisibleContext } from '@/features/census/hooks/useNursingScalesVisible';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 vi.mock('@/features/rayen-import', () => ({
@@ -115,6 +116,67 @@ describe('ScoresCell', () => {
     const name = 'Escalas de enfermería: CUDYR C2. Abrir detalle';
     expect(screen.getByRole('button', { name })).not.toHaveAttribute('title');
     expect(screen.queryByTestId('cudyr-pending-status')).not.toBeInTheDocument();
+  });
+
+  it('preserves the CUDYR night and pending state while nursing scales are hidden, then shows them again', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-18T07:00:00Z'));
+    const patient = DataFactory.createMockPatient('H2C1', {
+      age: '45',
+      admissionDate: '2026-07-15',
+      cudyr: undefined,
+      evaluationScores: {
+        braden: {
+          code: 'BRADEN',
+          name: 'Braden',
+          encounterEventId: 1,
+          total: 14,
+          severity: 'Riesgo medio',
+          recordedDate: '2026-07-16',
+          recordedAt: '2026-07-16T12:00:00-06:00',
+        },
+        downton: {
+          code: 'DOWNTON',
+          name: 'Downton',
+          encounterEventId: 2,
+          total: 2,
+          severity: 'Riesgo bajo',
+          recordedDate: '2026-07-16',
+          recordedAt: '2026-07-16T12:00:00-06:00',
+        },
+        cudyr: {
+          category: 'C2',
+          recordedDate: '2026-07-16',
+          recordedAt: '2026-07-17T04:00:00-06:00',
+          source: 'gestión camas',
+        },
+      },
+    });
+    const cell = (visible: boolean, day: string) => (
+      <NursingScalesVisibleContext.Provider value={visible}>
+        <table>
+          <tbody>
+            <tr>
+              <ScoresCell data={patient} currentDateString={day} />
+            </tr>
+          </tbody>
+        </table>
+      </NursingScalesVisibleContext.Provider>
+    );
+    const { rerender } = render(cell(false, '2026-07-16'));
+    expect(
+      screen.getByRole('button', { name: 'Escalas de enfermería: CUDYR C2. Abrir detalle' })
+    ).toBeVisible();
+    expect(screen.queryByTestId('cudyr-pending-status')).toBeNull();
+
+    rerender(cell(false, '2026-07-17'));
+    expect(screen.queryByText('C2')).toBeNull();
+    expect(screen.getByTestId('cudyr-pending-status')).toHaveTextContent(
+      'Programado · turno noche'
+    );
+
+    rerender(cell(true, '2026-07-16'));
+    expect(screen.getByRole('button', { name: /Braden 14.*Downton 2.*CUDYR C2/ })).toBeVisible();
   });
 
   it('shows Eloísa risk wording without changing the local Braden cadence', async () => {

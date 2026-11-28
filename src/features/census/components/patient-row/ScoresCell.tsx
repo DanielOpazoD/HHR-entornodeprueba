@@ -13,10 +13,7 @@ import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { ClinicalDetailLoadBoundary } from './ClinicalDetailLoadBoundary';
 import { ScaleChip } from './ScaleChip';
-import {
-  buildScoresCellModel,
-  type ScoresCellModel,
-} from '@/features/census/controllers/evaluationScoresCellController';
+import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
 import { useNursingScalesVisible } from '@/features/census/hooks/useNursingScalesVisible';
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
 import { isCudyrScoreComplete } from '@/domain/cudyr/cudyrCompletion';
@@ -26,15 +23,6 @@ import { cudyrModality } from '@/domain/cudyr/cudyrModality';
 const ScoresDetailModal = lazy(() =>
   import('./ScoresDetailModal').then(module => ({ default: module.ScoresDetailModal }))
 );
-
-/** An admin hid Braden and Downton for everyone: nursing reports them in the chart alerts. */
-const withoutNursingScales = (model: ScoresCellModel): ScoresCellModel => ({
-  ...model,
-  braden: null,
-  downton: null,
-  history: [],
-  hasAny: model.cudyr != null,
-});
 
 interface ScoresCellProps extends BaseCellProps {
   currentDateString: string;
@@ -69,8 +57,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
   }
 
-  const syncedModel = buildScoresCellModel(data, currentDateString);
-  const model = nursingScalesVisible ? syncedModel : withoutNursingScales(syncedModel);
+  const model = buildScoresCellModel(data, currentDateString, nursingScalesVisible);
   const hasCompleteManualCudyr = isCudyrScoreComplete(data.cudyr);
   const cudyrPending =
     !isSubRow &&

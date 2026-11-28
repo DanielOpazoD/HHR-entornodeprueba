@@ -344,10 +344,37 @@ const scaleInRapaNui = (entry: EvaluationScoreEntry): EvaluationScoreEntry => ({
 
 export const buildScoresCellModel = (
   patient: PatientData,
-  censusIsoDay: string
+  censusIsoDay: string,
+  nursingScalesVisible = true
 ): ScoresCellModel => {
-  // Braden and Downton keep the mainland clock Eloísa printed (TIME-02); CUDYR reads its own.
   const stored: PatientEvaluationScores = patient.evaluationScores ?? {};
+  let cudyr: CudyrCellModel | null = null;
+  const importedCudyr = stored.cudyr;
+  if (
+    importedCudyr &&
+    importedCudyrBelongsToCensus(importedCudyr, censusIsoDay) &&
+    /^[A-D][1-3]$/i.test(importedCudyr.category.trim())
+  ) {
+    const first = importedCudyr.category.trim().charAt(0).toUpperCase();
+    cudyr = {
+      entry: importedCudyr,
+      category: importedCudyr.category.trim().toUpperCase(),
+      band: first === 'A' || first === 'B' || first === 'C' || first === 'D' ? first : null,
+    };
+  }
+
+  if (!nursingScalesVisible) {
+    return {
+      hasAny: cudyr != null,
+      braden: null,
+      downton: null,
+      cudyr,
+      alertUrgency: 'ok',
+      history: [],
+    };
+  }
+
+  // Braden and Downton keep the mainland clock Eloísa printed (TIME-02); CUDYR reads its own.
   const scores: PatientEvaluationScores = {
     ...stored,
     braden: stored.braden && scaleInRapaNui(stored.braden),
@@ -406,21 +433,6 @@ export const buildScoresCellModel = (
       countdownLabel: reapplication
         ? buildCountdownLabel(reapplication.daysUntilDue, reapplication.urgency)
         : null,
-    };
-  }
-
-  let cudyr: CudyrCellModel | null = null;
-  const importedCudyr = scores.cudyr;
-  if (
-    importedCudyr &&
-    importedCudyrBelongsToCensus(importedCudyr, censusIsoDay) &&
-    /^[A-D][1-3]$/i.test(importedCudyr.category.trim())
-  ) {
-    const first = importedCudyr.category.trim().charAt(0).toUpperCase();
-    cudyr = {
-      entry: importedCudyr,
-      category: importedCudyr.category.trim().toUpperCase(),
-      band: first === 'A' || first === 'B' || first === 'C' || first === 'D' ? first : null,
     };
   }
 
