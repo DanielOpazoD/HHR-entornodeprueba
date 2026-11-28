@@ -2,7 +2,6 @@ import { guardAuthoringSession } from '@/services/session/authoringSession';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import type { OperationalOutcomeLike } from '@/services/observability/operationalTelemetryContracts';
 import type { SyncQueueTelemetry } from '@/services/storage/sync';
-import { deleteUnheldRecord } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getTodayISO } from '@/utils/dateCoreUtils';
 
 export const POST_DEPLOY_RECENT_RECORD_REFRESH_KEY = 'hhr_post_deploy_recent_record_refresh_v1';
@@ -189,7 +188,7 @@ export const executePostDeployRecentRecordRefresh = async ({
   // Loaded on use: this module is part of startup, and the queue loads Firestore.
   readSyncQueueTelemetry = async () =>
     (await import('@/services/storage/sync')).getSyncQueueTelemetry(),
-  deleteLocalRecord = deleteUnheldRecord,
+  deleteLocalRecord,
   syncRemoteRecord,
 }: ExecutePostDeployRecentRecordRefreshParams): Promise<PostDeployRecentRecordRefreshResult> => {
   const session = guardAuthoringSession();
@@ -239,10 +238,13 @@ export const executePostDeployRecentRecordRefresh = async ({
 
     if (hasPendingLocalSyncWork(queueTelemetry)) return skipQueueNotEmpty();
 
+    const deleteUnheld =
+      deleteLocalRecord ??
+      (await import('@/services/storage/indexeddb/indexedDbRecordService')).deleteUnheldRecord;
     for (const date of dates) {
       // The telemetry above is already old, and leaves out other owners' work.
       if (!isCurrentSession()) return interrupted();
-      const deleted = await deleteLocalRecord(date);
+      const deleted = await deleteUnheld(date);
       if (!isCurrentSession()) return interrupted();
       if (!deleted) return skipQueueNotEmpty();
       const outcome = await syncRemoteRecord(date);

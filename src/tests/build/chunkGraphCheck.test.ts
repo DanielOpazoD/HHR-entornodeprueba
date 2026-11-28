@@ -134,14 +134,17 @@ describe('check-chunk-graph.mjs', () => {
     expect(result.stdout).toContain('Startup loads 3 chunks');
   });
 
-  it('fails when a forbidden startup chunk is pulled via bare side-effect import', () => {
-    const result = runChunkGraph({
-      'entry.js': 'import"./boot.js";',
-      'boot.js': 'import "./vendor-firebase-firestore-1.js";',
-      'vendor-firebase-firestore-1.js': 'export const db={};',
-    });
+  it.each(['vendor-firebase-firestore-1.js', 'vendor-localdb-1.js'])(
+    'rejects a static startup import of %s',
+    chunk => {
+      const result = runChunkGraph({
+        'entry.js': 'import"./boot.js";',
+        'boot.js': `import "./${chunk}";`,
+        [chunk]: 'export const db={};',
+      });
 
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('vendor-firebase-firestore-1.js');
-  });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(chunk);
+    }
+  );
 });
