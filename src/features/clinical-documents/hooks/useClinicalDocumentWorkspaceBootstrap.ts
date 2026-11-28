@@ -114,7 +114,14 @@ export const useClinicalDocumentWorkspaceBootstrap = ({
           allowedEpisodeKeys: episodeKeys,
           currentPatientRut: patient.rut,
         });
-        if (!confirmed && currentEpisodeDocuments.length === 0) return;
+        if (!confirmed && currentEpisodeDocuments.length === 0) {
+          setDocumentsState(previous =>
+            previous.episodeKey === readKey
+              ? { ...previous, status: 'loading' }
+              : { episodeKey: readKey, documents: EMPTY_DOCUMENTS, status: 'loading' }
+          );
+          return;
+        }
         setDocumentsState({
           episodeKey: readKey,
           status: confirmed ? 'ready' : 'loading',

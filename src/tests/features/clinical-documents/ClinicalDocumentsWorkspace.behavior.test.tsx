@@ -218,6 +218,9 @@ describe('ClinicalDocumentsWorkspace behavior', () => {
     expect(retry).not.toBe(first);
     act(() => retry[1]([], true));
     expect(screen.getByText(emptyText)).toBeInTheDocument();
+    act(() => retry[1]([], false));
+    expect(screen.queryByText(emptyText)).toBeNull();
+    expect(screen.getByText(/Cargando documentos del episodio/)).toBeInTheDocument();
   });
 
   it('renders read-only sheet actions for nurse role', async () => {
