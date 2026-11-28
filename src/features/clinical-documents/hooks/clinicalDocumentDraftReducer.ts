@@ -103,8 +103,12 @@ export type ClinicalDocumentDraftAction =
   | { type: 'APPLY_TEMPLATE'; templateId: string }
   | { type: 'RESTORE_TEMPLATE_CONTENT' }
   | { type: 'AUTOSAVE_REQUESTED' }
-  | { type: 'AUTOSAVE_MARK_CLEAN'; document: ClinicalDocumentRecord; snapshot: string }
-  | { type: 'AUTOSAVE_COMMIT_BASE'; document: ClinicalDocumentRecord; snapshot: string }
+  | {
+      type: 'AUTOSAVE_COMMIT_BASE';
+      document: ClinicalDocumentRecord;
+      requestedSnapshot: string;
+      savedSnapshot: string;
+    }
   | { type: 'AUTOSAVE_SUCCEEDED'; document: ClinicalDocumentRecord; snapshot: string }
   | { type: 'AUTOSAVE_FAILED' }
   | { type: 'SET_IS_SAVING'; value: boolean };
@@ -152,46 +156,6 @@ const commitDocumentAsBase = (
   baseState: buildClinicalDocumentDraftBaseState(document, snapshot),
   pendingRemoteState: emptyBaseState(),
 });
-
-const commitAutosaveBaseState = (
-  state: ClinicalDocumentDraftReducerState,
-  document: ClinicalDocumentRecord,
-  snapshot: string
-): ClinicalDocumentDraftReducerState => ({
-  ...state,
-  isSaving: false,
-  hasPendingRemoteUpdate:
-    state.pendingRemoteState.snapshot !== actionSnapshotKey(snapshot) &&
-    state.hasPendingRemoteUpdate,
-  baseState: buildClinicalDocumentDraftBaseState(document, snapshot),
-  pendingRemoteState:
-    state.pendingRemoteState.snapshot === actionSnapshotKey(snapshot)
-      ? emptyBaseState()
-      : state.pendingRemoteState,
-});
-
-const markAutosaveClean = (
-  state: ClinicalDocumentDraftReducerState,
-  document: ClinicalDocumentRecord,
-  snapshot: string
-): ClinicalDocumentDraftReducerState => ({
-  ...state,
-  isSaving: false,
-  hasPendingRemoteUpdate:
-    state.pendingRemoteState.snapshot !== actionSnapshotKey(snapshot) &&
-    state.hasPendingRemoteUpdate,
-  baseState: {
-    document: structuredClone(document),
-    snapshot: state.draft ? JSON.stringify(state.draft) : snapshot,
-    updatedAt: document.audit.updatedAt || '',
-  },
-  pendingRemoteState:
-    state.pendingRemoteState.snapshot === actionSnapshotKey(snapshot)
-      ? emptyBaseState()
-      : state.pendingRemoteState,
-});
-
-const actionSnapshotKey = (snapshot: string): string => snapshot;
 
 export const clinicalDocumentDraftReducer = (
   state: ClinicalDocumentDraftReducerState,
@@ -382,10 +346,19 @@ export const clinicalDocumentDraftReducer = (
         ...state,
         isSaving: true,
       };
-    case 'AUTOSAVE_MARK_CLEAN':
-      return markAutosaveClean(state, action.document, action.snapshot);
-    case 'AUTOSAVE_COMMIT_BASE':
-      return commitAutosaveBaseState(state, action.document, action.snapshot);
+    case 'AUTOSAVE_COMMIT_BASE': {
+      if (state.draft?.id !== action.document.id) {
+        return { ...state, isSaving: false };
+      }
+      const matchesPendingRemote = state.pendingRemoteState.snapshot === action.savedSnapshot;
+      return {
+        ...state,
+        isSaving: false,
+        baseState: buildClinicalDocumentDraftBaseState(action.document, action.requestedSnapshot),
+        hasPendingRemoteUpdate: state.hasPendingRemoteUpdate && !matchesPendingRemote,
+        pendingRemoteState: matchesPendingRemote ? emptyBaseState() : state.pendingRemoteState,
+      };
+    }
     case 'AUTOSAVE_SUCCEEDED':
       return {
         ...commitDocumentAsBase(state, action.document, action.snapshot),

@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { Dispatch, MutableRefObject } from 'react';
 
-import {
-  executePersistClinicalDocumentEditorDraft,
-  resolveClinicalDocumentAutosaveCommit,
-} from '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases';
+import { executePersistClinicalDocumentEditorDraft } from '@/features/clinical-documents/use-cases/clinicalDocumentEditorUseCases';
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import { useAuditContext } from '@/context/AuditContext';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
@@ -15,6 +12,7 @@ import type { ClinicalDocumentDraftAction } from '@/features/clinical-documents/
 
 interface UseClinicalDocumentDraftAutosaveParams {
   draft: ClinicalDocumentRecord | null;
+  pendingSnapshot: string | null;
   canEdit: boolean;
   isActive: boolean;
   hospitalId: string;
@@ -34,6 +32,7 @@ const AUTOSAVE_DELAY_MS = 900;
 
 export const useClinicalDocumentDraftAutosave = ({
   draft,
+  pendingSnapshot,
   canEdit,
   isActive,
   hospitalId,
@@ -122,27 +121,14 @@ export const useClinicalDocumentDraftAutosave = ({
             dispatch({ type: 'SET_IS_SAVING', value: false });
             return;
           }
-          const savedSnapshot = serializeClinicalDocument(result.data);
-          const currentDraftSnapshot = serializeClinicalDocument(currentDraft);
-          const commitMode = resolveClinicalDocumentAutosaveCommit({
+          lastPersistedSnapshotRef.current = requestedSnapshot;
+          dispatch({
+            type: 'AUTOSAVE_COMMIT_BASE',
+            document: result.data,
             requestedSnapshot,
-            currentDraftSnapshot,
+            savedSnapshot:
+              result.data === record ? requestedSnapshot : serializeClinicalDocument(result.data),
           });
-
-          if (commitMode === 'mark_clean') {
-            lastPersistedSnapshotRef.current = savedSnapshot;
-            dispatch({
-              type: 'AUTOSAVE_MARK_CLEAN',
-              document: result.data,
-              snapshot: savedSnapshot,
-            });
-          } else {
-            dispatch({
-              type: 'AUTOSAVE_COMMIT_BASE',
-              document: result.data,
-              snapshot: savedSnapshot,
-            });
-          }
           return;
         }
 
@@ -235,8 +221,7 @@ export const useClinicalDocumentDraftAutosave = ({
       return;
     }
 
-    const draftSnapshot = serializeClinicalDocument(draft);
-    if (draftSnapshot === lastPersistedSnapshotRef.current) {
+    if (pendingSnapshot === null || pendingSnapshot === lastPersistedSnapshotRef.current) {
       pendingAutosaveRef.current = null;
       return;
     }
@@ -247,7 +232,7 @@ export const useClinicalDocumentDraftAutosave = ({
 
     pendingAutosaveRef.current = {
       draft,
-      requestedSnapshot: draftSnapshot,
+      requestedSnapshot: pendingSnapshot,
     };
     scheduledDraftIdRef.current = draft.id;
 
@@ -257,7 +242,7 @@ export const useClinicalDocumentDraftAutosave = ({
       scheduledDraftIdRef.current = null;
       await performAutosave({
         record: draft,
-        requestedSnapshot: draftSnapshot,
+        requestedSnapshot: pendingSnapshot,
       });
     }, AUTOSAVE_DELAY_MS);
 
@@ -267,19 +252,7 @@ export const useClinicalDocumentDraftAutosave = ({
         autosaveTimerRef.current = null;
       }
     };
-  }, [
-    canEdit,
-    dispatch,
-    draft,
-    draftRef,
-    hospitalId,
-    isActive,
-    lastPersistedSnapshotRef,
-    performAutosave,
-    role,
-    persistReason,
-    user,
-  ]);
+  }, [canEdit, draft, pendingSnapshot, isActive, lastPersistedSnapshotRef, performAutosave, user]);
 
   useEffect(() => {
     if (isActive) {
