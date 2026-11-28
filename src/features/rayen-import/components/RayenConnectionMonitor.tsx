@@ -1,4 +1,3 @@
-import { RayenExtensionDownload } from './RayenExtensionDownload';
 import { RayenCompatibleReaderNotice } from './RayenCompatibleReaderNotice';
 import React from 'react';
 import { normalizeHealthExpiry } from '../bridge/sourceHealthExpiry';
@@ -378,6 +377,14 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
             </div>
             {syncQueueDetail}
             <RayenCompatibleReaderNotice report={report} connection={connection} />
+            {connection === 'incompatible' && (
+              <p
+                data-testid="rayen-incompatible-extension-notice"
+                className={`mt-2 rounded-md border px-2 py-1.5 text-[11px] leading-snug ${SYNC_TONE.review.surface}`}
+              >
+                {extension.message}
+              </p>
+            )}
             {actionError && (
               <p className={`mt-2 text-[11px] leading-snug ${SYNC_TONE.review.text}`} role="alert">
                 {actionError}
@@ -426,12 +433,6 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
           </div>
         )}
       </div>
-      <RayenExtensionDownload
-        installedVersion={report?.version}
-        installedBuildId={report?.buildId}
-        incompatible={connection === 'incompatible'}
-        working={working}
-      />
     </div>
   );
 };

@@ -381,4 +381,22 @@ describe('RayenConnectionMonitor', () => {
       timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
     });
   });
+
+  it('no ofrece descarga de la extensión en HHR y muestra el aviso de actualización en el monitor', () => {
+    const extension = baseExtension({
+      connection: 'incompatible',
+      canSync: false,
+      message: 'Actualiza la extensión Eloísa a la versión 0.48.61 o superior y recárgala.',
+    });
+    renderMonitor(extension);
+
+    expect(screen.getByText('Actualizar extensión')).toBeVisible();
+    expect(screen.getByTestId('rayen-incompatible-extension-notice')).toHaveTextContent(
+      'Actualiza la extensión Eloísa a la versión 0.48.61 o superior y recárgala.'
+    );
+    expect(
+      screen.queryByRole('button', { name: /Descargar extensión|Actualización necesaria/ })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Descargar ZIP/)).not.toBeInTheDocument();
+  });
 });

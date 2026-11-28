@@ -150,14 +150,10 @@ describe('CensusStaffHeader', () => {
 
     expect(screen.getByTestId('rayen-operations-loading')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByText('Cargando controles…')).toBeVisible();
-    for (const name of [
-      'Sincronizar',
-      'Dotación',
-      'Descargar extensión',
-      'Abrir historial de sincronización del día',
-    ]) {
+    for (const name of ['Sincronizar', 'Dotación', 'Abrir historial de sincronización del día']) {
       expect(screen.getByRole('button', { name })).toBeDisabled();
     }
+    expect(screen.queryByRole('button', { name: 'Descargar extensión' })).not.toBeInTheDocument();
     expect(screen.getByTestId('nurse-selector')).toBeInTheDocument();
     expect(screen.getByTestId('tens-selector')).toBeInTheDocument();
     expect(screen.getByTestId('summary-card')).toBeInTheDocument();
