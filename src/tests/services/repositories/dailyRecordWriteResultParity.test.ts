@@ -9,8 +9,10 @@ import {
 import {
   ELSEWHERE,
   PARITY_OWNER,
+  baseDay,
   endSession,
   firestoreError,
+  patchDay,
   resetParityWorld,
 } from './dailyRecordWriteResultParity.test-support';
 import { server, type ServerAnswer } from './dailyRecordWriteResultParityServer.test-support';
@@ -493,5 +495,34 @@ describe('write-result parity: a census edit sent directly', () => {
     const observed = await observePatchCase(DIRECT_SEND_CASES[name]);
     if (process.env.PARITY_DUMP) process.stdout.write(`PARITY ${JSON.stringify(observed)}\n`);
     expect(observed).toEqual(DIRECT_SEND_CASES[name].expected);
+  });
+
+  it('keeps an offline event in its bed and preserves the other occupant in the local census', async () => {
+    const day = baseDay();
+    const otherOccupant = {
+      patientName: 'OTRO PACIENTE SINTÉTICO',
+      clinicalEpisodeId: 'ep_synthetic_parity_R2',
+      pathology: 'OTRO DIAGNÓSTICO',
+    };
+    day.beds.R2 = { ...day.beds.R1, bedId: 'R2', ...otherOccupant };
+    await hospitalDB.dailyRecords.put(day);
+    server.remoteDay = day;
+    server.answer = refuses(() => firestoreError('unavailable'));
+
+    const result = await patchDay(EVENT_PATCH, { baseRecord: day });
+
+    expect(result.savedHere).toBe(true);
+    const beds = {
+      R1: { clinicalEvents: EVENT_PATCH['beds.R1.clinicalEvents'] },
+      R2: otherOccupant,
+    };
+    expect(await hospitalDB.dailyRecords.get(day.date)).toMatchObject({ beds });
+    expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
+      {
+        status: 'PENDING',
+        syncContract: { changedPaths: ['beds.R1.clinicalEvents'] },
+        payload: { beds },
+      },
+    ]);
   });
 });
