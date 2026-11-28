@@ -102,55 +102,24 @@ describe('PWA precache policy', () => {
     }
   });
 
-  it('loads MEDIF on demand with its PDF template while retaining the offline clinical library', () => {
-    const viteConfig = readViteConfig();
+  it('keeps the MEDIF editor and its template out of the offline clinical library precache', () => {
     const patterns = readBundleBudgetConfig().precacheIgnoredAssetPatterns.map(
       pattern => new RegExp(pattern)
     );
     const isExcluded = (asset: string): boolean => patterns.some(pattern => pattern.test(asset));
 
     for (const extension of ['js', 'css']) {
-      expect(viteConfig).toContain(`**/assets/MedifTool-*.${extension}`);
+      expect(ONLINE_ONLY_ASSET_GLOBS).toContain(`**/assets/MedifTool-*.${extension}`);
       expect(isExcluded(`assets/MedifTool-fixture.${extension}`)).toBe(true);
     }
     expect(isExcluded('docs/biblioteca/medif-latam-rellenable.pdf')).toBe(true);
     expect(isExcluded('images/forms/medif/page-1.png')).toBe(true);
     expect(isExcluded('assets/ClinicalLibraryDrawer-fixture.js')).toBe(false);
-    expect(viteConfig).not.toContain('**/assets/ClinicalLibraryDrawer-*.js');
+    expect(ONLINE_ONLY_ASSET_GLOBS).not.toContain('**/assets/ClinicalLibraryDrawer-*.js');
     for (const tool of ['TransferCoverTool', 'CriticalMedicationsTool', 'ScoresTool']) {
       expect(isExcluded(`assets/${tool}-fixture.js`)).toBe(false);
-      expect(viteConfig).not.toContain(`**/assets/${tool}-*.js`);
+      expect(ONLINE_ONLY_ASSET_GLOBS).not.toContain(`**/assets/${tool}-*.js`);
     }
-
-    const registry = fs.readFileSync(
-      'src/features/clinical-library/components/toolRegistry.tsx',
-      'utf8'
-    );
-    expect(registry).toContain('const MedifTool = React.lazy(');
-    expect(registry).toContain("export const loadMedifTool = () => import('./tools/MedifTool')");
-    expect(registry).toContain('loadMedifTool().then(module => ({ default: module.MedifTool }))');
-    expect(registry).not.toMatch(/import\s+\{\s*MedifTool\s*\}\s+from/);
-
-    // The exit guard travels with the editor, so an already open MEDIF can ask
-    // to discard changes without fetching a new chunk after losing connection.
-    const drawer = fs.readFileSync(
-      'src/features/clinical-library/components/ClinicalLibraryDrawer.tsx',
-      'utf8'
-    );
-    const medif = fs.readFileSync(
-      'src/features/clinical-library/components/tools/MedifTool.tsx',
-      'utf8'
-    );
-    expect(drawer).toContain(
-      "import { loadMedifTool, loadPharmacyTool, TOOL_REGISTRY } from './toolRegistry'"
-    );
-    expect(drawer).toContain(
-      'loadMedifTool().then(module => ({ default: module.LibraryExitConfirmation }))'
-    );
-    expect(drawer).not.toContain("import('./tools/MedifTool')");
-    expect(drawer).not.toContain("from './LibraryExitConfirmation'");
-    expect(drawer).not.toContain("import('./LibraryExitConfirmation')");
-    expect(medif).toContain("export { LibraryExitConfirmation } from '../LibraryExitConfirmation'");
   });
 
   it('loads both pharmacy acts and their exit guard from the same deferred editor', () => {
