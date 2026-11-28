@@ -78,47 +78,61 @@ export const HandoffChecklistSection: React.FC<HandoffChecklistSectionProps> = R
       [onUpdateChecklist]
     );
 
+    const isDayChecklist = activeChecklistShift === 'day';
+
     return (
-      <div className="handoff-header min-w-0 bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 print:hidden shadow-sm ring-1 ring-black/[0.02]">
-        {/* Row 1: Shift tabs */}
-        <div className="flex min-w-0 items-center gap-2 mb-3 pb-3 border-b border-slate-100">
+      <div className="handoff-header min-w-0 bg-white rounded-xl border border-slate-200/80 px-3 py-2 print:hidden shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+        {/* Band 1: Shift switcher + staff on one compact row on desktop */}
+        <div className="handoff-top-bar flex min-w-0 flex-col gap-2 pb-2 border-b border-slate-100 lg:flex-row lg:items-center lg:gap-3">
           {showShiftSwitcher && setSelectedShift && (
             <HandoffShiftSwitcher
               selectedShift={selectedShift}
               setSelectedShift={setSelectedShift}
             />
           )}
+
+          <div className="handoff-staff grid min-w-0 flex-1 grid-cols-1 items-center gap-x-4 gap-y-1.5 sm:grid-cols-2">
+            <HandoffStaffDisplay label="Entrega" type="delivers" nurses={deliversList} compact />
+
+            {isReceivesEditable ? (
+              <HandoffStaffSelector
+                label="Recibe"
+                type="receives"
+                bgClass=""
+                selectedNurses={receivesList}
+                availableNurses={nursesList}
+                onUpdate={handleUpdateReceives}
+                readOnly={false}
+                compact
+              />
+            ) : (
+              <HandoffStaffDisplay label="Recibe" type="receives" nurses={receivesList} compact />
+            )}
+          </div>
         </div>
 
-        {/* Row 2: Staff names — min-h ensures consistent height between day/night shifts */}
-        <div className="handoff-staff grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2 items-center mb-3 pb-3 border-b border-slate-100 min-h-[32px]">
-          <HandoffStaffDisplay label="Entrega" type="delivers" nurses={deliversList} compact />
-
-          {isReceivesEditable ? (
-            <HandoffStaffSelector
-              label="Recibe"
-              type="receives"
-              bgClass=""
-              selectedNurses={receivesList}
-              availableNurses={nursesList}
-              onUpdate={handleUpdateReceives}
-              readOnly={false}
-              compact
+        {/* Band 2: Shared crash cart review + shift checklist */}
+        <div
+          className={
+            isDayChecklist
+              ? 'handoff-checklist-bar handoff-checklist-bar--day flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 pt-2'
+              : 'handoff-checklist-bar handoff-checklist-bar--night flex min-w-0 flex-col gap-1.5 pt-2'
+          }
+        >
+          <HandoffSharedChecklist
+            key={record.date}
+            data={record.handoffSharedChecklist}
+            onUpdate={handleUpdateSharedChecklist}
+            readOnly={readOnly}
+            inline={isDayChecklist}
+          />
+          {isDayChecklist && (
+            <span
+              className="hidden h-4 w-px shrink-0 bg-slate-200/80 lg:block"
+              aria-hidden="true"
             />
-          ) : (
-            <HandoffStaffDisplay label="Recibe" type="receives" nurses={receivesList} compact />
           )}
-        </div>
-
-        {/* Row 3: Checklist — min-h ensures consistent height between day/night */}
-        <HandoffSharedChecklist
-          key={record.date}
-          data={record.handoffSharedChecklist}
-          onUpdate={handleUpdateSharedChecklist}
-          readOnly={readOnly}
-        />
-        <div className="min-h-[28px]">
-          {activeChecklistShift === 'day' ? (
+          {isDayChecklist ? (
             <HandoffChecklistDay
               data={record.handoffDayChecklist}
               onUpdate={handleUpdateDayChecklist}

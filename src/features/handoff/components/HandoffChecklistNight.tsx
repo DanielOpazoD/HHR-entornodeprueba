@@ -24,8 +24,8 @@ export const HandoffChecklistNight: React.FC<HandoffChecklistNightProps> = ({
 }) => {
   return (
     <div className="handoff-checklist">
-      <div className="flex w-full items-center gap-2 text-slate-500 shrink-0 lg:w-auto print:w-auto print:text-slate-700">
-        <ClipboardList size={14} className="print:w-3 print:h-3" aria-hidden="true" />
+      <div className="flex items-center gap-1 text-slate-400 shrink-0 print:w-auto print:text-slate-700">
+        <ClipboardList size={13} className="print:w-3 print:h-3" aria-hidden="true" />
         <span className="text-[10px] font-semibold uppercase tracking-wide print:font-bold print:tracking-normal print:text-black print:text-[9px]">
           Checklist
         </span>
@@ -73,7 +73,7 @@ export const HandoffChecklistNight: React.FC<HandoffChecklistNightProps> = ({
         />
 
         {/* Conteo Fármacos NO Controlados + Fecha */}
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 print:flex-nowrap print:gap-1">
+        <div className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 print:flex-nowrap print:gap-1">
           <ChecklistItem
             checked={!!data.conteoNoControlados}
             onChange={checked => onUpdate('conteoNoControlados', checked)}
@@ -90,8 +90,8 @@ export const HandoffChecklistNight: React.FC<HandoffChecklistNightProps> = ({
             }
             disabled={readOnly}
           />
-          <label className="flex min-w-0 items-center gap-2 print:gap-0.5">
-            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide print:tracking-normal print:text-[7px] print:text-black">
+          <label className="inline-flex min-w-0 items-center gap-1.5 print:gap-0.5">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide print:tracking-normal print:text-[7px] print:text-black">
               Próx:
             </span>
             <input
@@ -99,7 +99,7 @@ export const HandoffChecklistNight: React.FC<HandoffChecklistNightProps> = ({
               aria-label="Próximo conteo de medicamentos no controlados"
               value={data.conteoNoControladosProximaFecha || ''}
               onChange={e => onUpdate('conteoNoControladosProximaFecha', e.target.value)}
-              className="h-8 min-w-0 w-32 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50 disabled:text-slate-500 print:hidden"
+              className="h-7 min-w-0 w-[7.75rem] rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 disabled:bg-slate-50 disabled:text-slate-500 print:hidden"
               disabled={readOnly}
             />
             {/* Print-only: show date as text without calendar icon */}

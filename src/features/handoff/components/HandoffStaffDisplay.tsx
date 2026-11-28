@@ -28,14 +28,14 @@ export const HandoffStaffDisplay: React.FC<HandoffStaffDisplayProps> = ({
 
   if (compact) {
     return (
-      <div className="grid min-w-0 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2">
-        <div className={`flex items-center gap-1.5 ${iconColor}`}>
-          <Icon size={14} className="shrink-0" aria-hidden="true" />
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <div className={`flex shrink-0 items-center gap-1 ${iconColor}`}>
+          <Icon size={13} className="shrink-0" aria-hidden="true" />
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 whitespace-nowrap">
             {label}
           </span>
         </div>
-        <span className="min-w-0 text-xs leading-5 text-slate-700 font-medium break-words">
+        <span className="min-w-0 text-xs leading-tight text-slate-700 font-medium break-words">
           {nurse1}
           {nurse2 && `, ${nurse2}`}
         </span>
