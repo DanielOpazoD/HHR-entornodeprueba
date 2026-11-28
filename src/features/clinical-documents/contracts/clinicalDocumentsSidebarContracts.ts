@@ -19,6 +19,8 @@ export interface ClinicalDocumentsSidebarProps {
   onSelectTemplate: (templateId: string) => void;
   onCreateDocument: () => void;
   documents: ClinicalDocumentRecord[];
+  readStatus?: 'loading' | 'ready' | 'error';
+  retryDocuments?: () => void;
   selectedDocumentId: string | null;
   onSelectDocument: (documentId: string) => void;
   onDuplicateDocument: (document: ClinicalDocumentRecord) => void;

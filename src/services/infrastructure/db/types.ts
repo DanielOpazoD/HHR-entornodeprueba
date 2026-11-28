@@ -55,7 +55,8 @@ export interface IDatabaseProvider {
   subscribeQuery<T>(
     collectionName: string,
     options: QueryOptions,
-    callback: (data: T[]) => void
+    callback: (data: T[], confirmed?: boolean) => void,
+    onError?: (error: Error) => void
   ): () => void;
 
   /** Execute multiple writes as an atomic unit */

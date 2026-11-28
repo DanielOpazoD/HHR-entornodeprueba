@@ -85,6 +85,8 @@ export const useClinicalDocumentsWorkspaceModel = ({
     documents,
     selectedDocumentId,
     setSelectedDocumentId,
+    readStatus,
+    retryDocuments,
     episode,
   } = useClinicalDocumentWorkspaceBootstrap({
     patient,
@@ -302,6 +304,8 @@ export const useClinicalDocumentsWorkspaceModel = ({
       selectedTemplateId,
       selectedDocumentId,
       documents: sidebarDocuments,
+      readStatus,
+      retryDocuments,
       draft,
       setSelectedTemplateId,
       setSelectedDocumentId: guardedSetSelectedDocumentId,

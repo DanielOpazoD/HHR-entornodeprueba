@@ -55,6 +55,8 @@ interface BuildSidebarPropsParams {
   selectedTemplateId: string;
   selectedDocumentId: string | null;
   documents: ClinicalDocumentsSidebarProps['documents'];
+  readStatus?: ClinicalDocumentsSidebarProps['readStatus'];
+  retryDocuments?: () => void;
   draft: ClinicalDocumentRecord | null;
   setSelectedTemplateId: (templateId: string) => void;
   setSelectedDocumentId: (documentId: string | null) => void;
@@ -113,6 +115,8 @@ export const buildClinicalDocumentsWorkspaceSidebarProps = ({
   selectedTemplateId,
   selectedDocumentId,
   documents,
+  readStatus,
+  retryDocuments,
   draft,
   setSelectedTemplateId,
   setSelectedDocumentId,
@@ -144,6 +148,8 @@ export const buildClinicalDocumentsWorkspaceSidebarProps = ({
     }),
   onCreateDocument: () => void createDocument(),
   documents,
+  readStatus,
+  retryDocuments,
   selectedDocumentId,
   onSelectDocument: setSelectedDocumentId,
   onDuplicateDocument: document => void handleDuplicateDocument(document),
