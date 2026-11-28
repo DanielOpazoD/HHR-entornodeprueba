@@ -259,7 +259,15 @@ describe('CUDYR daily control', () => {
   });
   it('keeps exclusions visible, allows patient review, and returns to census', () => {
     render(<CudyrView ui={mocks.ui} />);
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no_elegible' } });
+    const filters = screen.getByRole('group', { name: 'Filtrar casos CUDYR' });
+    expect(within(filters).getByRole('button', { name: /Todos 2/ })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(within(filters).getByRole('button', { name: /Elegibles 1/ })).toBeInTheDocument();
+    expect(within(filters).getByRole('button', { name: /Excluidos 1/ })).toBeInTheDocument();
+    expect(within(filters).getByRole('button', { name: /Por revisar 0/ })).toBeInTheDocument();
+    fireEvent.click(within(filters).getByRole('button', { name: /Excluidos 1/ }));
     expect(screen.getByText('RN sintético')).toBeInTheDocument();
     expect(screen.queryByText('Paciente Sintético')).not.toBeInTheDocument();
     fireEvent.click(
@@ -345,7 +353,7 @@ describe('CUDYR daily control', () => {
     expect(
       screen.getByText(/0 CUDYR disponibles \/ 0 pacientes-día elegibles/)
     ).toBeInTheDocument();
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no_elegible' } });
+    fireEvent.click(screen.getByRole('button', { name: /Excluidos/ }));
     expect(daily.getByText('50%')).toBeInTheDocument();
   });
   it('does not invent 100 percent for a day containing only exclusions', () => {
@@ -370,7 +378,7 @@ describe('CUDYR daily control', () => {
     render(<CudyrView ui={mocks.ui} />);
     expect(screen.queryByText('Salida confirmada')).not.toBeInTheDocument();
     expect(screen.getByText('RN sintético')).toBeInTheDocument();
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'no_elegible' } });
+    fireEvent.click(screen.getByRole('button', { name: /Excluidos/ }));
     expect(screen.queryByText('Salida confirmada')).not.toBeInTheDocument();
   });
   it('opens archived bed movements without loading again or changing an exclusion', () => {
@@ -422,6 +430,48 @@ describe('CUDYR daily control', () => {
     mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
     render(<CudyrView ui={mocks.ui} />);
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('distinguishes A, B, C and D categories visually and pins the table header on scroll', () => {
+    const data = fixture();
+    const base = data.rows.find(row => row.eligibility === 'elegible')!;
+    data.rows = [
+      {
+        ...base,
+        key: 'a1',
+        patientName: 'Paciente A',
+        evaluation: { ...base.evaluation!, category: 'A1' },
+      },
+      {
+        ...base,
+        key: 'b2',
+        patientName: 'Paciente B',
+        evaluation: { ...base.evaluation!, category: 'B2' },
+      },
+      {
+        ...base,
+        key: 'c3',
+        patientName: 'Paciente C',
+        evaluation: { ...base.evaluation!, category: 'C3' },
+      },
+      {
+        ...base,
+        key: 'd1',
+        patientName: 'Paciente D',
+        evaluation: { ...base.evaluation!, category: 'D1' },
+      },
+    ];
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+    render(<CudyrView ui={mocks.ui} />);
+
+    expect(screen.getByText('A1')).toHaveClass('bg-rose-50', 'text-rose-800');
+    expect(screen.getByText('B2')).toHaveClass('bg-amber-50', 'text-amber-800');
+    expect(screen.getByText('C3')).toHaveClass('bg-sky-50', 'text-sky-800');
+    expect(screen.getByText('D1')).toHaveClass('bg-emerald-50', 'text-emerald-800');
+    expect(screen.getByRole('table', { name: /Medias:/ }).querySelector('thead')).toHaveClass(
+      'sticky',
+      'top-0'
+    );
   });
 });
 

@@ -85,6 +85,7 @@ describe('cudyrViewModelController', () => {
 
     expect(all.rows).toHaveLength(2);
     expect(all.visibleRows).toHaveLength(2);
+    expect(all.filterCounts).toEqual({ all: 2, elegible: 1, no_elegible: 1, por_revisar: 0 });
     expect(all.dailyPercentage).toBe('100%');
     expect(all.percentage).toBe('100%');
     expect(all.dayHasEnded).toBe(true);

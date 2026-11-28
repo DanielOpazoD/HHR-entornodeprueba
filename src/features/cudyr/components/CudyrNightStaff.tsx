@@ -11,9 +11,11 @@ const label = (date: string) => date.split('-').reverse().join('-');
 export const CudyrNightStaff = ({
   date,
   record,
+  embedded = false,
 }: {
   date: string;
   record: DailyRecordStaffingState | null;
+  embedded?: boolean;
 }) => {
   const schedule = getShiftSchedule(date);
   // Date navigation can briefly retain the previous record. Never show its staff.
@@ -25,24 +27,36 @@ export const CudyrNightStaff = ({
         'nurse'
       ).filter(person => person.name.trim())
     : [];
+  const sourceNote =
+    'Fuente: dotación guardada del censo. Identifica el turno, no al responsable de cada aplicación.';
   return (
     <aside
       aria-label="Enfermería del turno CUDYR"
-      className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm"
+      title={sourceNote}
+      className={
+        embedded
+          ? 'min-w-0 border-t border-slate-100 pt-2 text-xs lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0'
+          : 'rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs'
+      }
     >
-      <p className="font-medium text-slate-700">Enfermería · turno noche</p>
-      <p className="text-xs text-slate-500">
-        {label(date)} {schedule.nightStart} → {label(getNextDay(date))} {schedule.nightEnd} · Rapa
-        Nui
-      </p>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[11px]">
+        <span className="font-medium text-slate-700">Enfermería · turno noche</span>
+        <span className="tabular-nums text-slate-500">
+          {label(date)} {schedule.nightStart} → {label(getNextDay(date))} {schedule.nightEnd} · Rapa
+          Nui
+        </span>
+      </div>
       {staff.length ? (
-        <ul className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-slate-700">
+        <ul className="mt-1 flex flex-wrap items-center gap-1.5 text-slate-700">
           {staff.map(person => (
-            <li key={person.id}>
+            <li
+              key={person.id}
+              className="inline-flex items-center rounded-md bg-slate-100/80 px-2 py-0.5 text-xs font-medium text-slate-700"
+            >
               {person.name}
               {(person.startTime !== schedule.nightStart ||
                 person.endTime !== schedule.nightEnd) && (
-                <span className="ml-1 text-xs text-slate-500">
+                <span className="ml-1 text-[11px] font-normal tabular-nums text-slate-500">
                   ({person.startTime}–{person.endTime})
                 </span>
               )}
@@ -52,10 +66,6 @@ export const CudyrNightStaff = ({
       ) : (
         <p className="mt-1 text-slate-500">Dotación nocturna no informada para este día.</p>
       )}
-      <p className="mt-1 text-xs text-slate-500">
-        Fuente: dotación guardada del censo. Identifica el turno, no al responsable de cada
-        aplicación.
-      </p>
     </aside>
   );
 };

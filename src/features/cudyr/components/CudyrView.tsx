@@ -54,6 +54,7 @@ export const CudyrView = ({
   const [exportError, setExportError] = useState('');
   const {
     visibleRows,
+    filterCounts,
     totals,
     daily,
     dayPending,
@@ -78,6 +79,12 @@ export const CudyrView = ({
       }),
     [busy, data, date, error, filter, selected]
   );
+  const filterOptions = [
+    { value: 'all', label: 'Todos', count: filterCounts.all },
+    { value: 'elegible', label: 'Elegibles', count: filterCounts.elegible },
+    { value: 'no_elegible', label: 'Excluidos', count: filterCounts.no_elegible },
+    { value: 'por_revisar', label: 'Por revisar', count: filterCounts.por_revisar },
+  ] as const;
   const refresh = (reuseConfirmedRecovery = false) => {
     setSelected('');
     setExportError('');
@@ -117,90 +124,89 @@ export const CudyrView = ({
       </Suspense>
     );
   return (
-    <section className="mx-auto max-w-7xl space-y-3 px-3 pb-6 sm:px-5" aria-label="Control CUDYR">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <button
-            type="button"
-            onClick={() => ui.setCurrentModule('CENSUS')}
-            className="mb-2 inline-flex items-center gap-1 text-sm text-slate-500"
-          >
-            <ArrowLeft size={14} />
-            Volver al censo
-          </button>
-          <h1 className="text-xl font-semibold text-slate-900">CUDYR · control diario</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Turno noche {date.split('-').reverse().join('-')} · Horario de Rapa Nui
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canCorrectCudyrDischarge({ role, readOnly }) && (
-            <CudyrMonthlyRecovery
-              key={`${currentUser?.uid}:${date.slice(0, 7)}`}
-              month={date.slice(0, 7)}
-              compact
-              disabled={busy}
-              onSaved={() => refresh(true)}
-            />
-          )}
-          {(!canCorrectCudyrDischarge({ role, readOnly }) ||
-            !monthlyRecoveryWindow(date.slice(0, 7))) && (
+    <section className="mx-auto max-w-7xl space-y-2.5 px-3 pb-6 sm:px-5" aria-label="Control CUDYR">
+      <div className="rounded-xl border border-slate-200/90 bg-white shadow-xs">
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
             <button
               type="button"
-              onClick={() => refresh()}
-              disabled={busy}
-              className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm disabled:opacity-40"
+              onClick={() => ui.setCurrentModule('CENSUS')}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
             >
-              <RefreshCw size={15} />
-              Volver a leer datos
+              <ArrowLeft size={13} />
+              Volver al censo
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => void download()}
-            disabled={!canExport || exporting}
-            className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-          >
-            <Download size={16} />
-            {exporting ? 'Preparando…' : 'Excel mensual'}
-          </button>
-        </div>
-      </header>
-      <CudyrNightStaff date={date} record={record} />
-      {data?.readViewSnapshot && (
-        <p role="status" className="text-xs text-slate-500">
-          Última lectura guardada en HHR.{' '}
-          {busy ? 'Comprobando cambios…' : 'Verificación pendiente.'}
-        </p>
-      )}
-      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-          <div role="group" aria-label="Cumplimiento del día">
-            <p className="text-xs text-slate-500">Cumplimiento del día</p>
-            <p className="text-2xl font-semibold tabular-nums text-teal-800">
-              {busy && !data ? '…' : dailyPercentage}
-            </p>
-            <p className="text-xs text-slate-500">
-              {busy && !data
-                ? 'Cargando…'
-                : !dayHasEnded
-                  ? 'Pendiente de aplicación'
-                  : `${daily.categorized} / ${daily.eligible} elegibles`}
-              {dailyProvisional && (
-                <Info
-                  size={12}
-                  className="ml-1 inline text-amber-700"
-                  aria-label="Verificación pendiente"
-                />
-              )}
-            </p>
+            <span className="hidden h-4 w-px bg-slate-200 sm:inline-block" aria-hidden="true" />
+            <h1 className="text-[15px] font-semibold leading-tight text-slate-900">
+              CUDYR · control diario
+            </h1>
+            <span className="text-xs text-slate-500">
+              Turno noche {date.split('-').reverse().join('-')} · Rapa Nui
+            </span>
           </div>
-          <div className="border-l pl-6">
-            <p className="text-xs text-slate-500">Cumplimiento acumulado · {date.slice(0, 7)}</p>
-            <p className="text-xl font-semibold tabular-nums text-slate-800">
-              {busy && !data ? '…' : percentage}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {canCorrectCudyrDischarge({ role, readOnly }) && (
+              <CudyrMonthlyRecovery
+                key={`${currentUser?.uid}:${date.slice(0, 7)}`}
+                month={date.slice(0, 7)}
+                compact
+                disabled={busy}
+                onSaved={() => refresh(true)}
+              />
+            )}
+            {(!canCorrectCudyrDischarge({ role, readOnly }) ||
+              !monthlyRecoveryWindow(date.slice(0, 7))) && (
+              <button
+                type="button"
+                onClick={() => refresh()}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-40"
+              >
+                <RefreshCw size={13} />
+                Volver a leer datos
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void download()}
+              disabled={!canExport || exporting}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-40"
+            >
+              <Download size={14} />
+              {exporting ? 'Preparando…' : 'Excel mensual'}
+            </button>
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 items-center gap-x-5 gap-y-2 px-3.5 py-2 lg:grid-cols-[auto_auto_minmax(0,1fr)]">
+          <div role="group" aria-label="Cumplimiento del día" className="min-w-0">
+            <p className="text-[11px] font-medium text-slate-500">Cumplimiento del día</p>
+            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+              <p className="text-lg font-bold leading-none tabular-nums text-teal-800">
+                {busy && !data ? '…' : dailyPercentage}
+              </p>
+              <p className="text-xs text-slate-500">
+                {busy && !data
+                  ? 'Cargando…'
+                  : !dayHasEnded
+                    ? 'Pendiente de aplicación'
+                    : `${daily.categorized} / ${daily.eligible} elegibles`}
+                {dailyProvisional && (
+                  <Info
+                    size={12}
+                    className="ml-1 inline text-amber-700"
+                    aria-label="Verificación pendiente"
+                  />
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="min-w-0 border-t border-slate-100 pt-2 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-slate-500">
+              <span>Cumplimiento acumulado · {date.slice(0, 7)}</span>
               {isOfficialRepaired ? (
-                <span className="ml-2 rounded bg-teal-50 px-1.5 py-0.5 align-middle text-[10px] font-medium text-teal-800">
+                <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-medium text-teal-800">
                   Oficial · reparado
                 </span>
               ) : null}
@@ -208,33 +214,50 @@ export const CudyrView = ({
                 <span title="Falta confirmar el censo o completar verificaciones. Consulte el detalle de verificación.">
                   <Info
                     size={12}
-                    className="ml-2 inline text-amber-700"
+                    className="inline text-amber-700"
                     aria-label="Verificación pendiente"
                   />
                 </span>
               )}
-            </p>
-            <p className="text-xs text-slate-500">
-              {lastEvaluated
-                ? `Hasta el ${lastEvaluated.split('-').reverse().join('-')}`
-                : 'Sin días evaluables'}{' '}
-              · {totals.categorized} CUDYR disponibles / {totals.eligible} pacientes-día elegibles
-            </p>
+            </div>
+            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+              <p className="text-lg font-bold leading-none tabular-nums text-slate-800">
+                {busy && !data ? '…' : percentage}
+              </p>
+              <p className="text-xs text-slate-500">
+                {lastEvaluated
+                  ? `Hasta el ${lastEvaluated.split('-').reverse().join('-')}`
+                  : 'Sin días evaluables'}{' '}
+                · {totals.categorized} CUDYR disponibles / {totals.eligible} pacientes-día elegibles
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-slate-500">
-            {daily.excluded} {daily.excluded === 1 ? 'excluido' : 'excluidos'}
-            {daily.review > 0 && <> · {daily.review} por revisar</>}
-          </p>
+
+          <CudyrNightStaff date={date} record={record} embedded />
         </div>
-        {dayPending && (
-          <p role="status" className="mt-2 text-xs text-slate-600">
-            {dayHasEnded
-              ? 'En plazo hasta las 11:59 de hoy. Aún no se incluye en el cumplimiento acumulado.'
-              : 'Pendiente de aplicación: cierra a las 11:59 del día siguiente, hora de Rapa Nui.'}
-          </p>
+
+        {(dayPending || data) && (
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-slate-100 bg-slate-50/50 px-3.5 py-1.5 text-[11px] text-slate-600">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {data && <CudyrExclusionSummary data={data} embedded />}
+              {dayPending && (
+                <p role="status" className="text-slate-600">
+                  {dayHasEnded
+                    ? 'En plazo hasta las 11:59 de hoy. Aún no se incluye en el cumplimiento acumulado.'
+                    : 'Pendiente de aplicación: cierra a las 11:59 del día siguiente, hora de Rapa Nui.'}
+                </p>
+              )}
+            </div>
+            {data?.readViewSnapshot && (
+              <p role="status" className="text-slate-500">
+                Última lectura guardada en HHR.{' '}
+                {busy ? 'Comprobando cambios…' : 'Verificación pendiente.'}
+              </p>
+            )}
+          </div>
         )}
-        {data && <CudyrExclusionSummary data={data} />}
       </div>
+
       {data && (
         <CudyrArchiveStatus
           data={data}
@@ -254,24 +277,47 @@ export const CudyrView = ({
           {issue}
         </p>
       ))}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <label className="text-sm text-slate-600">
-          Mostrar{' '}
-          <select
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            className="ml-2 rounded-md border bg-white px-2 py-1 text-xs"
-          >
-            <option value="all">Todos los casos</option>
-            <option value="elegible">Elegibles</option>
-            <option value="no_elegible">Excluidos</option>
-            <option value="por_revisar">Por revisar</option>
-          </select>
-        </label>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div
+          role="group"
+          aria-label="Filtrar casos CUDYR"
+          className="flex flex-wrap items-center gap-1.5"
+        >
+          {filterOptions.map(option => {
+            const isActive = filter === option.value;
+            const isPendingAlert = option.value === 'por_revisar' && option.count > 0 && !isActive;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => setFilter(option.value)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${
+                  isActive
+                    ? 'bg-teal-700 text-white shadow-xs'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <span>{option.label}</span>{' '}
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-none ${
+                    isActive
+                      ? 'bg-white/20 text-white'
+                      : isPendingAlert
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-slate-100 text-slate-500'
+                  }`}
+                >
+                  {option.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
         <button
           type="button"
           onClick={() => setExploring(true)}
-          className="text-sm font-medium text-teal-800 underline underline-offset-4"
+          className="text-xs font-medium text-teal-800 underline underline-offset-4 hover:text-teal-900"
         >
           Explorar reporte estadístico
         </button>
