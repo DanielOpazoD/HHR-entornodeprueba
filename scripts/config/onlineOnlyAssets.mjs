@@ -284,10 +284,6 @@ export const ONLINE_ONLY_ASSETS = Object.freeze([
     reason: 'Online Eloisa portal shortcuts rendered exclusively inside RayenImportButton.',
   },
   {
-    glob: '**/assets/RayenExtensionDownloadDetails-*.js',
-    reason: 'Extension installation instructions rendered exclusively inside RayenImportButton.',
-  },
-  {
     glob: '**/assets/policyServerRead-*.js',
     reason: 'Server policy read helper imported exclusively by online RayenImportButton.',
   },

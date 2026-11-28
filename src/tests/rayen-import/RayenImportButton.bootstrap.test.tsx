@@ -76,7 +76,7 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
     });
   });
 
-  it('blocks an obsolete extension, keeps its update download and enables the minimum version', async () => {
+  it('blocks an obsolete extension without exposing a download button in HHR and enables the minimum version', async () => {
     const actualHealth = await vi.importActual<
       typeof import('@/features/rayen-import/hooks/useRayenExtensionHealth')
     >('@/features/rayen-import/hooks/useRayenExtensionHealth');
@@ -101,8 +101,10 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
       expect(button).toBeDisabled();
       fireEvent.click(button);
       expect(mocks.triggerImport).not.toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: 'Actualización necesaria' })).toBeEnabled();
-      expect(screen.getByText(/Descargar ZIP/)).toHaveAttribute('download');
+      expect(
+        screen.queryByRole('button', { name: /Descargar extensión|Actualización necesaria/ })
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/Descargar ZIP/)).not.toBeInTheDocument();
 
       const current = { ...report, version: '0.48.61', checkedAt: new Date().toISOString() };
       request.mockResolvedValue({ report: current });

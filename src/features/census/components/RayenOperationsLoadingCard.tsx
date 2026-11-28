@@ -1,4 +1,4 @@
-import { Download, History, RefreshCw, UsersRound } from 'lucide-react';
+import { History, RefreshCw, UsersRound } from 'lucide-react';
 
 /** Matches the synchronization card without loading its runtime or claiming connection health. */
 export const RayenOperationsLoadingCard = () => (
@@ -27,14 +27,6 @@ export const RayenOperationsLoadingCard = () => (
             Cargando controles…
           </p>
         </div>
-        <button
-          disabled
-          type="button"
-          aria-label="Descargar extensión"
-          className="flex size-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500"
-        >
-          <Download size={14} aria-hidden="true" />
-        </button>
       </div>
       <div className="flex min-w-0 items-center justify-end gap-1">
         <button
