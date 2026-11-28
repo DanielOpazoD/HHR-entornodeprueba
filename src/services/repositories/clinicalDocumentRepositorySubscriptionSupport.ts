@@ -1,8 +1,6 @@
 import type { ClinicalDocumentRecord } from '@/domain/clinical-documents/entities';
 import type { QueryOptions } from '@/services/infrastructure/db/types';
 
-type LocalSubscribers = Map<string, Set<(documents: ClinicalDocumentRecord[]) => void>>;
-
 interface SubscribeByEpisodeKeysParams {
   episodeKeys: string[];
   callback: (documents: ClinicalDocumentRecord[]) => void;
@@ -10,13 +8,13 @@ interface SubscribeByEpisodeKeysParams {
   firestoreEnabled: boolean;
   collectionPath: string;
   chunkSize: number;
-  localSubscribers: LocalSubscribers;
   normalizeEpisodeKeys: (episodeKeys: string[]) => string[];
   chunkArray: <T>(values: T[], size: number) => T[][];
-  listLocalClinicalDocumentsByEpisode: (
-    episodeKey: string,
+  subscribeLocalEpisodeDocuments: (
+    episodeKeys: string[],
+    callback: (documents: ClinicalDocumentRecord[]) => void,
     hospitalId: string
-  ) => ClinicalDocumentRecord[];
+  ) => () => void;
   normalizeReadDocuments: (documents: ClinicalDocumentRecord[]) => ClinicalDocumentRecord[];
   subscribeQuery: <T>(
     collectionName: string,
@@ -32,10 +30,9 @@ export const subscribeClinicalDocumentsByEpisodeKeys = ({
   firestoreEnabled,
   collectionPath,
   chunkSize,
-  localSubscribers,
   normalizeEpisodeKeys,
   chunkArray,
-  listLocalClinicalDocumentsByEpisode,
+  subscribeLocalEpisodeDocuments,
   normalizeReadDocuments,
   subscribeQuery,
 }: SubscribeByEpisodeKeysParams): (() => void) => {
@@ -46,29 +43,7 @@ export const subscribeClinicalDocumentsByEpisodeKeys = ({
   }
 
   if (!firestoreEnabled) {
-    const emit = () => {
-      callback(
-        normalizeReadDocuments(
-          sanitizedEpisodeKeys.flatMap(episodeKey =>
-            listLocalClinicalDocumentsByEpisode(episodeKey, hospitalId)
-          )
-        )
-      );
-    };
-    const unsubscribes = sanitizedEpisodeKeys.map(episodeKey => {
-      const key = `${hospitalId}::${episodeKey}`;
-      const subscribers = localSubscribers.get(key) || new Set();
-      subscribers.add(emit);
-      localSubscribers.set(key, subscribers);
-      return () => {
-        subscribers.delete(emit);
-        if (subscribers.size === 0) {
-          localSubscribers.delete(key);
-        }
-      };
-    });
-    emit();
-    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+    return subscribeLocalEpisodeDocuments(sanitizedEpisodeKeys, callback, hospitalId);
   }
 
   const chunks = chunkArray(sanitizedEpisodeKeys, chunkSize);

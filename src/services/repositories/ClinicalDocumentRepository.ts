@@ -118,17 +118,40 @@ const writeLocalClinicalDocument = (
   }
 };
 
-const listLocalClinicalDocumentsByEpisode = (
-  episodeKey: string,
-  hospitalId: string
+const readLocalHospitalDocuments = (hospitalId: string): ClinicalDocumentRecord[] =>
+  Object.values(readLocalClinicalDocumentsStore()[hospitalId] ?? {});
+
+const selectLocalEpisodeDocuments = (
+  documents: ClinicalDocumentRecord[],
+  episodeKeys: string[]
 ): ClinicalDocumentRecord[] => {
-  const documents = Object.values(readLocalClinicalDocumentsStore()[hospitalId] || {});
-  return sortDocuments(
-    documents
-      .filter(document => document.episodeKey === episodeKey)
-      .map(document => validateReadRecord(document))
-      .filter((document): document is ClinicalDocumentRecord => Boolean(document))
-  );
+  // The date sort is stable. Equal timestamps retain the requested episode order.
+  const byEpisode = new Map<string, ClinicalDocumentRecord[]>(episodeKeys.map(key => [key, []]));
+  for (const document of documents) {
+    byEpisode.get(document.episodeKey)?.push(document);
+  }
+  return normalizeReadDocuments(Array.from(byEpisode.values()).flat());
+};
+
+const subscribeLocalEpisodeDocuments = (
+  episodeKeys: string[],
+  callback: (documents: ClinicalDocumentRecord[]) => void,
+  hospitalId: string
+): (() => void) => {
+  const emit = (documents: ClinicalDocumentRecord[]) =>
+    callback(selectLocalEpisodeDocuments(documents, episodeKeys));
+  const unsubscribes = episodeKeys.map(episodeKey => {
+    const key = `${hospitalId}::${episodeKey}`;
+    const subscribers = localClinicalDocumentSubscribers.get(key) ?? new Set();
+    subscribers.add(emit);
+    localClinicalDocumentSubscribers.set(key, subscribers);
+    return () => {
+      subscribers.delete(emit);
+      if (subscribers.size === 0) localClinicalDocumentSubscribers.delete(key);
+    };
+  });
+  emit(readLocalHospitalDocuments(hospitalId));
+  return () => unsubscribes.forEach(unsubscribe => unsubscribe());
 };
 
 const notifyLocalClinicalDocumentSubscribers = (episodeKey: string, hospitalId: string): void => {
@@ -137,7 +160,7 @@ const notifyLocalClinicalDocumentSubscribers = (episodeKey: string, hospitalId: 
     return;
   }
 
-  const documents = listLocalClinicalDocumentsByEpisode(episodeKey, hospitalId);
+  const documents = readLocalHospitalDocuments(hospitalId);
   subscribers.forEach(callback => callback(documents));
 };
 
@@ -200,7 +223,7 @@ export const ClinicalDocumentRepository = {
     hospitalId: string = getActiveHospitalId()
   ): Promise<ClinicalDocumentRecord[]> {
     if (!isFirestoreEnabled()) {
-      return listLocalClinicalDocumentsByEpisode(episodeKey, hospitalId);
+      return selectLocalEpisodeDocuments(readLocalHospitalDocuments(hospitalId), [episodeKey]);
     }
 
     const documents = await firestoreDb.getDocs<ClinicalDocumentRecord>(
@@ -221,10 +244,9 @@ export const ClinicalDocumentRepository = {
       return [];
     }
     if (!isFirestoreEnabled()) {
-      return sortDocuments(
-        sanitizedEpisodeKeys.flatMap(episodeKey =>
-          listLocalClinicalDocumentsByEpisode(episodeKey, hospitalId)
-        )
+      return selectLocalEpisodeDocuments(
+        readLocalHospitalDocuments(hospitalId),
+        sanitizedEpisodeKeys
       );
     }
 
@@ -309,17 +331,7 @@ export const ClinicalDocumentRepository = {
     hospitalId: string = getActiveHospitalId()
   ): () => void {
     if (!isFirestoreEnabled()) {
-      const key = `${hospitalId}::${episodeKey}`;
-      const subscribers = localClinicalDocumentSubscribers.get(key) || new Set();
-      subscribers.add(callback);
-      localClinicalDocumentSubscribers.set(key, subscribers);
-      callback(listLocalClinicalDocumentsByEpisode(episodeKey, hospitalId));
-      return () => {
-        subscribers.delete(callback);
-        if (subscribers.size === 0) {
-          localClinicalDocumentSubscribers.delete(key);
-        }
-      };
+      return subscribeLocalEpisodeDocuments([episodeKey], callback, hospitalId);
     }
 
     return firestoreDb.subscribeQuery<ClinicalDocumentRecord>(
@@ -341,10 +353,9 @@ export const ClinicalDocumentRepository = {
       firestoreEnabled: isFirestoreEnabled(),
       collectionPath: getClinicalDocumentsCollectionPath(hospitalId),
       chunkSize: EPISODE_KEY_QUERY_CHUNK_SIZE,
-      localSubscribers: localClinicalDocumentSubscribers,
       normalizeEpisodeKeys,
       chunkArray,
-      listLocalClinicalDocumentsByEpisode,
+      subscribeLocalEpisodeDocuments,
       normalizeReadDocuments,
       subscribeQuery: firestoreDb.subscribeQuery.bind(firestoreDb),
     });

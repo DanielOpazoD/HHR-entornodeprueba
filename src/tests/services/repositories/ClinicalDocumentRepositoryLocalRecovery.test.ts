@@ -28,12 +28,61 @@ describe('ClinicalDocumentRepository local recovery', () => {
     localStorage.clear();
     vi.mocked(isFirestoreEnabled).mockReturnValue(false);
   });
+
+  it('reads one snapshot for a batch and subscribes in the same date and episode order', async () => {
+    const storageKey = 'hhr_clinical_documents_local_v1';
+    const time = '2026-03-05T10:00:00.000Z';
+    const first = buildDoc('first', 'episode-a', time);
+    const second = buildDoc('second', 'episode-b', time);
+    const latest = buildDoc('latest', 'episode-a', '2026-03-05T11:00:00.000Z');
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        hhr: { first, second, latest, unrelated: buildDoc('unrelated', 'episode-c', time) },
+        otherHospital: { excluded: buildDoc('excluded', 'episode-b', time) },
+      })
+    );
+    const keys = [' episode-b ', 'episode-a', '', 'episode-b'];
+    const expected = ['latest', 'second', 'first'];
+    const read = vi.mocked(localStorage.getItem);
+    const storeReads = () => read.mock.calls.filter(([key]) => key === storageKey).length;
+
+    const documents = await ClinicalDocumentRepository.listByEpisodeKeys(keys, 'hhr');
+    expect(documents.map(doc => doc.id)).toEqual(expected);
+    expect(storeReads()).toBe(1);
+
+    read.mockClear();
+    const callback = vi.fn();
+    const unsubscribe = ClinicalDocumentRepository.subscribeByEpisodeKeys(keys, callback, 'hhr');
+    try {
+      expect(callback).toHaveBeenCalledExactlyOnceWith(documents);
+      expect(storeReads()).toBe(1);
+      await ClinicalDocumentRepository.delete(second.id, 'hhr');
+      expect(callback).toHaveBeenLastCalledWith([
+        expect.objectContaining({ id: 'latest' }),
+        expect.objectContaining({ id: 'first' }),
+      ]);
+    } finally {
+      unsubscribe();
+    }
+    callback.mockClear();
+    await ClinicalDocumentRepository.delete(first.id, 'hhr');
+    expect(callback).not.toHaveBeenCalled();
+  });
+
   it('keeps failed local writes authoritative through reads, subscriptions and recovery', async () => {
     vi.mocked(isFirestoreEnabled).mockReturnValue(false);
     const episode = 'recovery__2026-03-01';
     const document = buildDoc('recovery', episode, '2026-03-05T10:00:00.000Z');
     const callback = vi.fn();
+    const keys = [episode, 'other-episode'];
     const unsubscribe = ClinicalDocumentRepository.subscribeByEpisode(episode, callback, 'hhr');
+    const batchCallback = vi.fn();
+    const unsubscribeBatch = ClinicalDocumentRepository.subscribeByEpisodeKeys(
+      keys,
+      batchCallback,
+      'hhr'
+    );
     await ClinicalDocumentRepository.createDraft(document, 'hhr');
     const persist = vi.mocked(localStorage.setItem).getMockImplementation()!;
     const write = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
@@ -48,24 +97,37 @@ describe('ClinicalDocumentRepository local recovery', () => {
       expect(callback).toHaveBeenLastCalledWith([
         expect.objectContaining({ title: 'Latest draft' }),
       ]);
-      await expect(ClinicalDocumentRepository.listByEpisodeKeys([episode], 'hhr')).resolves.toEqual(
-        [expect.objectContaining({ title: 'Latest draft' })]
-      );
+      await expect(ClinicalDocumentRepository.listByEpisodeKeys(keys, 'hhr')).resolves.toEqual([
+        expect.objectContaining({ title: 'Latest draft' }),
+      ]);
       await ClinicalDocumentRepository.delete(document.id, 'hhr');
       await expect(ClinicalDocumentRepository.get(document.id, 'hhr')).resolves.toBeNull();
       expect(callback).toHaveBeenLastCalledWith([]);
       const fromOtherTab = JSON.parse(
         localStorage.getItem('hhr_clinical_documents_local_v1') || '{}'
       );
-      fromOtherTab.hhr.other = { ...document, id: 'other', title: 'Other tab edit' };
+      fromOtherTab.hhr.other = {
+        ...document,
+        id: 'other',
+        episodeKey: 'other-episode',
+        title: 'Other tab edit',
+      };
       fromOtherTab.otherHospital = { separate: { ...document, id: 'separate' } };
       persist('hhr_clinical_documents_local_v1', JSON.stringify(fromOtherTab));
       await expect(ClinicalDocumentRepository.get('other', 'hhr')).resolves.toMatchObject({
         title: 'Other tab edit',
       });
+      await expect(ClinicalDocumentRepository.listByEpisodeKeys(keys, 'hhr')).resolves.toEqual([
+        expect.objectContaining({ id: 'other', title: 'Other tab edit' }),
+      ]);
       write.mockImplementation(persist);
       await ClinicalDocumentRepository.createDraft({ ...document, id: 'recovered' }, 'hhr');
       await expect(ClinicalDocumentRepository.get(document.id, 'hhr')).resolves.toBeNull();
+      expect(callback).toHaveBeenLastCalledWith([expect.objectContaining({ id: 'recovered' })]);
+      expect(batchCallback).toHaveBeenLastCalledWith([
+        expect.objectContaining({ id: 'recovered' }),
+        expect.objectContaining({ id: 'other', title: 'Other tab edit' }),
+      ]);
       const stored = JSON.parse(localStorage.getItem('hhr_clinical_documents_local_v1') || '{}');
       expect(stored.hhr.recovery).toBeUndefined();
       expect(stored.hhr.recovered.id).toBe('recovered');
@@ -75,6 +137,7 @@ describe('ClinicalDocumentRepository local recovery', () => {
     } finally {
       write.mockImplementation(persist);
       unsubscribe();
+      unsubscribeBatch();
     }
   });
 
