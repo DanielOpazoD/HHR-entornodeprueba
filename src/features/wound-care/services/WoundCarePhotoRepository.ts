@@ -55,6 +55,15 @@ const EPISODE_KEY_QUERY_CHUNK_SIZE = 30;
 const sortByUploadedAtDesc = (photos: WoundCarePhoto[]): WoundCarePhoto[] =>
   [...photos].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
 
+// The schema treats a missing deletion flag on older photos as active.
+const visibleEpisodePhotos = (documents: WoundCarePhoto[]) =>
+  sortByUploadedAtDesc(
+    documents
+      .filter(photo => !photo.isDeleted)
+      .map(validateReadPhoto)
+      .filter((photo): photo is WoundCarePhoto => photo !== null)
+  );
+
 // ============================================================================
 // Repository
 // ============================================================================
@@ -77,21 +86,11 @@ export const WoundCarePhotoRepository = {
     const documents = await firestoreDb.getDocs<WoundCarePhoto>(
       getWoundCarePhotosPath(hospitalId),
       {
-        where: [
-          { field: 'episodeKey', operator: '==', value: episodeKey },
-          { field: 'isDeleted', operator: '==', value: false },
-        ],
-        orderBy: [{ field: 'uploadedAt', direction: 'desc' }],
+        where: [{ field: 'episodeKey', operator: '==', value: episodeKey }],
       }
     );
 
-    // Client-side filter as safety net while index builds
-    return sortByUploadedAtDesc(
-      documents
-        .filter(doc => !doc.isDeleted)
-        .map(doc => validateReadPhoto(doc))
-        .filter((doc): doc is WoundCarePhoto => Boolean(doc))
-    );
+    return visibleEpisodePhotos(documents);
   },
 
   /**
@@ -264,22 +263,9 @@ export const WoundCarePhotoRepository = {
     return firestoreDb.subscribeQuery<WoundCarePhoto>(
       getWoundCarePhotosPath(hospitalId),
       {
-        where: [
-          { field: 'episodeKey', operator: '==', value: episodeKey },
-          { field: 'isDeleted', operator: '==', value: false },
-        ],
-        orderBy: [{ field: 'uploadedAt', direction: 'desc' }],
+        where: [{ field: 'episodeKey', operator: '==', value: episodeKey }],
       },
-      docs =>
-        // Client-side filter as safety net while index builds
-        callback(
-          sortByUploadedAtDesc(
-            docs
-              .filter(doc => !doc.isDeleted)
-              .map(doc => validateReadPhoto(doc))
-              .filter((doc): doc is WoundCarePhoto => Boolean(doc))
-          )
-        )
+      docs => callback(visibleEpisodePhotos(docs))
     );
   },
 };
