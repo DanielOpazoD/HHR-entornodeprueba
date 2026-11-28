@@ -2,7 +2,11 @@ import type { PatientData } from '@/types/domain/patient';
 
 import type { CSSProperties } from 'react';
 import type { TableColumnConfig } from '@/context/TableConfigContext';
-import type { UnifiedBedRow, BedTypesById } from '@/features/census/types/censusTableTypes';
+import type {
+  ClinicalDocumentCountsByBed,
+  UnifiedBedRow,
+  BedTypesById,
+} from '@/features/census/types/censusTableTypes';
 
 import type { UserRole } from '@/types/authRoleTypes';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
@@ -31,7 +35,7 @@ export interface CensusTableLayoutParams {
   unifiedRows: UnifiedBedRow[];
   bedTypes: BedTypesById;
   role?: UserRole;
-  clinicalDocumentPresenceByBedId: Record<string, boolean>;
+  clinicalDocumentCountsByBedId: ClinicalDocumentCountsByBed;
   dischargedRuts?: ReadonlySet<string>;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
   onActivateEmptyBed: (bedId: string) => void;
@@ -93,7 +97,7 @@ export const buildCensusTableLayoutBindings = (
       bedTypes: params.bedTypes,
       role: params.role,
       accessProfile: params.accessProfile,
-      clinicalDocumentPresenceByBedId: params.clinicalDocumentPresenceByBedId,
+      clinicalDocumentCountsByBedId: params.clinicalDocumentCountsByBedId,
       dischargedRuts: params.dischargedRuts,
       onAction: params.onAction,
       onActivateEmptyBed: params.onActivateEmptyBed,

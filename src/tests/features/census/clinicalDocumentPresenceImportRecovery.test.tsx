@@ -40,11 +40,5 @@ it('retries the module import on the next query after a transient import failure
     }),
   }));
   await queryClient.invalidateQueries({ queryKey: ['clinicalDocuments', 'presenceByBed'] });
-  await waitFor(() =>
-    expect(result.current.infoByBedId.R1).toEqual({
-      present: true,
-      totalCount: 1,
-      draftCount: 1,
-    })
-  );
+  await waitFor(() => expect(result.current.R1).toBe(1));
 });

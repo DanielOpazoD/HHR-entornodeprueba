@@ -33,7 +33,7 @@ describe('censusTableBodyController', () => {
     const result = buildResolvedOccupiedRows({
       unifiedRows,
       currentDateString: '2026-03-05',
-      clinicalDocumentPresenceByBedId: { R1: true, R2: true },
+      clinicalDocumentCountsByBedId: { R1: 2, R2: 1 },
     });
 
     expect(result).toHaveLength(2);

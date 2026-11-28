@@ -70,7 +70,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   const tableRootRef = useRef<HTMLDivElement>(null);
   const freshnessUi = useDailyRecordFreshnessUi(currentDateString);
   const clinicalEditingDisabled = freshnessUi.isClinicalEditingBlocked;
-  const { isReady, bindings, clinicalDocumentInfoByBedId } = useCensusTableBindingsModel({
+  const { isReady, bindings } = useCensusTableBindingsModel({
     currentDateString,
     readOnly,
     clinicalEditingDisabled,
@@ -305,7 +305,6 @@ export const CensusTable: React.FC<CensusTableProps> = ({
                   recordLastUpdated={record?.lastUpdated}
                   unifiedRows={filteredUnifiedRows}
                   onActivateEmptyBed={openEmptyBedDemographics}
-                  clinicalDocumentInfoByBedId={clinicalDocumentInfoByBedId}
                 />
               </ClinicalDerivedDayProvider>
             </NursingScalesVisibleContext.Provider>

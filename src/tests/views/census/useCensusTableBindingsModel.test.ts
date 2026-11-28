@@ -89,6 +89,7 @@ const createDailyRecordWrapper = (contextValue = createDailyRecordContextValue()
 describe('useCensusTableBindingsModel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useClinicalDocumentPresenceByBed).mockReturnValue({});
     vi.useRealTimers();
     mockUseAuth.mockReturnValue({ remoteSyncStatus: 'ready' });
   });
@@ -105,10 +106,6 @@ describe('useCensusTableBindingsModel', () => {
         role: 'viewer',
       })
     );
-    vi.mocked(useClinicalDocumentPresenceByBed).mockReturnValue({
-      byBedId: {},
-      infoByBedId: {},
-    });
 
     const { result } = renderHook(
       () =>
@@ -148,10 +145,6 @@ describe('useCensusTableBindingsModel', () => {
         tableConfigLoading: true,
       })
     );
-    vi.mocked(useClinicalDocumentPresenceByBed).mockReturnValue({
-      byBedId: {},
-      infoByBedId: {},
-    });
     vi.mocked(buildCensusTableLayoutBindings).mockReturnValue(layoutBindings as never);
 
     const { result } = renderHook(
@@ -197,10 +190,7 @@ describe('useCensusTableBindingsModel', () => {
         role: 'doctor_urgency',
       })
     );
-    vi.mocked(useClinicalDocumentPresenceByBed).mockReturnValue({
-      byBedId: { R1: true },
-      infoByBedId: { R1: { present: true, totalCount: 1, draftCount: 0 } },
-    });
+    vi.mocked(useClinicalDocumentPresenceByBed).mockReturnValue({ R1: 2 });
     vi.mocked(buildCensusTableLayoutBindings).mockReturnValue(layoutBindings as never);
 
     const { result, rerender } = renderHook(
@@ -233,16 +223,13 @@ describe('useCensusTableBindingsModel', () => {
     expect(buildCensusTableLayoutBindings).toHaveBeenCalledWith(
       expect.objectContaining({
         currentDateString: '2026-03-10',
-        clinicalDocumentPresenceByBedId: { R1: true },
+        clinicalDocumentCountsByBedId: { R1: 2 },
         dischargedRuts: new Set(['11.111.111-1']),
         totalWidth: 1200,
       })
     );
     expect(result.current.isReady).toBe(true);
     expect(result.current.bindings).toBe(layoutBindings);
-    expect(result.current.clinicalDocumentInfoByBedId).toEqual({
-      R1: { present: true, totalCount: 1, draftCount: 0 },
-    });
   });
 
   it('disables remote clinical document presence lookup outside ready sync', () => {
@@ -264,10 +251,6 @@ describe('useCensusTableBindingsModel', () => {
         role: 'doctor_urgency',
       })
     );
-    vi.mocked(useClinicalDocumentPresenceByBed).mockReturnValue({
-      byBedId: {},
-      infoByBedId: {},
-    });
     vi.mocked(buildCensusTableLayoutBindings).mockReturnValue({
       headerProps: { readOnly: false },
       bodyProps: { currentDateString: '2026-03-10' },

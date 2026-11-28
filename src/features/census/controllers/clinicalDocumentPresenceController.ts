@@ -1,27 +1,12 @@
-/**
- * Clinical Document Presence Controller
- *
- * Pure logic that maps clinical-document records to per-bed presence
- * indicators. Used by the census table to show which patients have
- * active records and to display count badges in the
- * «Accesos» column.
- *
- * Data flow:
- *   unifiedRows → buildBedEpisodeBindings → episodeKeys
- *   Firestore query (by episodeKeys) → ClinicalDocumentPresenceRecord[]
- *   records → buildClinicalDocumentPresenceProjection (boolean and counts per bed)
- */
-
 import {
   buildClinicalEpisodeLookupKeys,
   buildPatientPresenceSnapshot,
 } from '@/domain/clinical-episode/clinicalEpisode';
-import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
+import type {
+  ClinicalDocumentCountsByBed,
+  UnifiedBedRow,
+} from '@/features/census/types/censusTableTypes';
 import { normalizeRut } from '@/utils/rutUtils';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 /** Lightweight projection of a clinical-document record for presence checks. */
 type ClinicalDocumentPresenceRecord = {
@@ -44,24 +29,9 @@ export interface BedEpisodeBinding {
   currentPatientRut?: string;
 }
 
-/** Per-bed record presence with counts for badge display. */
-export interface ClinicalDocumentPresenceInfo {
-  /** Whether the patient has at least one active (non-archived) record. */
-  present: boolean;
-  /** Total number of active (non-archived) documents. */
-  totalCount: number;
-  /** Number of documents still in draft status. */
-  draftCount: number;
-}
-
-// ---------------------------------------------------------------------------
-// Bed → Episode bindings
-// ---------------------------------------------------------------------------
-
 /**
  * Extracts bed-to-episode-key bindings from occupied census rows.
- * Sub-rows (clinical cribs) are excluded since they share the
- * parent bed's episode.
+ * Only the main row shows a count for its own patient.
  */
 export const buildBedEpisodeBindings = (unifiedRows: UnifiedBedRow[]): BedEpisodeBinding[] =>
   unifiedRows
@@ -98,41 +68,28 @@ const recordMatchesPatientRut = (
   return !documentRut || documentRut === currentPatientRut;
 };
 
-// ---------------------------------------------------------------------------
-// Presence and document counts (badge display)
-// ---------------------------------------------------------------------------
-
-/** One request-local index serves both badges; no persistent clinical cache. */
-export const buildClinicalDocumentPresenceProjection = (
+export const countActiveClinicalDocumentsByBed = (
   bindings: BedEpisodeBinding[],
-  records: ClinicalDocumentPresenceRecord[] | undefined
-): {
-  byBedId: Record<string, boolean>;
-  infoByBedId: Record<string, ClinicalDocumentPresenceInfo>;
-} => {
+  records: ClinicalDocumentPresenceRecord[]
+): ClinicalDocumentCountsByBed => {
   const byEpisode = new Map<string, ClinicalDocumentPresenceRecord[]>();
-  for (const record of records || []) {
+  for (const record of records) {
     if (record.status === 'archived') continue;
     const entries = byEpisode.get(record.episodeKey);
     if (entries) entries.push(record);
     else byEpisode.set(record.episodeKey, [record]);
   }
-  const byBedId: Record<string, boolean> = {};
-  const infoByBedId: Record<string, ClinicalDocumentPresenceInfo> = {};
+  const counts: Record<string, number> = {};
   for (const binding of bindings) {
     let totalCount = 0;
-    let draftCount = 0;
     // Repeated aliases must not count the same source record twice.
     const keys = new Set(binding.episodeKeys?.length ? binding.episodeKeys : [binding.episodeKey]);
     for (const key of keys) {
       for (const record of byEpisode.get(key) || []) {
-        if (!recordMatchesPatientRut(record, binding)) continue;
-        totalCount++;
-        if (record.status === 'draft') draftCount++;
+        if (recordMatchesPatientRut(record, binding)) totalCount++;
       }
     }
-    byBedId[binding.bedId] = totalCount > 0;
-    infoByBedId[binding.bedId] = { present: totalCount > 0, totalCount, draftCount };
+    counts[binding.bedId] = totalCount;
   }
-  return { byBedId, infoByBedId };
+  return counts;
 };

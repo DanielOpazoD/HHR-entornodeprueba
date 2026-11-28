@@ -1,10 +1,7 @@
 import { useMemo } from 'react';
 
 import { buildCensusTableLayoutBindings } from '@/features/census/controllers/censusTableLayoutController';
-import {
-  useClinicalDocumentPresenceByBed,
-  type ClinicalDocumentPresenceResult,
-} from '@/features/census/hooks/useClinicalDocumentPresenceByBed';
+import { useClinicalDocumentPresenceByBed } from '@/features/census/hooks/useClinicalDocumentPresenceByBed';
 import { useCensusTableRuntime } from '@/features/census/hooks/useCensusTableRuntime';
 import { canReadClinicalDocuments } from '@/shared/access/clinicalDocumentAccessPolicy';
 import { useDailyRecordMovements } from '@/context/DailyRecordContext';
@@ -20,13 +17,6 @@ interface UseCensusTableBindingsModelParams {
 }
 
 const EMPTY_DISCHARGED_RUTS: ReadonlySet<string> = new Set();
-const EMPTY_PRESENCE_BY_BED: ClinicalDocumentPresenceResult['byBedId'] = {};
-const EMPTY_INFO_BY_BED: ClinicalDocumentPresenceResult['infoByBedId'] = {};
-const EMPTY_CLINICAL_DOCUMENT_PRESENCE: ClinicalDocumentPresenceResult = {
-  byBedId: EMPTY_PRESENCE_BY_BED,
-  infoByBedId: EMPTY_INFO_BY_BED,
-};
-
 /**
  * Builds a set of RUTs that were discharged on this census day.
  * Used to detect same-day readmissions for the new-admission badge.
@@ -54,13 +44,11 @@ export const useCensusTableBindingsModel = ({
   const canResolveClinicalDocumentPresence = useDeferredCensusEnhancement(
     Boolean(tableViewModel.beds) && canReadClinical && remoteSyncStatus === 'ready'
   );
-  const clinicalDocumentPresence =
-    useClinicalDocumentPresenceByBed({
-      unifiedRows: tableViewModel.unifiedRows,
-      currentDateString,
-      enabled: canResolveClinicalDocumentPresence,
-    }) ?? EMPTY_CLINICAL_DOCUMENT_PRESENCE;
-  const clinicalDocumentPresenceByBedId = clinicalDocumentPresence.byBedId ?? EMPTY_PRESENCE_BY_BED;
+  const clinicalDocumentCountsByBedId = useClinicalDocumentPresenceByBed({
+    unifiedRows: tableViewModel.unifiedRows,
+    currentDateString,
+    enabled: canResolveClinicalDocumentPresence,
+  });
 
   const movements = useDailyRecordMovements();
   const dischargedRuts = useMemo(
@@ -87,14 +75,14 @@ export const useCensusTableBindingsModel = ({
       unifiedRows: tableViewModel.unifiedRows,
       bedTypes: tableViewModel.bedTypes,
       role: tableViewModel.role,
-      clinicalDocumentPresenceByBedId,
+      clinicalDocumentCountsByBedId,
       dischargedRuts,
       onAction: tableViewModel.handleRowAction,
       onActivateEmptyBed: tableViewModel.activateEmptyBed,
       totalWidth: tableViewModel.totalWidth,
     });
   }, [
-    clinicalDocumentPresenceByBedId,
+    clinicalDocumentCountsByBedId,
     currentDateString,
     clinicalEditingDisabled,
     dischargedRuts,
@@ -118,6 +106,5 @@ export const useCensusTableBindingsModel = ({
   return {
     isReady: Boolean(tableViewModel.beds) && Boolean(bindings),
     bindings,
-    clinicalDocumentInfoByBedId: clinicalDocumentPresence.infoByBedId ?? EMPTY_INFO_BY_BED,
   };
 };

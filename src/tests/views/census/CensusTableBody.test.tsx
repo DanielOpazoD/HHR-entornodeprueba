@@ -96,7 +96,7 @@ describe('CensusTableBody', () => {
           visibleColumnCount={9}
           bedTypes={{}}
           role="viewer"
-          clinicalDocumentPresenceByBedId={{}}
+          clinicalDocumentCountsByBedId={{}}
           onAction={vi.fn()}
           onActivateEmptyBed={vi.fn()}
         />
@@ -138,7 +138,7 @@ describe('CensusTableBody', () => {
           bedTypes={{}}
           role="doctor_specialist"
           accessProfile="specialist"
-          clinicalDocumentPresenceByBedId={{}}
+          clinicalDocumentCountsByBedId={{}}
           onAction={vi.fn()}
           onActivateEmptyBed={vi.fn()}
         />
@@ -185,13 +185,15 @@ describe('CensusTableBody', () => {
           visibleColumnCount={9}
           bedTypes={{}}
           role="nurse_hospital"
-          clinicalDocumentPresenceByBedId={{ R1: true }}
+          clinicalDocumentCountsByBedId={{ R1: 2 }}
           onAction={vi.fn()}
           onActivateEmptyBed={vi.fn()}
         />
       </table>
     );
 
+    expect(patientRowSpy.mock.calls[0][0].clinicalDocumentCount).toBe(2);
+    expect(patientRowSpy.mock.calls[1][0].clinicalDocumentCount).toBeUndefined();
     expect(patientRowSpy.mock.calls[0][0].indicators).toEqual({
       hasClinicalDocument: true,
       isNewAdmission: true,
@@ -227,7 +229,7 @@ describe('CensusTableBody', () => {
           visibleColumnCount={9}
           bedTypes={{}}
           role="nurse_hospital"
-          clinicalDocumentPresenceByBedId={{ R1: true }}
+          clinicalDocumentCountsByBedId={{ R1: 2 }}
           onAction={vi.fn()}
           onActivateEmptyBed={vi.fn()}
         />
@@ -266,7 +268,7 @@ describe('CensusTableBody', () => {
           visibleColumnCount={9}
           bedTypes={{}}
           role="viewer"
-          clinicalDocumentPresenceByBedId={{}}
+          clinicalDocumentCountsByBedId={{}}
           onAction={vi.fn()}
           onActivateEmptyBed={onActivateEmptyBed}
         />
@@ -308,7 +310,7 @@ describe('CensusTableBody', () => {
           visibleColumnCount={9}
           bedTypes={{}}
           role="nurse_hospital"
-          clinicalDocumentPresenceByBedId={{}}
+          clinicalDocumentCountsByBedId={{}}
           onAction={vi.fn()}
           onActivateEmptyBed={vi.fn()}
         />
@@ -353,7 +355,7 @@ describe('CensusTableBody', () => {
           visibleColumnCount={9}
           bedTypes={{}}
           role="nurse_hospital"
-          clinicalDocumentPresenceByBedId={{}}
+          clinicalDocumentCountsByBedId={{}}
           onAction={vi.fn()}
           onActivateEmptyBed={vi.fn()}
         />
@@ -396,7 +398,7 @@ describe('CensusTableBody', () => {
           visibleColumnCount={9}
           bedTypes={{}}
           role="nurse_hospital"
-          clinicalDocumentPresenceByBedId={{}}
+          clinicalDocumentCountsByBedId={{}}
           onAction={vi.fn()}
           onActivateEmptyBed={vi.fn()}
         />

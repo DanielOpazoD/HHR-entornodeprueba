@@ -4,7 +4,10 @@ import type { RowMenuAlign } from '@/features/census/components/patient-row/pati
 import { buildOccupiedPatientRowIndicators } from '@/features/census/controllers/patientRowIndicatorsController';
 import type { CensusTableResolvedOccupiedRow } from '@/features/census/types/censusTableComponentContracts';
 
-import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
+import type {
+  ClinicalDocumentCountsByBed,
+  UnifiedBedRow,
+} from '@/features/census/types/censusTableTypes';
 
 const MENU_ALIGN_BOTTOM_THRESHOLD = 4;
 
@@ -17,10 +20,11 @@ const buildResolvedOccupiedRow = (
   index: number,
   totalRows: number,
   currentDateString: string,
-  clinicalDocumentPresenceByBedId: Record<string, boolean>,
+  clinicalDocumentCount: number | undefined,
   dischargedRuts: ReadonlySet<string>
 ): CensusTableResolvedOccupiedRow => ({
   row,
+  clinicalDocumentCount,
   actionMenuAlign: resolvePatientRowMenuAlign(index, totalRows),
   indicators: buildOccupiedPatientRowIndicators({
     isSubRow: row.isSubRow,
@@ -28,7 +32,7 @@ const buildResolvedOccupiedRow = (
     firstSeenDate: row.data.firstSeenDate,
     admissionDate: row.data.admissionDate,
     admissionTime: row.data.admissionTime,
-    hasClinicalDocument: Boolean(clinicalDocumentPresenceByBedId[row.bed.id]),
+    hasClinicalDocument: (clinicalDocumentCount ?? 0) > 0,
     wasDischargedSameDay: Boolean(row.data.rut && dischargedRuts.has(row.data.rut)),
   }),
 });
@@ -40,7 +44,7 @@ export const resolvePatientRowMenuAlign = (index: number, totalRows: number): Ro
 interface BuildResolvedOccupiedRowsParams {
   unifiedRows: UnifiedBedRow[];
   currentDateString: string;
-  clinicalDocumentPresenceByBedId: Record<string, boolean>;
+  clinicalDocumentCountsByBedId: ClinicalDocumentCountsByBed;
   /**
    * Set of patient RUTs that were discharged on this census day.
    * Used to detect same-day readmissions for the new-admission badge.
@@ -51,7 +55,7 @@ interface BuildResolvedOccupiedRowsParams {
 export const buildResolvedOccupiedRows = ({
   unifiedRows,
   currentDateString,
-  clinicalDocumentPresenceByBedId,
+  clinicalDocumentCountsByBedId,
   dischargedRuts = new Set(),
 }: BuildResolvedOccupiedRowsParams): CensusTableResolvedOccupiedRow[] => {
   const occupiedRows = unifiedRows.filter(isOccupiedUnifiedBedRow);
@@ -62,7 +66,7 @@ export const buildResolvedOccupiedRows = ({
       index,
       occupiedRows.length,
       currentDateString,
-      clinicalDocumentPresenceByBedId,
+      row.isSubRow ? undefined : clinicalDocumentCountsByBedId[row.bed.id],
       dischargedRuts
     )
   );

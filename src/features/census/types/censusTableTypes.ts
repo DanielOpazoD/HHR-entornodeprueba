@@ -23,3 +23,6 @@ export interface CensusBedRows {
 }
 
 export type BedTypesById = Record<string, BedType>;
+
+/** A missing bed has no confirmed count. Zero follows a successful read. */
+export type ClinicalDocumentCountsByBed = Readonly<Record<string, number | undefined>>;

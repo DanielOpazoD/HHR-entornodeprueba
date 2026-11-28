@@ -6,17 +6,12 @@ import {
   injectPendingClinicalCribCreateRows,
 } from '@/features/census/controllers/censusTableBodyController';
 import type { CensusTableBodyProps } from '@/features/census/types/censusTableComponentContracts';
-import type { ClinicalDocumentPresenceInfo } from '@/features/census/controllers/clinicalDocumentPresenceController';
 import {
   usePendingClinicalCribCreates,
   usePendingIntentionalClearTargets,
 } from '@/features/census/hooks/usePendingBedClearIds';
 
-export interface CensusTableBodyBadgeProps {
-  clinicalDocumentInfoByBedId?: Record<string, ClinicalDocumentPresenceInfo>;
-}
-
-export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBadgeProps> = ({
+export const CensusTableBody: React.FC<CensusTableBodyProps> = ({
   unifiedRows,
   currentDateString,
   recordLastUpdated,
@@ -27,11 +22,10 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
   bedTypes,
   role,
   accessProfile,
-  clinicalDocumentPresenceByBedId,
+  clinicalDocumentCountsByBedId,
   dischargedRuts,
   onAction,
   onActivateEmptyBed,
-  clinicalDocumentInfoByBedId,
 }) => {
   // Publish committed revisions before clicks without invalidating memoized rows.
   const recordLastUpdatedRef = React.useRef(recordLastUpdated);
@@ -58,13 +52,13 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
     const resolved = buildResolvedOccupiedRows({
       unifiedRows: projectedRows,
       currentDateString,
-      clinicalDocumentPresenceByBedId,
+      clinicalDocumentCountsByBedId,
       dischargedRuts,
     });
     const map = new Map<string, (typeof resolved)[number]>();
     resolved.forEach(entry => map.set(entry.row.id, entry));
     return map;
-  }, [projectedRows, currentDateString, clinicalDocumentPresenceByBedId, dischargedRuts]);
+  }, [projectedRows, currentDateString, clinicalDocumentCountsByBedId, dischargedRuts]);
 
   return (
     <tbody>
@@ -122,7 +116,7 @@ export const CensusTableBody: React.FC<CensusTableBodyProps & CensusTableBodyBad
             role={role}
             accessProfile={accessProfile}
             indicators={resolved.indicators}
-            clinicalDocumentCount={clinicalDocumentInfoByBedId?.[row.bed.id]?.totalCount}
+            clinicalDocumentCount={resolved.clinicalDocumentCount}
           />
         );
       })}
