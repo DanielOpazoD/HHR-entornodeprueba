@@ -35,7 +35,6 @@ import {
   type SyncQueueOperationSnapshot,
 } from '@/services/storage/sync/syncQueueTaskFactory';
 import {
-  countActiveSyncTasks,
   resolvePreOutboxHoldState,
   resolveSyncTaskNextAttemptAt,
   type SyncQueueEnqueueOptions,
@@ -68,9 +67,6 @@ export const createSyncQueueEngine = ({
     if (!runtime.isOnline()) return;
     void processQueue();
   };
-
-  const countActiveTasks = async (ownerKey: string | null): Promise<number> =>
-    countActiveSyncTasks(await store.listAll(ownerKey));
 
   const updateClaimedTaskState = async (
     task: SyncTask,
@@ -181,7 +177,7 @@ export const createSyncQueueEngine = ({
     // The store merges this write's own intent with the pending task inside its transaction.
     const syncContract = buildSyncTaskContract(type, payload, meta?.syncContract);
 
-    const pendingTasks = await countActiveTasks(ownerKey);
+    const pendingTasks = await store.countActive(ownerKey);
     // Only a write folding into an active task leaves the count unchanged: a blocked one revives,
     // and one without its copy is released in the store's transaction and a new task is created.
     if (

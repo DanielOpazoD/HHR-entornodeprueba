@@ -20,9 +20,6 @@ export interface SyncQueueEnqueueOptions {
   authoringSession: AuthoringSession;
 }
 
-export const countActiveSyncTasks = (tasks: SyncTask[]): number =>
-  tasks.filter(task => task.status === 'PENDING' || task.status === 'PROCESSING').length;
-
 export const resolveSyncTaskNextAttemptAt = (
   now: number,
   options: Omit<SyncQueueEnqueueOptions, 'authoringSession'>

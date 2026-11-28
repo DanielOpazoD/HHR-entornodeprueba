@@ -4,7 +4,6 @@ import { buildSyncQueueTaskContextMeta } from './syncQueueFailurePolicy';
 import { buildSyncTaskContract, mergeSyncTaskContracts } from './syncTaskContractPolicy';
 import { getSyncTaskKey, clearSyncTaskRuntimeState } from './syncQueueTaskFactory';
 import {
-  countActiveSyncTasks,
   resolvePreOutboxHoldState,
   resolveSyncTaskNextAttemptAt,
   type SyncQueueEnqueueOptions,
@@ -25,8 +24,6 @@ const enqueueWithinTransaction = async (
   meta: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'> | undefined,
   options: SyncQueueEnqueueOptions
 ): Promise<SyncQueueEnqueueResult> => {
-  const countActiveTasks = async (ownerKey: string | null) =>
-    countActiveSyncTasks(await store.listAll(ownerKey));
   const key = getSyncTaskKey(type, payload);
   // The task belongs to whoever began the operation, never to whoever holds the browser now: once
   // that changed, nothing is enqueued in anyone's name (an interrupted run needs a new capture).
@@ -59,7 +56,7 @@ const enqueueWithinTransaction = async (
         nextAttemptAt: resolveSyncTaskNextAttemptAt(now, options),
         ...resolvePreOutboxHoldState(now, options),
       });
-      const pendingTasks = await countActiveTasks(ownerKey);
+      const pendingTasks = await store.countActive(ownerKey);
       return {
         accepted: true,
         mode: 'reused',
@@ -69,7 +66,7 @@ const enqueueWithinTransaction = async (
     }
   }
 
-  const pendingTasks = await countActiveTasks(ownerKey);
+  const pendingTasks = await store.countActive(ownerKey);
   if (pendingTasks >= maxPendingTasks) {
     return {
       accepted: false,

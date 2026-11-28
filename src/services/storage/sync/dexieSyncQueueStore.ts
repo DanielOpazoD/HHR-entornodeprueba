@@ -134,6 +134,28 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   },
   withEnqueueTransaction: operation =>
     hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => operation()),
+  countActive(ownerKey) {
+    const queue = hospitalDB.syncQueue;
+    return hospitalDB.transaction('r', queue, async () => {
+      const states = ['PENDING', 'PROCESSING'] as const;
+      const totals = await Promise.all(
+        states.map(state => queue.where('status').equals(state).count())
+      );
+      const total = totals.reduce((sum, count) => sum + count, 0);
+      if (total === 0) return 0;
+      // Older ownerless tasks have no compound index entry. Subtract foreign owners
+      // from the state totals so both missing and empty owner keys remain visible.
+      const owners = await queue.where('ownerKey').notEqual('').uniqueKeys();
+      const foreignCounts = await Promise.all(
+        owners.flatMap(owner =>
+          typeof owner === 'string' && !matchesOwner(ownerKey, owner)
+            ? states.map(state => queue.where('[ownerKey+status]').equals([owner, state]).count())
+            : []
+        )
+      );
+      return foreignCounts.reduce((remaining, count) => remaining - count, total);
+    });
+  },
   async listAll(ownerKey) {
     const tasks = await hospitalDB.syncQueue.toArray();
     return tasks.filter(task => matchesOwner(ownerKey, task.ownerKey));

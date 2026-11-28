@@ -31,6 +31,29 @@ beforeEach(async () => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('bounded sync queue reads', () => {
+  it('counts active tasks by owner, including legacy work, without reading clinical payloads', async () => {
+    await hospitalDB.syncQueue.bulkAdd([
+      ...Array.from({ length: 500 }, (_, i) => makeTask(i, { status: 'RETIRED' })),
+      makeTask(501),
+      makeTask(502, { status: 'PROCESSING' }),
+      makeTask(503, { ownerKey: 'another' }),
+      makeTask(504, { ownerKey: undefined }),
+      makeTask(505, { ownerKey: '' }),
+      makeTask(506, { status: 'CONFLICT' }),
+    ]);
+    const read = vi.fn((task: SyncTask) => task);
+    const table = asDexieDatabase(hospitalDB).syncQueue;
+    table.hook('reading', read);
+    try {
+      expect(await store.countActive(OWNER)).toBe(4);
+      expect(await store.countActive('another')).toBe(3);
+      expect(await store.countActive(null)).toBe(2);
+      expect(read).not.toHaveBeenCalled();
+    } finally {
+      table.hook('reading').unsubscribe(read);
+    }
+  });
+
   it('returns the newest eligible page without loading the older backlog into the result', async () => {
     await hospitalDB.syncQueue.bulkAdd([
       ...Array.from({ length: 1000 }, (_, index) => makeTask(index + 1)),

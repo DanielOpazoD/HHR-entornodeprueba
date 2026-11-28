@@ -83,6 +83,7 @@ export interface SyncQueueStorePort {
   completeDirectDailyRecord?(input: DirectDailyRecordAckInput): Promise<DirectDailyRecordAckResult>;
   /** Serialize standalone capacity checks and writes in the same storage transaction. */
   withEnqueueTransaction?<T>(operation: () => Promise<T>): Promise<T>;
+  countActive(ownerKey: string | null): Promise<number>;
   listAll(ownerKey?: string | null): Promise<SyncTask[]>;
   listRecent(limit: number, ownerKey?: string | null): Promise<SyncTask[]>;
   claimReadyPending(
