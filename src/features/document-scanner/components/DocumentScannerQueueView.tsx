@@ -23,6 +23,7 @@ const formatCreatedAt = (value: string): string => {
         timeZone: CLINICAL_TIME_ZONE,
         dateStyle: 'short',
         timeStyle: 'short',
+        hourCycle: 'h23',
       }).format(date);
 };
 

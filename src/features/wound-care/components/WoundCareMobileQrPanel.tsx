@@ -17,6 +17,7 @@ const formatExpiry = (expiresAt?: string): string => {
     timeZone: CLINICAL_TIME_ZONE,
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
   }).format(new Date(expiresAt));
 };
 

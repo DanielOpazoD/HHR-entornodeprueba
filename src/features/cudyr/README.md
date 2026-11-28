@@ -26,7 +26,7 @@ cargador y su modelo (los usa también el respaldo mensual), la cola del archivo
 
 - La web muestra `Últ. mod.` usando `cudyrUpdatedAt`.
 - La web muestra además `cudyrUpdatedBy`; al completarse, conserva responsable y hora de cierre.
-- El PDF de entrega de turno nocturno debe usar la fecha/hora fija de aplicación del instrumento nocturno (`día siguiente, 1:00 AM`).
+- El PDF de entrega de turno nocturno debe usar la fecha/hora fija de aplicación del instrumento nocturno (`día siguiente, 01:00`).
 - La tabla CUDYR incluida al final de la entrega de turno nocturna debe respetar la misma elegibilidad clínica, excluir cálculos para filas bloqueadas y reflejar también cunas RN elegibles.
 - El formateo horario compartido se resuelve vía `formatTimeHHMM` en `src/utils/dateUtils.ts`.
 

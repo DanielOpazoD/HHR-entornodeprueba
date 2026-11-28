@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock3, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
+import { Time24Input } from '@/components/ui/Time24Input';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import { getShiftSchedule } from '@/utils/clinicalDayUtils';
 import type {
@@ -141,29 +142,29 @@ const StaffRoleSection: React.FC<{
                 </select>
                 <StaffSelectionNameHint id={hintId} name={selected} />
               </div>
-              <input
-                type="time"
+              <Time24Input
+                aria-label={`Hora de inicio ${resolveAssignmentLabel(assignment, currentExtraIndex)}`}
                 value={assignment.startTime}
-                onChange={event =>
+                onValueChange={startTime =>
                   onChange(
                     updateDetailedStaffingAssignment(draft, shift, role, assignment.id, {
-                      startTime: event.target.value,
+                      startTime,
                     })
                   )
                 }
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-medical-400 focus:outline-none"
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm tabular-nums text-slate-700 focus:border-medical-400 focus:outline-none"
               />
-              <input
-                type="time"
+              <Time24Input
+                aria-label={`Hora de término ${resolveAssignmentLabel(assignment, currentExtraIndex)}`}
                 value={assignment.endTime}
-                onChange={event =>
+                onValueChange={endTime =>
                   onChange(
                     updateDetailedStaffingAssignment(draft, shift, role, assignment.id, {
-                      endTime: event.target.value,
+                      endTime,
                     })
                   )
                 }
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-medical-400 focus:outline-none"
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm tabular-nums text-slate-700 focus:border-medical-400 focus:outline-none"
               />
               <div className="flex items-center justify-end gap-1">
                 <button

@@ -39,8 +39,11 @@ export default function NursingAccountAudit({
       <ul>
         {events.map(event => (
           <li key={event.id} className="border-t py-2">
-            {new Date(event.at).toLocaleString('es-CL', { timeZone: CLINICAL_TIME_ZONE })} ·{' '}
-            {actions[event.action] || event.action} · {label(event.targetUid)} · responsable:{' '}
+            {new Date(event.at).toLocaleString('es-CL', {
+              timeZone: CLINICAL_TIME_ZONE,
+              hourCycle: 'h23',
+            })}{' '}
+            · {actions[event.action] || event.action} · {label(event.targetUid)} · responsable:{' '}
             {label(event.actorUid)}
           </li>
         ))}

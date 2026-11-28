@@ -64,16 +64,25 @@ const readTimestamp = (value: string): { date: Date; timeZone: string } | null =
   return { date, timeZone: isWallClock ? 'UTC' : CLINICAL_TIME_ZONE };
 };
 
-/** Formats a timestamp string with `Intl` options on the hospital clock; `null` if not a date. */
+/** Formats a timestamp string with `Intl` options on the hospital clock (24 h); `null` if not a date. */
 export const formatTimestamp = (
   value: string,
   options: Intl.DateTimeFormatOptions,
   locale = 'es-CL'
 ): string | null => {
   const timestamp = readTimestamp(value);
-  return timestamp
-    ? timestamp.date.toLocaleString(locale, { ...options, timeZone: timestamp.timeZone })
-    : null;
+  if (!timestamp) return null;
+  const includesTime =
+    Object.keys(options).length === 0 ||
+    options.hour !== undefined ||
+    options.minute !== undefined ||
+    options.second !== undefined ||
+    options.timeStyle !== undefined;
+  return timestamp.date.toLocaleString(locale, {
+    ...(includesTime ? { hourCycle: 'h23' as const } : {}),
+    ...options,
+    timeZone: timestamp.timeZone,
+  });
 };
 
 /**

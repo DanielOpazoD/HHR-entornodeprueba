@@ -1,5 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
+import { Time24Input } from '@/components/ui/Time24Input';
 import { resolveMovementTimeInputMax } from '@/features/census/controllers/clinicalShiftCalendarController';
 
 export type MovementDateTimeFieldTone = 'emerald' | 'blue';
@@ -76,16 +77,15 @@ export const MovementDateTimeField: React.FC<MovementDateTimeFieldProps> = ({
             onChange={event => onDateChange(event.target.value)}
           />
         )}
-        <input
-          type="time"
+        <Time24Input
+          aria-label="Hora"
           className={clsx(
-            'w-full p-2 bg-slate-50 border rounded-lg text-sm focus:ring-2 focus:outline-none transition-all',
+            'w-full p-2 bg-slate-50 border rounded-lg text-sm tabular-nums focus:ring-2 focus:outline-none transition-all',
             toneClassName
           )}
-          step={300}
-          max={resolveMovementTimeInputMax({ dateValue, nextDay, nextDayMaxTime })}
+          maxTime={resolveMovementTimeInputMax({ dateValue, nextDay, nextDayMaxTime })}
           value={timeValue}
-          onChange={event => onTimeChange(event.target.value)}
+          onValueChange={onTimeChange}
         />
       </div>
       {timeError && <p className="text-[9px] text-red-500 font-medium mt-1 pl-1">{timeError}</p>}
