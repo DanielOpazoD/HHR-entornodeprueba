@@ -5,6 +5,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { withLocalNameParts, type MappedPatient } from '../mapping/rayenToPatientData';
 import { diffSyncablePatientFields, mergeSyncablePatient } from './patientSyncPolicy';
+import { hasCompatibleSourceDocumentType } from './censusPatientIdentityIndex';
 import {
   clinicalCribDocumentIdentity,
   hasRegisteredClinicalCribRut,
@@ -114,11 +115,14 @@ export const reconcileClinicalCribs = (
       continue;
     }
     const rawIncomingCrib = withClinicalCribDefaults(mapped.patient);
+    const documentMatch = usesMaternalRun
+      ? undefined
+      : currentCribs.byDocument.get(clinicalCribDocumentIdentity(rawIncomingCrib.rut));
     const existingRef =
       currentCribs.byEpisode.get(encounter.encounterId) ??
-      (usesMaternalRun
-        ? undefined
-        : currentCribs.byDocument.get(clinicalCribDocumentIdentity(rawIncomingCrib.rut)));
+      (documentMatch && hasCompatibleSourceDocumentType(documentMatch.patient, encounter)
+        ? documentMatch
+        : undefined);
     // While the RN has no RUN, HHR preserves the locally curated provisional name. Once Eloísa
     // provides a RUN, Registro Civil identity becomes authoritative and all syncable demographics
     // (including names and surnames) are refreshed from the official record.

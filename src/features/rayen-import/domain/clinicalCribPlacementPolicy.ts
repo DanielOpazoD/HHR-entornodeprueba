@@ -265,8 +265,8 @@ export const shouldReconcileAsPrincipal = (
 /**
  * The text a crib's document is matched by when no episode matches. Letters stay, so two passports
  * that share digits are two documents and a passport never equals a RUN (ID-01); only separators
- * and letter case are ignored, as Eloísa and manual entry differ in both. The type is not part of
- * it: Eloísa sends none and the one stored may be inferred.
+ * and letter case are ignored, as Eloísa and manual entry differ in both. A declared source
+ * document type is checked separately because older captures omit it.
  */
 export const clinicalCribDocumentIdentity = (document?: string): string =>
   (document ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase();

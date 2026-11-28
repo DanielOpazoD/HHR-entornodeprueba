@@ -96,6 +96,10 @@ un dígito verificador válido al guardar como «Pasaporte»). Un documento de E
 no sea la K final —o informado explícitamente como pasaporte— es un pasaporte y se guarda como tal
 en los casos nuevos; un paciente ya guardado conserva su documento.
 
+Al sincronizar una cama o cuna sin coincidencia de episodio, un RUN y un pasaporte de tipos
+explícitos distintos nunca identifican a la misma persona por compartir sus dígitos. Si la
+ubicación ya está ocupada, se conserva al ocupante con sus notas hasta revisar la diferencia.
+
 Corregir a mano la identidad de una cama o cuna ocupada (cambiar entre RUT y Pasaporte, corregir el
 número de documento o el nombre) nunca borra el diagnóstico, la especialidad ni los demás datos
 clínicos, ni borra la referencia del episodio (`clinicalEpisodeId`): para reemplazar al ocupante de

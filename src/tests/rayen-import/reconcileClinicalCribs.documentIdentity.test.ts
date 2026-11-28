@@ -132,6 +132,23 @@ describe('clinical crib document fallback', () => {
     expect(diff.updates[0]?.changes[0]?.to).toMatchObject({ clinicalEpisodeId: 'NEW' });
   });
 
+  it.each([
+    ['Pasaporte', 'RUT'],
+    ['RUT', 'Pasaporte'],
+  ] as const)(
+    'keeps the note of a crib with a %s when the source explicitly reports a different %s',
+    (stored, incoming) => {
+      const run = '123456785';
+      const diff = reconcile(record(patient(run, stored, '')), patient(run, incoming, 'NEW'), {
+        ...encounter,
+        run,
+        documentType: incoming,
+      });
+      expect(diff.updates).toEqual([]);
+      expect(diff.conflicts[0]?.reason).toContain('ya está ocupada');
+    }
+  );
+
   it.each(['ab123456', 'AB-123456', 'ab 123456'])(
     'still recognises passport AB123456 stored by hand as %s',
     stored => {

@@ -6,6 +6,13 @@ import type { RayenEncounter } from '../contracts/rayenSnapshot';
 export const normalizePatientRut = (rut?: string): string =>
   (rut ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase();
 
+/** Compare the source's declared type before using a document as a substitute for an episode. */
+export const hasCompatibleSourceDocumentType = (
+  patient: Pick<PatientData, 'documentType'>,
+  source: Pick<RayenEncounter, 'documentType'>
+): boolean =>
+  !source.documentType || !patient.documentType || patient.documentType === source.documentType;
+
 /** Exact episode, or a legacy RUN with a complete matching admission stamp. */
 export const matchesCensusEpisodeIdentity = (
   stored: PatientData,
@@ -104,8 +111,10 @@ export const createCensusPatientIdentityIndex = (
   ): CurrentPatientRef | undefined => {
     const rut = normalizePatientRut(encounter.run);
     if (!rut || incomingRunCounts.get(rut) !== 1) return undefined;
-    const matches = index.get(rut) ?? [];
-    return matches.length === 1 ? matches[0] : undefined;
+    const matches = index.get(rut);
+    if (matches?.length !== 1) return undefined;
+    const [match] = matches;
+    return match && hasCompatibleSourceDocumentType(match.patient, encounter) ? match : undefined;
   };
 
   return {
